@@ -1,0 +1,23 @@
+{
+  "name": "bundle-generator",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "@rhinestone/module-sdk": "^0.2.8",
+    "@rhinestone/orchestrator-sdk": "0.2.0-rc.8",
+    "dotenv": "^16.5.0",
+    "ts-node": "^10.9.2",
+    "typescript": "^5.8.3",
+    "viem": "^2.27.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.14.1"
+  }
+}
