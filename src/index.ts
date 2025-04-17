@@ -23,18 +23,30 @@ import {
 import { deployAccount, getSmartAccount } from "./account";
 import { signOrderBundle } from "./signing";
 import { waitForBundleResult } from "./bundleStatus";
-import intent from "../intent.json";
 import { Token } from "./types";
 import { getChain } from "./chains";
 import { config } from "dotenv";
+import { convertTokenAmount } from "./tokens";
+import { collectUserInput, showUserAccount } from "./cli";
 config();
 
 export const main = async () => {
+  const intent = await collectUserInput();
+
   const orchestrator = getOrchestrator(process.env.ORCHESTRATOR_API_KEY!);
 
   const owner: Account = privateKeyToAccount(
     process.env.OWNER_PRIVATE_KEY! as Hex,
   );
+
+  const targetChain = getChain(intent.targetChain);
+
+  const targetSmartAccount = await getSmartAccount({
+    chain: targetChain,
+    owner,
+  });
+
+  await showUserAccount(targetSmartAccount.account.address);
 
   for (const sourceChain of intent.sourceChains) {
     const chain = getChain(sourceChain);
@@ -46,13 +58,6 @@ export const main = async () => {
     await deployAccount({ smartAccount: sourceSmartAccount });
   }
 
-  const targetChain = getChain(intent.targetChain);
-
-  const targetSmartAccount = await getSmartAccount({
-    chain: targetChain,
-    owner,
-  });
-
   const target = intent.tokenRecipient as Address;
 
   // create the meta intent
@@ -61,7 +66,7 @@ export const main = async () => {
     tokenTransfers: intent.targetTokens.map((token: Token) => {
       return {
         tokenAddress: getTokenAddress(token.symbol, targetChain.id),
-        amount: BigInt(parseInt(token.amount)),
+        amount: convertTokenAmount({ token }),
       };
     }),
     targetAccount: targetSmartAccount.account.address,
@@ -71,14 +76,14 @@ export const main = async () => {
           token.symbol == "ETH"
             ? target
             : getTokenAddress(token.symbol, targetChain.id),
-        value: token.symbol == "ETH" ? BigInt(parseInt(token.amount)) : 0n,
+        value: token.symbol == "ETH" ? convertTokenAmount({ token }) : 0n,
         data:
           token.symbol == "ETH"
             ? "0x"
             : encodeFunctionData({
                 abi: erc20Abi,
                 functionName: "transfer",
-                args: [target, BigInt(parseInt(token.amount))],
+                args: [target, convertTokenAmount({ token })],
               }),
       };
     }),
@@ -119,10 +124,6 @@ export const main = async () => {
   });
 
   console.log("Bundle result: ", result);
-
-  return {
-    account: targetSmartAccount.account.address,
-  };
 };
 
 main();

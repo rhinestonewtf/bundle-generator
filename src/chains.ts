@@ -1,4 +1,4 @@
-import { arbitrum, base, mainnet, polygon } from "viem/chains";
+import { arbitrum, base, mainnet, optimism, polygon } from "viem/chains";
 
 export const getChain = (name: string) => {
   switch (name) {
@@ -10,6 +10,8 @@ export const getChain = (name: string) => {
       return arbitrum;
     case "Base":
       return base;
+    case "Optimism":
+      return optimism;
     default:
       throw new Error(`Chain ${name} not supported`);
   }
