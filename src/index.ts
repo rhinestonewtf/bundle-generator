@@ -89,6 +89,22 @@ export const main = async () => {
     }),
   };
 
+  await new Promise((resolve) => {
+    if (intent.sourceChains.length > 0 && intent.sourceTokens.length > 0) {
+      metaIntent.accountAccessList = [];
+      for (const sourceChain of intent.sourceChains) {
+        const chain = getChain(sourceChain);
+        for (const sourceToken of intent.sourceTokens) {
+          metaIntent.accountAccessList.push({
+            chainId: chain.id,
+            tokenAddress: getTokenAddress(sourceToken, chain.id),
+          });
+        }
+      }
+    }
+    resolve(metaIntent);
+  });
+
   console.log("Intent generated");
 
   const orderPath = await orchestrator.getOrderPath(

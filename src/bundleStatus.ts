@@ -27,7 +27,7 @@ export const waitForBundleResult = async ({
       break; // Exit the loop
     }
 
-    await new Promise((resolve) => setTimeout(resolve, 2000));
+    await new Promise((resolve) => setTimeout(resolve, 1000));
     bundleStatus = await orchestrator.getBundleStatus(
       bundleResults[0].bundleId,
     );
