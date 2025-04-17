@@ -89,10 +89,14 @@ export const main = async () => {
     }),
   };
 
+  console.log("Intent generated");
+
   const orderPath = await orchestrator.getOrderPath(
     metaIntent,
     targetSmartAccount.account.address,
   );
+
+  console.log("Bundle generated: " + orderPath[0].orderBundle.nonce);
 
   orderPath[0].orderBundle.segments[0].witness.execs = [
     ...orderPath[0].injectedExecutions.filter(
@@ -106,6 +110,8 @@ export const main = async () => {
     owner,
   });
 
+  console.log("Order bundle signed");
+
   // send the signed bundle
   const bundleResults: PostOrderBundleResult =
     await orchestrator.postSignedOrderBundle([
@@ -117,6 +123,8 @@ export const main = async () => {
         ),
       },
     ]);
+
+  console.log("Bundle sent");
 
   const result = await waitForBundleResult({
     bundleResults,

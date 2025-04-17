@@ -21,6 +21,7 @@ export const waitForBundleResult = async ({
     bundleStatus.status === BundleStatus.PENDING ||
     bundleStatus.status === BundleStatus.PARTIALLY_COMPLETED
   ) {
+    console.log("Bundle pending");
     // Check if we've exceeded the maximum wait time
     if (Date.now() - startTime > maxWaitTime) {
       break; // Exit the loop

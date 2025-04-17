@@ -35,6 +35,7 @@ export const collectUserInput = async () => {
       { name: "WETH", value: "WETH" },
       { name: "USDC", value: "USDC" },
     ],
+    required: true,
   });
 
   const formattedTargetTokens = targetTokens.map((symbol) => {
