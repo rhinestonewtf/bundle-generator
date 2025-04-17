@@ -1,4 +1,6 @@
 import { checkbox, input, confirm, select } from "@inquirer/prompts";
+import { Hex } from "viem";
+import { privateKeyToAccount } from "viem/accounts";
 
 export const collectUserInput = async () => {
   const targetChain = await select({
@@ -76,9 +78,16 @@ export const collectUserInput = async () => {
     ],
   });
 
-  const tokenRecipient = await input({
-    message: "Recipient address for tokens on the target chain",
+  let tokenRecipient = await input({
+    message:
+      "Recipient address for tokens on the target chain, leave blank to use deployment account",
   });
+
+  if (!tokenRecipient) {
+    tokenRecipient = privateKeyToAccount(
+      process.env.DEPLOYMENT_PRIVATE_KEY! as Hex,
+    ).address;
+  }
 
   return {
     targetChain,
