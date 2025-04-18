@@ -1,5 +1,5 @@
 import { OWNABLE_VALIDATOR_ADDRESS } from "@rhinestone/module-sdk";
-import { Account, encodePacked } from "viem";
+import { encodePacked, LocalAccount } from "viem";
 const { getOrderBundleHash } = require("@rhinestone/orchestrator-sdk");
 import type {
   Execution,
@@ -15,7 +15,7 @@ export const signOrderBundle = async ({
     orderBundle: MultiChainCompact;
     injectedExecutions: Execution[];
   }[];
-  owner: any;
+  owner: LocalAccount;
 }) => {
   const orderBundleHash = getOrderBundleHash(orderPath[0].orderBundle);
 
