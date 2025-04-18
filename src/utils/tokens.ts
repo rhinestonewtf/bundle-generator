@@ -1,5 +1,5 @@
 import { parseEther, parseUnits } from "viem";
-import { Token } from "./types";
+import { Token } from "../types";
 
 export const convertTokenAmount = ({ token }: { token: Token }) => {
   if (token.symbol == "ETH" || token.symbol == "WETH") {

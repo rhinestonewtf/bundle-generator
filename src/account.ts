@@ -14,7 +14,7 @@ import {
   slice,
   zeroAddress,
 } from "viem";
-import { getPublicClient } from "./clients";
+import { getPublicClient } from "./utils/clients";
 import {
   getOwnableValidator,
   RHINESTONE_ATTESTER_ADDRESS,

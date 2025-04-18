@@ -1,8 +1,10 @@
 import { checkbox, input, confirm, select } from "@inquirer/prompts";
 import { Hex } from "viem";
 import { privateKeyToAccount } from "viem/accounts";
+import { Intent } from "./types";
+import * as fs from "fs";
 
-export const collectUserInput = async () => {
+export const collectUserInput = async (): Promise<Intent> => {
   const targetChain = await select({
     message: "Select a target chain",
     choices: [
@@ -103,4 +105,42 @@ export const showUserAccount = async (address: string) => {
     `To use your account, you'll need to fund it on the relevant source chain(s). Your account address is ${address}`,
   );
   await confirm({ message: "Continue?" });
+};
+
+export const getReplayParams = async () => {
+  const isAll = await select({
+    message: "Do you want to replay all intents?",
+    choices: [
+      { name: "Yes", value: true },
+      { name: "No", value: false },
+    ],
+  });
+
+  let intentsToReplay: string[] = [];
+  if (!isAll) {
+    intentsToReplay = await checkbox({
+      message: "Select intents to replay",
+      choices: fs
+        .readdirSync("intents")
+        .filter((file) => file.endsWith(".json") && /^\d+\./.test(file))
+        .map((file) => ({
+          name: file,
+          value: file,
+        })),
+    });
+  }
+
+  const isSequential = await select({
+    message: "Do you want to replay intents in sequence?",
+    choices: [
+      { name: "Yes", value: true },
+      { name: "No", value: false },
+    ],
+  });
+
+  return {
+    isAll,
+    intentsToReplay,
+    isSequential,
+  };
 };

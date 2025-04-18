@@ -4,7 +4,8 @@
   "description": "",
   "main": "index.js",
   "scripts": {
-    "start": "ts-node src/index.ts"
+    "new": "ts-node src/new-intent.ts",
+    "replay": "ts-node src/existing-intent.ts"
   },
   "keywords": [],
   "author": "",

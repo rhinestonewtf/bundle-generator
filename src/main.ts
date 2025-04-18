@@ -21,18 +21,13 @@ import {
   Hex,
 } from "viem";
 import { deployAccount, getSmartAccount } from "./account";
-import { signOrderBundle } from "./signing";
-import { waitForBundleResult } from "./bundleStatus";
-import { Token } from "./types";
-import { getChain } from "./chains";
-import { config } from "dotenv";
-import { convertTokenAmount } from "./tokens";
-import { collectUserInput, showUserAccount } from "./cli";
-config();
+import { signOrderBundle } from "./utils/signing";
+import { waitForBundleResult } from "./utils/bundleStatus";
+import { Intent, Token } from "./types";
+import { getChain } from "./utils/chains";
+import { convertTokenAmount } from "./utils/tokens";
 
-export const main = async () => {
-  const intent = await collectUserInput();
-
+export const processIntent = async (intent: Intent) => {
   const orchestrator = getOrchestrator(process.env.ORCHESTRATOR_API_KEY!);
 
   const owner: Account = privateKeyToAccount(
@@ -45,8 +40,6 @@ export const main = async () => {
     chain: targetChain,
     owner,
   });
-
-  await showUserAccount(targetSmartAccount.account.address);
 
   for (const sourceChain of intent.sourceChains) {
     const chain = getChain(sourceChain);
@@ -149,5 +142,3 @@ export const main = async () => {
 
   console.log("Bundle result: ", result);
 };
-
-main();
