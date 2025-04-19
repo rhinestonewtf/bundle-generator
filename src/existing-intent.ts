@@ -13,16 +13,16 @@ export const main = async () => {
   if (replayParams.isAll) {
     intentsToReplay = fs
       .readdirSync("intents")
-      .filter((file) => file.endsWith(".json") && /^\d+\./.test(file))
+      .filter((file) => file.endsWith(".json"))
       .map((file) => file);
   } else {
     intentsToReplay = replayParams.intentsToReplay;
   }
-
-  const intents = intentsToReplay.map((file) => {
+  const intents = intentsToReplay.flatMap((file) => {
     const filePath = path.join("intents", file);
     const data = fs.readFileSync(filePath, "utf-8");
-    return JSON.parse(data);
+    const parsedData = JSON.parse(data);
+    return parsedData.intentList ? parsedData.intentList : [parsedData];
   });
 
   if (replayParams.isSequential) {

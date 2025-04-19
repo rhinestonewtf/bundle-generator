@@ -4,7 +4,7 @@ import { privateKeyToAccount } from "viem/accounts";
 import { Intent } from "./types";
 import * as fs from "fs";
 
-export const collectUserInput = async (): Promise<Intent> => {
+export const collectUserInput = async (): Promise<{ intent: Intent; saveAsFileName?: string }> => {
   const targetChain = await select({
     message: "Select a target chain",
     choices: [
@@ -82,21 +82,36 @@ export const collectUserInput = async (): Promise<Intent> => {
 
   let tokenRecipient = await input({
     message:
-      "Recipient address for tokens on the target chain, leave blank to use deployment account",
+      "Recipient address for tokens on the target chain",
+      default: process.env.DEFAULT_TOKEN_RECIPIENT ?? privateKeyToAccount(
+        process.env.DEPLOYMENT_PRIVATE_KEY! as Hex,
+      ).address
   });
 
-  if (!tokenRecipient) {
-    tokenRecipient = privateKeyToAccount(
-      process.env.DEPLOYMENT_PRIVATE_KEY! as Hex,
-    ).address;
-  }
+  const chainsPart = sourceChains.map(chain => chain.slice(0, 3)).join(',');
+  const tokensPart = sourceTokens.join(',');
+  const targetPart = targetChain.slice(0, 3);
+  const symbolsPart = formattedTargetTokens.map(token => token.symbol).join(',');
+  const amountsPart = formattedTargetTokens.map(token => token.amount).join(',');
+  const timestamp = new Date().toISOString().replace(/[-:.]/g, "").slice(0, 13);
 
+  const filename = await input({
+    message: "Enter the .json filename to save the intent to, or 'no' / 'n' to not save\n(Note: You can continually add more intents to an existing file)",
+    default: `${chainsPart}.${tokensPart} > ${targetPart}.${symbolsPart} ${amountsPart} ${timestamp}`
+  });
+
+  const sanitizedFilename = filename.replace(/\.json$/, '')
+  const saveAsFileName = `${sanitizedFilename}.json`;
+  
   return {
-    targetChain,
-    targetTokens: formattedTargetTokens,
-    sourceChains,
-    sourceTokens,
-    tokenRecipient,
+    intent: {
+      targetChain,
+      targetTokens: formattedTargetTokens,
+      sourceChains,
+      sourceTokens,
+      tokenRecipient,
+    },
+    saveAsFileName,
   };
 };
 
@@ -122,7 +137,7 @@ export const getReplayParams = async () => {
       message: "Select intents to replay",
       choices: fs
         .readdirSync("intents")
-        .filter((file) => file.endsWith(".json") && /^\d+\./.test(file))
+        .filter((file) => file.endsWith(".json"))
         .map((file) => ({
           name: file,
           value: file,
