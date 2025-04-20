@@ -89,8 +89,8 @@ export const collectUserInput = async (): Promise<{ intent: Intent; saveAsFileNa
       ).address
   });
 
-  const sourceAssets = sourceChains.map(chain => `${chain.slice(0, 3).toLowerCase()}.${sourceTokens.join(',')}`).join(' | ');
-  const targetAssets = `${formattedTargetTokens.map((token) => `${token.amount} ${targetChain.slice(0, 3).toLowerCase()}.${token.symbol}`).join(',')}`;
+  const sourceAssets = sourceChains.map(chain => `${chain.slice(0, 3).toLowerCase()}.${sourceTokens.map(token => token).join(`, ${chain.slice(0, 3).toLowerCase()}.`)}`).join(', ');
+  const targetAssets = `${formattedTargetTokens.map((token) => `${targetChain.slice(0, 3).toLowerCase()}.${token.symbol}`).join(',')}`;
   const timestamp = new Date().toISOString().replace(/[-:.]/g, "").slice(0, 13);
 
   const filename = await input({
