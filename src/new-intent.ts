@@ -11,7 +11,7 @@ import * as path from "path";
 config();
 
 export const main = async () => {
-  const intent = await collectUserInput();
+  const {intent, saveAsFileName} = await collectUserInput();
 
   const owner: Account = privateKeyToAccount(
     process.env.OWNER_PRIVATE_KEY! as Hex,
@@ -24,23 +24,19 @@ export const main = async () => {
 
   await showUserAccount(targetSmartAccount.account.address);
 
-  if (!fs.existsSync("intents")) {
-    fs.mkdirSync("intents", { recursive: true });
+  if (saveAsFileName && !saveAsFileName.match(/^(n|no)\.json$/)) {
+    if (!fs.existsSync("intents")) {
+      fs.mkdirSync("intents", { recursive: true });
+    }
+    const filePath = `intents/${saveAsFileName}`;
+    let existingData = [];
+    if (fs.existsSync(filePath)) {
+      const data = fs.readFileSync(filePath, "utf-8");
+      existingData = JSON.parse(data).intentList || [];
+    }
+    existingData.push(intent);
+    fs.writeFileSync(filePath, JSON.stringify({ intentList: existingData }, null, 2));
   }
-
-  const files = fs.readdirSync("intents");
-  const sequentialFiles = files
-    .filter((file) => file.endsWith(".json") && /^\d+\./.test(file))
-    .map((file) => parseInt(path.basename(file, ".json"), 10))
-    .filter((num) => !isNaN(num));
-
-  const highestNumber =
-    sequentialFiles.length > 0 ? Math.max(...sequentialFiles) : 0;
-
-  fs.writeFileSync(
-    `intents/${highestNumber + 1}.json`,
-    JSON.stringify(intent, null, 2),
-  );
 
   await processIntent(intent);
 };
