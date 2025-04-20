@@ -25,13 +25,14 @@ export const main = async () => {
     return parsedData.intentList ? parsedData.intentList : [parsedData];
   });
 
-  if (replayParams.isSequential) {
     for (const intent of intents) {
-      await processIntent(intent);
+      if (!replayParams.asyncMode) 
+        { await processIntent(intent); }
+      else 
+        { processIntent(intent); }
+      
+      await new Promise(resolve => setTimeout(resolve, replayParams.msBetweenBundles));
     }
-  } else {
-    await Promise.all(intents.map((intent) => processIntent(intent)));
-  }
 };
 
 main();
