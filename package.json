@@ -5,7 +5,8 @@
   "main": "index.js",
   "scripts": {
     "new": "ts-node src/new-intent.ts",
-    "replay": "ts-node src/existing-intent.ts"
+    "replay": "ts-node src/existing-intent.ts",
+    "address": "ts-node src/get-address.ts"
   },
   "keywords": [],
   "author": "",
