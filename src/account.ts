@@ -65,21 +65,21 @@ export const getSmartAccount = async ({
           ],
           [
             {
-              module: getSameChainModuleAddress(),
+              module: getSameChainModuleAddress(chain.id),
               initData: "0x",
             },
             {
-              module: getTargetModuleAddress(),
+              module: getTargetModuleAddress(chain.id),
               initData: "0x",
             },
             {
-              module: getHookAddress(),
+              module: getHookAddress(chain.id),
               initData: "0x",
             },
           ],
           [
             {
-              module: getTargetModuleAddress(),
+              module: getTargetModuleAddress(chain.id),
               initData: encodeAbiParameters(
                 [
                   { name: "selector", type: "bytes4" },

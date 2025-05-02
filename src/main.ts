@@ -144,7 +144,7 @@ export const processIntent = async (intent: Intent) => {
 
   orderPath[0].orderBundle.segments[0].witness.execs = [
     ...orderPath[0].injectedExecutions.filter(
-      (e: any) => e.to !== getHookAddress(),
+      (e: any) => e.to !== getHookAddress(targetChain.id),
     ),
     ...metaIntent.targetExecutions,
   ];
