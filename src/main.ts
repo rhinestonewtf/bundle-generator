@@ -27,13 +27,15 @@ import { Intent, Token } from "./types";
 import { getChain } from "./utils/chains";
 import { convertTokenAmount } from "./utils/tokens";
 
-export function ts()
-{
-  return new Date().toISOString().replace(/T/, ' ').replace(/\..+/, '')
+export function ts() {
+  return new Date().toISOString().replace(/T/, " ").replace(/\..+/, "");
 }
 
 export const processIntent = async (intent: Intent) => {
-  const orchestrator = getOrchestrator(process.env.ORCHESTRATOR_API_KEY!);
+  const orchestrator = getOrchestrator(
+    process.env.ORCHESTRATOR_API_KEY!,
+    process.env.ORCHESTRATOR_API_URL,
+  );
 
   const owner: Account = privateKeyToAccount(
     process.env.OWNER_PRIVATE_KEY! as Hex,
@@ -104,17 +106,24 @@ export const processIntent = async (intent: Intent) => {
   });
 
   const sourceAssetsLabel = intent.sourceChains
-    .map(chain => intent.sourceTokens.map(token => `${chain.slice(0, 3).toLowerCase()}.${token}`).join(', '))
-    .join(' | ');
+    .map((chain) =>
+      intent.sourceTokens
+        .map((token) => `${chain.slice(0, 3).toLowerCase()}.${token}`)
+        .join(", "),
+    )
+    .join(" | ");
 
   const targetAssetsLabel = intent.targetTokens
-    .map(token => `${token.amount} ${intent.targetChain.slice(0, 3).toLowerCase()}.${token.symbol.toLowerCase()}`)
-    .join(', ');
+    .map(
+      (token) =>
+        `${token.amount} ${intent.targetChain.slice(0, 3).toLowerCase()}.${token.symbol.toLowerCase()}`,
+    )
+    .join(", ");
 
   const recipientLabel = intent.tokenRecipient.slice(0, 6);
 
   const bundleLabel = `${sourceAssetsLabel} > ${targetAssetsLabel} to ${recipientLabel}`;
-  
+
   console.log(`${ts()} Bundle ${bundleLabel}: Generating Intent`);
 
   const orderPath = await orchestrator.getOrderPath(
@@ -122,7 +131,9 @@ export const processIntent = async (intent: Intent) => {
     targetSmartAccount.account.address,
   );
 
-  console.log(`${ts()} Bundle ${bundleLabel}: Generated ${orderPath[0].orderBundle.nonce}`);
+  console.log(
+    `${ts()} Bundle ${bundleLabel}: Generated ${orderPath[0].orderBundle.nonce}`,
+  );
 
   orderPath[0].orderBundle.segments[0].witness.execs = [
     ...orderPath[0].injectedExecutions.filter(
@@ -150,12 +161,12 @@ export const processIntent = async (intent: Intent) => {
       },
     ]);
 
-    console.log(`${ts()} Bundle ${bundleLabel}: Sent`);
+  console.log(`${ts()} Bundle ${bundleLabel}: Sent`);
 
   const result = await waitForBundleResult({
     bundleResults,
     orchestrator,
-    bundleLabel
+    bundleLabel,
   });
 
   console.log(`${ts()} Bundle ${bundleLabel}: Result`, result);
