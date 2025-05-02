@@ -26,6 +26,7 @@ import { waitForBundleResult } from "./utils/bundleStatus";
 import { Intent, Token } from "./types";
 import { getChain } from "./utils/chains";
 import { convertTokenAmount } from "./utils/tokens";
+import { fundAccount } from "./funding";
 
 export function ts() {
   return new Date().toISOString().replace(/T/, " ").replace(/\..+/, "");
@@ -53,6 +54,12 @@ export const processIntent = async (intent: Intent) => {
     const sourceSmartAccount = await getSmartAccount({
       chain,
       owner,
+    });
+
+    await fundAccount({
+      account: sourceSmartAccount.account.address,
+      sourceChains: intent.sourceChains,
+      sourceTokens: intent.sourceTokens,
     });
 
     await deployAccount({ smartAccount: sourceSmartAccount });
