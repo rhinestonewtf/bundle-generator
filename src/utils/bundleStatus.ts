@@ -1,5 +1,4 @@
-const { BundleStatus } = require("@rhinestone/orchestrator-sdk");
-import type { PostOrderBundleResult } from "@rhinestone/orchestrator-sdk";
+import { BundleStatus, type PostOrderBundleResult } from "@rhinestone/sdk/orchestrator";
 import { ts } from "../main";
 
 export const waitForBundleResult = async ({

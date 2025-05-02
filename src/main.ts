@@ -1,12 +1,12 @@
-const { getHookAddress } = require("@rhinestone/orchestrator-sdk");
 import {
+  getHookAddress,
   getOrchestrator,
   getTokenAddress,
   type Execution,
   type MetaIntent,
   type PostOrderBundleResult,
   type TokenTransfer,
-} from "@rhinestone/orchestrator-sdk";
+} from "@rhinestone/sdk/orchestrator";
 import {
   Account,
   generatePrivateKey,
@@ -137,7 +137,7 @@ export const processIntent = async (intent: Intent) => {
 
   orderPath[0].orderBundle.segments[0].witness.execs = [
     ...orderPath[0].injectedExecutions.filter(
-      (e: any) => e.to !== getHookAddress(targetChain.id),
+      (e: any) => e.to !== getHookAddress(),
     ),
     ...metaIntent.targetExecutions,
   ];

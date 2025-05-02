@@ -23,7 +23,7 @@ import {
   getHookAddress,
   getSameChainModuleAddress,
   getTargetModuleAddress,
-} from "@rhinestone/orchestrator-sdk";
+} from "@rhinestone/sdk/orchestrator";
 import { privateKeyToAccount } from "viem/accounts";
 
 export const getSmartAccount = async ({
@@ -65,21 +65,21 @@ export const getSmartAccount = async ({
           ],
           [
             {
-              module: getSameChainModuleAddress(chain.id),
+              module: getSameChainModuleAddress(),
               initData: "0x",
             },
             {
-              module: getTargetModuleAddress(chain.id),
+              module: getTargetModuleAddress(),
               initData: "0x",
             },
             {
-              module: getHookAddress(chain.id),
+              module: getHookAddress(),
               initData: "0x",
             },
           ],
           [
             {
-              module: getTargetModuleAddress(chain.id),
+              module: getTargetModuleAddress(),
               initData: encodeAbiParameters(
                 [
                   { name: "selector", type: "bytes4" },
