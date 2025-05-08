@@ -1,5 +1,5 @@
 import { BundleStatus, type PostOrderBundleResult } from "@rhinestone/sdk/orchestrator";
-import { ts } from "../main";
+import { ts } from "../main.js";
 
 export const waitForBundleResult = async ({
   orchestrator,

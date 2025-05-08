@@ -1,10 +1,10 @@
 import { Account, Hex } from "viem";
-import { collectUserInput, showUserAccount } from "./cli";
+import { collectUserInput, showUserAccount } from "./cli.js";
 import { config } from "dotenv";
 import { privateKeyToAccount } from "viem/accounts";
-import { getChain } from "./utils/chains";
-import { getSmartAccount } from "./account";
-import { processIntent } from "./main";
+import { getChain } from "./utils/chains.js";
+import { getSmartAccount } from "./account.js";
+import { processIntent } from "./main.js";
 import * as fs from "fs";
 import * as path from "path";
 

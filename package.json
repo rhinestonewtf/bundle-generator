@@ -4,9 +4,9 @@
   "description": "",
   "main": "index.js",
   "scripts": {
-    "new": "ts-node src/new-intent.ts",
-    "replay": "ts-node src/existing-intent.ts",
-    "address": "ts-node src/get-address.ts"
+    "new": "tsx src/new-intent.ts",
+    "replay": "tsx src/existing-intent.ts",
+    "address": "tsx src/get-address.ts"
   },
   "keywords": [],
   "author": "",
@@ -14,13 +14,13 @@
   "dependencies": {
     "@inquirer/prompts": "^7.4.1",
     "@rhinestone/module-sdk": "^0.2.8",
-    "@rhinestone/sdk": "^0.6.0",
+    "@rhinestone/sdk": "^0.7.0",
     "dotenv": "^16.5.0",
-    "ts-node": "^10.9.2",
+    "tsx": "^4.19.4",
     "typescript": "^5.8.3",
     "viem": "^2.28.3"
   },
   "devDependencies": {
-    "@types/node": "^22.14.1"
+    "@types/node": "^22.15.16"
   }
 }

@@ -20,13 +20,13 @@ import {
   erc20Abi,
   Hex,
 } from "viem";
-import { deployAccount, getSmartAccount } from "./account";
-import { signOrderBundle } from "./utils/signing";
-import { waitForBundleResult } from "./utils/bundleStatus";
-import { Intent, Token } from "./types";
-import { getChain } from "./utils/chains";
-import { convertTokenAmount } from "./utils/tokens";
-import { fundAccount } from "./funding";
+import { deployAccount, getSmartAccount } from "./account.js";
+import { signOrderBundle } from "./utils/signing.js";
+import { waitForBundleResult } from "./utils/bundleStatus.js";
+import { Intent, Token } from "./types.js";
+import { getChain } from "./utils/chains.js";
+import { convertTokenAmount } from "./utils/tokens.js";
+import { fundAccount } from "./funding.js";
 
 export function ts() {
   return new Date().toISOString().replace(/T/, " ").replace(/\..+/, "");

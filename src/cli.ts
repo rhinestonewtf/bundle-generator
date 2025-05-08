@@ -1,7 +1,7 @@
 import { checkbox, input, confirm, select } from "@inquirer/prompts";
 import { Hex } from "viem";
 import { privateKeyToAccount } from "viem/accounts";
-import { Intent } from "./types";
+import { Intent } from "./types.js";
 import * as fs from "fs";
 import path from "path";
 
