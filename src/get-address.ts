@@ -1,7 +1,7 @@
 import { Account, Hex } from "viem";
 import { privateKeyToAccount } from "viem/accounts";
-import { getChain } from "./utils/chains";
-import { getSmartAccount } from "./account";
+import { getChain } from "./utils/chains.js";
+import { getSmartAccount } from "./account.js";
 import { config } from "dotenv";
 
 config();

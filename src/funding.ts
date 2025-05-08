@@ -1,9 +1,9 @@
 import {
   getTokenAddress,
   getTokenBalanceSlot,
-} from "@rhinestone/orchestrator-sdk";
+} from "@rhinestone/sdk/orchestrator";
 import { Address, createTestClient, http, pad, toHex } from "viem";
-import { getChain } from "./utils/chains";
+import { getChain } from "./utils/chains.js";
 import { foundry } from "viem/chains";
 
 export const fundAccount = async ({

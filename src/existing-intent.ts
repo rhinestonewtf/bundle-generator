@@ -1,6 +1,6 @@
-import { getReplayParams } from "./cli";
+import { getReplayParams } from "./cli.js";
 import { config } from "dotenv";
-import { processIntent } from "./main";
+import { processIntent } from "./main.js";
 import * as fs from "fs";
 import * as path from "path";
 

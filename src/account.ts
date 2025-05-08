@@ -14,7 +14,7 @@ import {
   slice,
   zeroAddress,
 } from "viem";
-import { getPublicClient } from "./utils/clients";
+import { getPublicClient } from "./utils/clients.js";
 import {
   getOwnableValidator,
   RHINESTONE_ATTESTER_ADDRESS,
@@ -23,7 +23,7 @@ import {
   getHookAddress,
   getSameChainModuleAddress,
   getTargetModuleAddress,
-} from "@rhinestone/orchestrator-sdk";
+} from "@rhinestone/sdk/orchestrator";
 import { privateKeyToAccount } from "viem/accounts";
 
 export const getSmartAccount = async ({
