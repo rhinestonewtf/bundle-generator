@@ -1,5 +1,6 @@
 const { getHookAddress } = require("@rhinestone/orchestrator-sdk");
 import {
+  convertBigIntFields,
   getOrchestrator,
   getTokenAddress,
   type Execution,
@@ -156,17 +157,47 @@ export const processIntent = async (intent: Intent) => {
 
   console.log(`${ts()} Bundle ${bundleLabel}: Signed`);
 
+  const response = await fetch(`${process.env.ORCHESTRATOR_API_URL!}/bundles`, {
+    method: "POST",
+    headers: {
+      "x-api-key": process.env.ORCHESTRATOR_API_KEY!,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      bundles: [
+        {
+          signedOrderBundle: convertBigIntFields(signedOrderBundle),
+          initCode: encodePacked(
+            ["address", "bytes"],
+            [targetSmartAccount.factory, targetSmartAccount.factoryData],
+          ),
+          relayerId: "testrelayerid",
+        },
+      ],
+    }),
+  });
+
+  const bundleResponse = await response.json();
+  const bundleResults: PostOrderBundleResult = bundleResponse.bundleResults.map(
+    (bundleResult: any) => {
+      return {
+        ...bundleResult,
+        bundleId: BigInt(bundleResult.bundleId),
+      };
+    },
+  );
+
   // send the signed bundle
-  const bundleResults: PostOrderBundleResult =
-    await orchestrator.postSignedOrderBundle([
-      {
-        signedOrderBundle,
-        initCode: encodePacked(
-          ["address", "bytes"],
-          [targetSmartAccount.factory, targetSmartAccount.factoryData],
-        ),
-      },
-    ]);
+  // const bundleResults: PostOrderBundleResult =
+  //   await orchestrator.postSignedOrderBundle([
+  //     {
+  //       signedOrderBundle,
+  //       initCode: encodePacked(
+  //         ["address", "bytes"],
+  //         [targetSmartAccount.factory, targetSmartAccount.factoryData],
+  //       ),
+  //     },
+  //   ]);
 
   console.log(`${ts()} Bundle ${bundleLabel}: Sent`);
 
