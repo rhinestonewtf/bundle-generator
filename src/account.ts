@@ -40,6 +40,18 @@ export const getSmartAccount = async ({
     threshold: 1,
   });
 
+  console.log(process.env.DEV_CONTRACTS);
+
+  const samechainModuleAddress = process.env.DEV_CONTRACTS
+    ? "0x7e57c096c750b120de3fea6bcbfaab82be7503e8"
+    : getSameChainModuleAddress();
+  const targetModuleAddress = process.env.DEV_CONTRACTS
+    ? "0x7e570e72420ac51f4fb57af8b6d991d0a94d87ba"
+    : getTargetModuleAddress();
+  const hookAddress = process.env.DEV_CONTRACTS
+    ? "0x7e571edd525ecda47bd79605304a8d2037f68a1b"
+    : getHookAddress();
+
   const initializer = encodeFunctionData({
     abi: parseAbi([
       "function setup(address[] calldata _owners,uint256 _threshold,address to,bytes calldata data,address fallbackHandler,address paymentToken,uint256 payment, address paymentReceiver) external",
@@ -65,21 +77,21 @@ export const getSmartAccount = async ({
           ],
           [
             {
-              module: getSameChainModuleAddress(chain.id),
+              module: samechainModuleAddress,
               initData: "0x",
             },
             {
-              module: getTargetModuleAddress(chain.id),
+              module: targetModuleAddress,
               initData: "0x",
             },
             {
-              module: getHookAddress(chain.id),
+              module: hookAddress,
               initData: "0x",
             },
           ],
           [
             {
-              module: getTargetModuleAddress(chain.id),
+              module: targetModuleAddress,
               initData: encodeAbiParameters(
                 [
                   { name: "selector", type: "bytes4" },
