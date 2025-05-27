@@ -28,7 +28,6 @@ export const collectUserInput = async (): Promise<{ intent: Intent; saveAsFileNa
       {
         name: "Polygon",
         value: "Polygon",
-        disabled: "(polygon available soon)",
       },
     ],
   });
@@ -39,6 +38,7 @@ export const collectUserInput = async (): Promise<{ intent: Intent; saveAsFileNa
       { name: "ETH", value: "ETH" },
       { name: "WETH", value: "WETH" },
       { name: "USDC", value: "USDC" },
+      { name: "POL", value: "POL" },
     ],
     required: true,
   });
@@ -64,11 +64,7 @@ export const collectUserInput = async (): Promise<{ intent: Intent; saveAsFileNa
       { name: "Base", value: "Base" },
       { name: "Arbitrum", value: "Arbitrum" },
       { name: "Optimism", value: "Optimism" },
-      {
-        name: "Polygon",
-        value: "Polygon",
-        disabled: "(polygon available soon)",
-      },
+      { name: "Polygon", value: "Polygon" },
     ],
   });
 
@@ -78,6 +74,7 @@ export const collectUserInput = async (): Promise<{ intent: Intent; saveAsFileNa
       { name: "ETH", value: "ETH" },
       { name: "WETH", value: "WETH" },
       { name: "USDC", value: "USDC" },
+      { name: "POL", value: "POL" },
     ],
   });
 
