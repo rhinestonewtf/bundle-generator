@@ -38,8 +38,14 @@ export const collectUserInput = async (): Promise<{ intent: Intent; saveAsFileNa
       { name: "ETH", value: "ETH" },
       { name: "WETH", value: "WETH" },
       { name: "USDC", value: "USDC" },
-      { name: "POL", value: "POL" },
     ],
+    validate: (choices) => {
+      if (targetChain === 'Polygon' && choices.some(({ value }) => value === 'ETH')) {
+        return 'ETH is not acceptable for Polygon target';
+      }
+
+      return true;
+    },
     required: true,
   });
 
@@ -74,8 +80,18 @@ export const collectUserInput = async (): Promise<{ intent: Intent; saveAsFileNa
       { name: "ETH", value: "ETH" },
       { name: "WETH", value: "WETH" },
       { name: "USDC", value: "USDC" },
-      { name: "POL", value: "POL" },
     ],
+    validate: (choices) => {
+      if (
+        sourceChains.length === 1 
+        && sourceChains[0] === 'Polygon'
+        && choices.some(({ value }) => value === 'ETH')
+      ) {
+        return 'Polygon being the only sorce and having ETH as a token is not valid';
+      }
+
+      return true;
+    }
   });
 
   let tokenRecipient = await input({
@@ -86,7 +102,11 @@ export const collectUserInput = async (): Promise<{ intent: Intent; saveAsFileNa
       ).address
   });
 
-  const sourceAssets = sourceChains.map(chain => `${chain.slice(0, 3).toLowerCase()}.${sourceTokens.map(token => token).join(`, ${chain.slice(0, 3).toLowerCase()}.`)}`).join(', ');
+  const sourceAssets = sourceChains.map(chain => {
+    const chainPrefix = chain.slice(0, 3).toLowerCase();
+    const filteredTokens = chain === 'Polygon' ? sourceTokens.filter(token => token !== 'ETH') : sourceTokens;
+    return `${chainPrefix}.${filteredTokens.join(`, ${chainPrefix}.`)}`;
+  }).join(', ');
   const targetAssets = `${formattedTargetTokens.map((token) => `${targetChain.slice(0, 3).toLowerCase()}.${token.symbol}`).join(',')}`;
   const timestamp = new Date().toISOString().replace(/[-:.]/g, "").slice(0, 13);
 
