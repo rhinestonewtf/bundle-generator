@@ -40,8 +40,6 @@ export const getSmartAccount = async ({
     threshold: 1,
   });
 
-  console.log(process.env.DEV_CONTRACTS);
-
   const samechainModuleAddress = process.env.DEV_CONTRACTS
     ? "0x7e57c096c750b120de3fea6bcbfaab82be7503e8"
     : getSameChainModuleAddress();
