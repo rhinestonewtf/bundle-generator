@@ -5,7 +5,6 @@ import {
   type Execution,
   type MetaIntent,
   type PostOrderBundleResult,
-  type TokenTransfer,
 } from "@rhinestone/sdk/orchestrator";
 import {
   Account,
@@ -165,6 +164,9 @@ export const processIntent = async (intent: Intent) => {
           ["address", "bytes"],
           [targetSmartAccount.factory, targetSmartAccount.factoryData],
         ),
+        tokenPrices: orderPath[0].tokenPrices,
+        gasPrices: orderPath[0].gasPrices,
+        opGasParams: orderPath[0].opGasParams,
       },
     ]);
 
