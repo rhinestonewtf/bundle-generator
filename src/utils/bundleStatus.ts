@@ -29,7 +29,8 @@ export const waitForBundleResult = async ({
   while (
     bundleStatus.status === BundleStatus.PENDING ||
     bundleStatus.status === BundleStatus.PARTIALLY_COMPLETED ||
-    bundleStatus.status == "PRECONFIRMED"
+    bundleStatus.status == "PRECONFIRMED" ||
+    bundleStatus.status == "FILLED"
   ) {
     // Check if we've exceeded the maximum wait time
     if (Date.now() - startTime > maxWaitTime) {

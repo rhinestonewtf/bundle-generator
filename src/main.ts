@@ -27,6 +27,7 @@ import { Intent, Token } from "./types.js";
 import { getChain } from "./utils/chains.js";
 import { convertTokenAmount } from "./utils/tokens.js";
 import { fundAccount } from "./funding.js";
+import { handleFeeAnalysis } from "./fees.js";
 
 export function ts() {
   return new Date().toISOString().replace(/T/, " ").replace(/\..+/, "");
@@ -177,4 +178,11 @@ export const processIntent = async (intent: Intent) => {
   });
 
   console.log(`${ts()} Bundle ${bundleLabel}: Result`, result);
+
+  const fees = await handleFeeAnalysis({
+    result,
+    orderPath,
+  });
+
+  console.log(`${ts()} Bundle ${bundleLabel}: Fees`, fees);
 };
