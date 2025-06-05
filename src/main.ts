@@ -179,10 +179,12 @@ export const processIntent = async (intent: Intent) => {
 
   console.log(`${ts()} Bundle ${bundleLabel}: Result`, result);
 
-  const fees = await handleFeeAnalysis({
-    result,
-    orderPath,
-  });
+  if (process.env.FEE_DEBUG === "true") {
+    const fees = await handleFeeAnalysis({
+      result,
+      orderPath,
+    });
 
-  console.log(`${ts()} Bundle ${bundleLabel}: Fees`, fees);
+    console.log(`${ts()} Bundle ${bundleLabel}: Fees`, fees);
+  }
 };

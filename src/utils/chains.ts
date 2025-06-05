@@ -34,3 +34,28 @@ export const getChain = (name: string) => {
       throw new Error(`Chain ${name} not supported`);
   }
 };
+
+export const getChainById = (chainId: number) => {
+  switch (chainId) {
+    case mainnet.id:
+      return mainnet;
+    case polygon.id:
+      return polygon;
+    case arbitrum.id:
+      return arbitrum;
+    case base.id:
+      return base;
+    case optimism.id:
+      return optimism;
+    case sepolia.id:
+      return sepolia;
+    case optimismSepolia.id:
+      return optimismSepolia;
+    case arbitrumSepolia.id:
+      return arbitrumSepolia;
+    case baseSepolia.id:
+      return baseSepolia;
+    default:
+      throw new Error(`Chain ID ${chainId} not supported`);
+  }
+};
