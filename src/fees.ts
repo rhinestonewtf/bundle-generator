@@ -15,7 +15,7 @@ export const handleFeeAnalysis = async ({
   if (result.status !== "COMPLETED") return {};
   const gasCalculations = {
     fill: 0n,
-    claims: [] as bigint[],
+    claims: {} as { [chainId: number]: bigint },
   };
   let totalCost = 0n;
   const targetChainId = Number(
@@ -35,7 +35,7 @@ export const handleFeeAnalysis = async ({
         chainId: claim.chainId,
       });
       totalCost += claimCost;
-      gasCalculations.claims.push(claimCost);
+      gasCalculations.claims[claim.chainId] = claimCost;
     }
   }
 };
