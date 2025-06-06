@@ -2,10 +2,11 @@ import { BundleResult, OrderPath } from "@rhinestone/sdk/orchestrator";
 import { createPublicClient, Hex, http } from "viem";
 import { OpStackTransactionReceipt } from "viem/chains";
 import { getChainById } from "./utils/chains";
+import { getPublicClientByChainId } from "./utils/clients";
 
 type GasComparison = {
   [chainId: number]: {
-    estimated: bigint;
+    estimate: bigint;
     actual: bigint;
     difference: bigint;
     percentageDifference: number;
@@ -23,7 +24,6 @@ export const handleFeeAnalysis = async ({
   const gasComparison: GasComparison = {};
   const gasPriceComparison: GasComparison = {};
 
-  const gasEstimates = orderPath[0].orderBundle.gasPrices;
   const gasPrices = orderPath[0].orderBundle.gasPrices;
 
   let totalGasUsed = 0n;
@@ -41,15 +41,14 @@ export const handleFeeAnalysis = async ({
   totalCost += fillCost.gasUsed * fillCost.gasPrice;
 
   gasComparison[targetChainId] = getGasComparison({
-    gas: fillCost.gasUsed,
-    chainId: targetChainId,
-    estimates: gasEstimates,
+    actual: fillCost.gasUsed,
+    estimate: 1_000_000n, // default 1m gas
   });
 
   gasPriceComparison[targetChainId] = getGasComparison({
-    gas: fillCost.gasPrice,
-    chainId: targetChainId,
-    estimates: gasPrices,
+    actual: fillCost.gasPrice,
+    // @ts-ignore
+    estimate: BigInt(gasPrices[targetChainId]) || 0n,
   });
 
   for (const claim of result.claims) {
@@ -63,14 +62,16 @@ export const handleFeeAnalysis = async ({
       totalCost += claimCost.gasUsed * claimCost.gasPrice;
 
       gasComparison[claim.chainId] = getGasComparison({
-        gas: claimCost.gasUsed,
-        chainId: claim.chainId,
-        estimates: gasEstimates,
+        actual: claimCost.gasUsed,
+        estimate: getClaimGasEstimate({
+          segments: orderPath[0].orderBundle.segments,
+          targetChainId,
+        }),
       });
       gasPriceComparison[claim.chainId] = getGasComparison({
-        gas: claimCost.gasPrice,
-        chainId: claim.chainId,
-        estimates: gasPrices,
+        actual: claimCost.gasPrice,
+        // @ts-ignore
+        estimate: BigInt(gasPrices[claim.chainId]) || 0n,
       });
     }
   }
@@ -82,22 +83,32 @@ export const handleFeeAnalysis = async ({
   };
 };
 
-const getGasComparison = ({
-  gas,
-  chainId,
-  estimates,
+const getClaimGasEstimate = ({
+  targetChainId,
+  segments,
 }: {
-  gas: bigint;
-  chainId: number;
-  estimates: Record<string, bigint>;
+  targetChainId: number;
+  segments: any;
 }) => {
-  const gasEstimated = BigInt(estimates[String(chainId)]) ?? 0n;
-  const difference = gasEstimated - gas;
+  const numberOfSegments = segments.filter(
+    (segment: any) => segment.chainId !== targetChainId,
+  ).length;
+  return BigInt(numberOfSegments) * 470_000n; // 470k gas per segment
+};
+
+const getGasComparison = ({
+  actual,
+  estimate,
+}: {
+  actual: bigint;
+  estimate: bigint;
+}) => {
+  const difference = estimate - actual;
   const percentageDifference =
-    (Number(difference) / ((Number(gas) + Number(gasEstimated)) / 2)) * 100;
+    (Number(difference) / ((Number(actual) + Number(estimate)) / 2)) * 100;
   return {
-    estimated: gasEstimated,
-    actual: gas,
+    estimate,
+    actual,
     difference,
     percentageDifference: Number(percentageDifference),
   };
@@ -110,7 +121,7 @@ const getTxCost = async ({
   txHash: Hex;
   chainId: number;
 }) => {
-  const client = getPublicClient(chainId);
+  const client = getPublicClientByChainId(chainId);
   const tx = await client.getTransactionReceipt({
     hash: txHash,
   });
@@ -122,10 +133,4 @@ const getTxCost = async ({
     gasUsed: tx.gasUsed,
     gasPrice: tx.effectiveGasPrice,
   };
-};
-
-const getPublicClient = (chainId: number) => {
-  return createPublicClient({
-    transport: http(getChainById(chainId).rpcUrls.default.http[0]),
-  });
 };
