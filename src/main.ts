@@ -27,6 +27,7 @@ import { Intent, Token } from "./types.js";
 import { getChain } from "./utils/chains.js";
 import { convertTokenAmount } from "./utils/tokens.js";
 import { fundAccount } from "./funding.js";
+import { handleFeeAnalysis } from "./fees.js";
 
 export function ts() {
   return new Date().toISOString().replace(/T/, " ").replace(/\..+/, "");
@@ -66,6 +67,8 @@ export const processIntent = async (intent: Intent) => {
   }
 
   const target = intent.tokenRecipient as Address;
+
+  const startTime = new Date().getTime();
 
   // create the meta intent
   const metaIntent: MetaIntent = {
@@ -139,7 +142,7 @@ export const processIntent = async (intent: Intent) => {
   );
 
   console.log(
-    `${ts()} Bundle ${bundleLabel}: Generated ${orderPath[0].orderBundle.nonce}`,
+    `${ts()} Bundle ${bundleLabel}: Generated ${orderPath[0].orderBundle.nonce} in ${new Date().getTime() - startTime}ms`,
   );
 
   orderPath[0].orderBundle.segments[0].witness.execs = [
@@ -154,7 +157,9 @@ export const processIntent = async (intent: Intent) => {
     owner,
   });
 
-  console.log(`${ts()} Bundle ${bundleLabel}: Signed`);
+  console.log(
+    `${ts()} Bundle ${bundleLabel}: Signed in ${new Date().getTime() - startTime}ms`,
+  );
 
   // send the signed bundle
   const bundleResults: PostOrderBundleResult =
@@ -168,13 +173,28 @@ export const processIntent = async (intent: Intent) => {
       },
     ]);
 
-  console.log(`${ts()} Bundle ${bundleLabel}: Sent`);
+  console.log(
+    `${ts()} Bundle ${bundleLabel}: Sent in ${new Date().getTime() - startTime}ms`,
+  );
 
   const result = await waitForBundleResult({
     bundleResults,
     orchestrator,
     bundleLabel,
+    processStartTime: startTime,
   });
 
-  console.log(`${ts()} Bundle ${bundleLabel}: Result`, result);
+  console.log(
+    `${ts()} Bundle ${bundleLabel}: Result after ${new Date().getTime() - startTime} ms`,
+    result,
+  );
+
+  if (process.env.FEE_DEBUG === "true") {
+    const fees = await handleFeeAnalysis({
+      result,
+      orderPath,
+    });
+
+    console.log(`${ts()} Bundle ${bundleLabel}: Fees`, fees);
+  }
 };
