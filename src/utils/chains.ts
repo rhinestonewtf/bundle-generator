@@ -50,6 +50,8 @@ export const getChainById = (chainId: number) => {
       return base;
     case optimism.id:
       return optimism;
+    case zksync.id:
+      return zksync;
     case sepolia.id:
       return sepolia;
     case optimismSepolia.id:
