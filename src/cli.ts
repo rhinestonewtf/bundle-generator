@@ -5,7 +5,10 @@ import { Intent } from "./types.js";
 import * as fs from "fs";
 import path from "path";
 
-export const collectUserInput = async (): Promise<{ intent: Intent; saveAsFileName?: string }> => {
+export const collectUserInput = async (): Promise<{
+  intent: Intent;
+  saveAsFileName?: string;
+}> => {
   const targetChain = await select({
     message: "Select a target chain",
     choices: [
@@ -26,6 +29,10 @@ export const collectUserInput = async (): Promise<{ intent: Intent; saveAsFileNa
         value: "Optimism",
       },
       {
+        name: "ZkSync",
+        value: "ZkSync",
+      },
+      {
         name: "Polygon",
         value: "Polygon",
       },
@@ -40,8 +47,11 @@ export const collectUserInput = async (): Promise<{ intent: Intent; saveAsFileNa
       { name: "USDC", value: "USDC" },
     ],
     validate: (choices) => {
-      if (targetChain === 'Polygon' && choices.some(({ value }) => value === 'ETH')) {
-        return 'ETH is not acceptable for Polygon target';
+      if (
+        targetChain === "Polygon" &&
+        choices.some(({ value }) => value === "ETH")
+      ) {
+        return "ETH is not acceptable for Polygon target";
       }
 
       return true;
@@ -83,41 +93,46 @@ export const collectUserInput = async (): Promise<{ intent: Intent; saveAsFileNa
     ],
     validate: (choices) => {
       if (
-        sourceChains.length === 1 
-        && sourceChains[0] === 'Polygon'
-        && choices.some(({ value }) => value === 'ETH')
+        sourceChains.length === 1 &&
+        sourceChains[0] === "Polygon" &&
+        choices.some(({ value }) => value === "ETH")
       ) {
-        return 'Polygon being the only sorce and having ETH as a token is not valid';
+        return "Polygon being the only sorce and having ETH as a token is not valid";
       }
 
       return true;
-    }
+    },
   });
 
   let tokenRecipient = await input({
-    message:
-      "Recipient address for tokens on the target chain",
-      default: process.env.DEFAULT_TOKEN_RECIPIENT ?? privateKeyToAccount(
-        process.env.DEPLOYMENT_PRIVATE_KEY! as Hex,
-      ).address
+    message: "Recipient address for tokens on the target chain",
+    default:
+      process.env.DEFAULT_TOKEN_RECIPIENT ??
+      privateKeyToAccount(process.env.DEPLOYMENT_PRIVATE_KEY! as Hex).address,
   });
 
-  const sourceAssets = sourceChains.map(chain => {
-    const chainPrefix = chain.slice(0, 3).toLowerCase();
-    const filteredTokens = chain === 'Polygon' ? sourceTokens.filter(token => token !== 'ETH') : sourceTokens;
-    return `${chainPrefix}.${filteredTokens.join(`, ${chainPrefix}.`)}`;
-  }).join(', ');
-  const targetAssets = `${formattedTargetTokens.map((token) => `${targetChain.slice(0, 3).toLowerCase()}.${token.symbol}`).join(',')}`;
+  const sourceAssets = sourceChains
+    .map((chain) => {
+      const chainPrefix = chain.slice(0, 3).toLowerCase();
+      const filteredTokens =
+        chain === "Polygon"
+          ? sourceTokens.filter((token) => token !== "ETH")
+          : sourceTokens;
+      return `${chainPrefix}.${filteredTokens.join(`, ${chainPrefix}.`)}`;
+    })
+    .join(", ");
+  const targetAssets = `${formattedTargetTokens.map((token) => `${targetChain.slice(0, 3).toLowerCase()}.${token.symbol}`).join(",")}`;
   const timestamp = new Date().toISOString().replace(/[-:.]/g, "").slice(0, 13);
 
   const filename = await input({
-    message: "Enter the .json filename to save the intent to, or 'no' / 'n' to not save\n(Note: You can continually add more intents to an existing file)",
-    default: `${sourceAssets} to ${targetAssets} ${timestamp}`
+    message:
+      "Enter the .json filename to save the intent to, or 'no' / 'n' to not save\n(Note: You can continually add more intents to an existing file)",
+    default: `${sourceAssets} to ${targetAssets} ${timestamp}`,
   });
 
-  const sanitizedFilename = filename.replace(/\.json$/, '')
+  const sanitizedFilename = filename.replace(/\.json$/, "");
   const saveAsFileName = `${sanitizedFilename}.json`;
-  
+
   return {
     intent: {
       targetChain,
@@ -142,9 +157,13 @@ export const getReplayParams = async () => {
     process.exit(1);
   }
 
-  const files = fs.readdirSync("intents").filter((file) => file.endsWith(".json"));
-  const intentsList = files.map(file => {
-    const data = JSON.parse(fs.readFileSync(path.join("intents", file), "utf-8"));
+  const files = fs
+    .readdirSync("intents")
+    .filter((file) => file.endsWith(".json"));
+  const intentsList = files.map((file) => {
+    const data = JSON.parse(
+      fs.readFileSync(path.join("intents", file), "utf-8"),
+    );
     return { file, count: data.intentList ? data.intentList.length : 0 };
   });
 
@@ -162,7 +181,9 @@ export const getReplayParams = async () => {
   if (isAll) {
     intentsToReplay = files;
     totalIntentsSelected = files.reduce((total, file) => {
-      const data = JSON.parse(fs.readFileSync(path.join("intents", file), "utf-8"));
+      const data = JSON.parse(
+        fs.readFileSync(path.join("intents", file), "utf-8"),
+      );
       return total + (data.intentList ? data.intentList.length : 0);
     }, 0);
   } else {
@@ -174,8 +195,10 @@ export const getReplayParams = async () => {
       })),
     });
     const uniqueFiles = new Set(selectedFiles);
-    intentsToReplay = Array.from(uniqueFiles).flatMap(file => {
-      const data = JSON.parse(fs.readFileSync(path.join("intents", file), "utf-8"));
+    intentsToReplay = Array.from(uniqueFiles).flatMap((file) => {
+      const data = JSON.parse(
+        fs.readFileSync(path.join("intents", file), "utf-8"),
+      );
       totalIntentsSelected += data.intentList ? data.intentList.length : 0;
       return data.intentList ? [file] : [];
     });
@@ -196,7 +219,8 @@ export const getReplayParams = async () => {
 
     if (asyncMode) {
       delay = await input({
-        message: "Enter milliseconds delay between each intent (default is 2500)",
+        message:
+          "Enter milliseconds delay between each intent (default is 2500)",
         default: "2500",
       });
     }
