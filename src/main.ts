@@ -70,6 +70,7 @@ export const processIntent = async (intent: Intent) => {
 
   const startTime = new Date().getTime();
 
+  const targetGasUnits = 500_000n;
   // create the meta intent
   const metaIntent: MetaIntent = {
     targetChainId: targetChain.id,
@@ -97,6 +98,7 @@ export const processIntent = async (intent: Intent) => {
               }),
       };
     }),
+    targetGasUnits,
   };
 
   await new Promise((resolve) => {
@@ -193,6 +195,7 @@ export const processIntent = async (intent: Intent) => {
     const fees = await handleFeeAnalysis({
       result,
       orderPath,
+      targetGasUnits,
     });
 
     console.log(`${ts()} Bundle ${bundleLabel}: Fees`, fees);

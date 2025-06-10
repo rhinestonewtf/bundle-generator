@@ -16,9 +16,11 @@ type GasComparison = {
 export const handleFeeAnalysis = async ({
   result,
   orderPath,
+  targetGasUnits,
 }: {
   result: BundleResult;
   orderPath: OrderPath;
+  targetGasUnits: bigint;
 }) => {
   if (result.status !== "COMPLETED") return {};
   const gasComparison: GasComparison = {};
@@ -42,7 +44,7 @@ export const handleFeeAnalysis = async ({
 
   gasComparison[targetChainId] = getGasComparison({
     actual: fillCost.gasUsed,
-    estimate: 1_000_000n, // default 1m gas
+    estimate: targetGasUnits, // default 1m gas
   });
 
   gasPriceComparison[targetChainId] = getGasComparison({
