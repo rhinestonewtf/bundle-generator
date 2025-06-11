@@ -45,6 +45,7 @@ export const collectUserInput = async (): Promise<{
       { name: "ETH", value: "ETH" },
       { name: "WETH", value: "WETH" },
       { name: "USDC", value: "USDC" },
+      { name: "USDT", value: "USDT" },
     ],
     validate: (choices) => {
       if (
@@ -90,6 +91,7 @@ export const collectUserInput = async (): Promise<{
       { name: "ETH", value: "ETH" },
       { name: "WETH", value: "WETH" },
       { name: "USDC", value: "USDC" },
+      { name: "USDT", value: "USDT" },
     ],
     validate: (choices) => {
       if (
@@ -121,7 +123,9 @@ export const collectUserInput = async (): Promise<{
       return `${chainPrefix}.${filteredTokens.join(`, ${chainPrefix}.`)}`;
     })
     .join(", ");
-  const targetAssets = `${formattedTargetTokens.map((token) => `${targetChain.slice(0, 3).toLowerCase()}.${token.symbol}`).join(",")}`;
+  const targetAssets = `${formattedTargetTokens
+    .map((token) => `${targetChain.slice(0, 3).toLowerCase()}.${token.symbol}`)
+    .join(",")}`;
   const timestamp = new Date().toISOString().replace(/[-:.]/g, "").slice(0, 13);
 
   const filename = await input({
@@ -147,7 +151,7 @@ export const collectUserInput = async (): Promise<{
 
 export const showUserAccount = async (address: string) => {
   console.log(
-    `To use your account, you'll need to fund it on the relevant source chain(s). Your account address is ${address}`,
+    `To use your account, you'll need to fund it on the relevant source chain(s). Your account address is ${address}`
   );
   await confirm({ message: "Continue?" });
 };
@@ -162,7 +166,7 @@ export const getReplayParams = async () => {
     .filter((file) => file.endsWith(".json"));
   const intentsList = files.map((file) => {
     const data = JSON.parse(
-      fs.readFileSync(path.join("intents", file), "utf-8"),
+      fs.readFileSync(path.join("intents", file), "utf-8")
     );
     return { file, count: data.intentList ? data.intentList.length : 0 };
   });
@@ -182,7 +186,7 @@ export const getReplayParams = async () => {
     intentsToReplay = files;
     totalIntentsSelected = files.reduce((total, file) => {
       const data = JSON.parse(
-        fs.readFileSync(path.join("intents", file), "utf-8"),
+        fs.readFileSync(path.join("intents", file), "utf-8")
       );
       return total + (data.intentList ? data.intentList.length : 0);
     }, 0);
@@ -197,7 +201,7 @@ export const getReplayParams = async () => {
     const uniqueFiles = new Set(selectedFiles);
     intentsToReplay = Array.from(uniqueFiles).flatMap((file) => {
       const data = JSON.parse(
-        fs.readFileSync(path.join("intents", file), "utf-8"),
+        fs.readFileSync(path.join("intents", file), "utf-8")
       );
       totalIntentsSelected += data.intentList ? data.intentList.length : 0;
       return data.intentList ? [file] : [];
