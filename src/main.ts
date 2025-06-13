@@ -192,8 +192,8 @@ export const processIntent = async (intent: Intent) => {
       status: result.status,
       claims: result.claims,
       targetChainId: result.targetChainId,
-      fillTransactionHash: result.transactionHash,
-      fillTimeStamp: result.fillTimeStamp,
+      fillTransactionHash: result.fillTransactionHash,
+      fillTimestamp: result.fillTimestamp,
     },
   );
 
