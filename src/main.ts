@@ -188,7 +188,13 @@ export const processIntent = async (intent: Intent) => {
 
   console.log(
     `${ts()} Bundle ${bundleLabel}: Result after ${new Date().getTime() - startTime} ms`,
-    result,
+    {
+      status: result.status,
+      claims: result.claims,
+      targetChainId: result.targetChainId,
+      fillTransactionHash: result.transactionHash,
+      fillTimeStamp: result.fillTimeStamp,
+    },
   );
 
   if (process.env.FEE_DEBUG === "true") {
