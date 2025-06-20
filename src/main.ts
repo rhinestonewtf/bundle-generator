@@ -28,6 +28,7 @@ import { getChain } from "./utils/chains.js";
 import { convertTokenAmount } from "./utils/tokens.js";
 import { fundAccount } from "./funding.js";
 import { handleFeeAnalysis } from "./fees.js";
+import { depositToCompact, setEmissary } from "./compact.js";
 
 export function ts() {
   return new Date().toISOString().replace(/T/, " ").replace(/\..+/, "");
@@ -63,7 +64,10 @@ export const processIntent = async (intent: Intent) => {
       sourceTokens: intent.sourceTokens,
     });
 
-    await deployAccount({ smartAccount: sourceSmartAccount });
+    await depositToCompact(sourceSmartAccount, chain.id, 100n);
+    await setEmissary(chain.id, sourceSmartAccount);
+
+    await deployAccount({ smartAccount: sourceSmartAccount, chain });
   }
 
   const target = intent.tokenRecipient as Address;
@@ -87,8 +91,21 @@ export const processIntent = async (intent: Intent) => {
           token.symbol == "ETH"
             ? target
             : getTokenAddress(token.symbol, targetChain.id),
+        target:
+          token.symbol == "ETH"
+            ? target
+            : getTokenAddress(token.symbol, targetChain.id),
+
         value: token.symbol == "ETH" ? convertTokenAmount({ token }) : 0n,
         data:
+          token.symbol == "ETH"
+            ? "0x"
+            : encodeFunctionData({
+                abi: erc20Abi,
+                functionName: "transfer",
+                args: [target, convertTokenAmount({ token })],
+              }),
+        callData:
           token.symbol == "ETH"
             ? "0x"
             : encodeFunctionData({
