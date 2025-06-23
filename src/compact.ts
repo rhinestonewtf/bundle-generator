@@ -27,7 +27,7 @@ export type ResetPeriod =
 export type Scope = 0 | 1; // Multichain | ChainSpecific
 export const DEFAULT_CONFIG_ID: number = 42;
 
-const COMPACT_ADDRESS = "0x914525c3Af6b734394852284E104826a5bEbE3e2";
+export const COMPACT_ADDRESS = "0x914525c3Af6b734394852284E104826a5bEbE3e2";
 const ALLOCATOR_ADDRESS = "0x777B745EE28987B028CBEB14c0a501656904Fd16";
 export const DEFAULT_RESET_PERIOD: ResetPeriod = 3;
 export const DEFAULT_SCOPE: Scope = 0;

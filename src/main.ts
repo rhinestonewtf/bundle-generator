@@ -19,6 +19,7 @@ import {
   encodePacked,
   erc20Abi,
   Hex,
+  parseEther,
 } from "viem";
 import { deployAccount, getSmartAccount } from "./account.js";
 import { signOrderBundle } from "./utils/signing.js";
@@ -29,9 +30,74 @@ import { convertTokenAmount } from "./utils/tokens.js";
 import { fundAccount } from "./funding.js";
 import { handleFeeAnalysis } from "./fees.js";
 import { depositToCompact, setEmissary } from "./compact.js";
+import axios from "axios";
 
 export function ts() {
   return new Date().toISOString().replace(/T/, " ").replace(/\..+/, "");
+}
+
+function convertBigIntFields(obj: any): any {
+  if (obj === null || obj === undefined) {
+    return obj;
+  }
+
+  if (typeof obj === "bigint") {
+    return obj.toString();
+  }
+
+  if (Array.isArray(obj)) {
+    return obj.map(convertBigIntFields);
+  }
+
+  if (typeof obj === "object") {
+    const result: any = {};
+    for (const key in obj) {
+      if (Object.hasOwn(obj, key)) {
+        result[key] = convertBigIntFields(obj[key]);
+      }
+    }
+    return result;
+  }
+
+  return obj;
+}
+
+function parseCompactResponse(response: any): any {
+  return {
+    sponsor: response.sponsor as Address,
+    nonce: BigInt(response.nonce),
+    expires: BigInt(response.expires),
+    elements: response.elements.map((segment: any) => {
+      return {
+        arbiter: segment.arbiter as Address,
+        chainId: BigInt(segment.chainId),
+        idsAndAmounts: segment.idsAndAmounts.map((idsAndAmount: any) => {
+          return [BigInt(idsAndAmount[0]), BigInt(idsAndAmount[1])];
+        }),
+        mandate: {
+          recipient: segment.mandate.recipient as Address,
+          tokenOut: segment.mandate.tokenOut.map((tokenOut: any) => {
+            return [BigInt(tokenOut[0]), BigInt(tokenOut[1])];
+          }),
+          targetChainId: BigInt(segment.mandate.targetChainId),
+          fillDeadline: segment.mandate.fillDeadline,
+          targetOps: segment.mandate.targetOps.map((exec: any) => {
+            return {
+              target: exec.target as Address,
+              value: BigInt(exec.value),
+              callData: exec.callData as Hex,
+            };
+          }),
+          preClaimOps: [], // todo
+          qualifier: segment.mandate.qualifier, // todo
+        },
+      };
+    }),
+    tokenPrices: response.tokenPrices,
+    gasPrices: response.gasPrices,
+    opGasParams: response.opGasParams,
+    serverSignature: response.serverSignature,
+  };
 }
 
 export const processIntent = async (intent: Intent) => {
@@ -64,11 +130,13 @@ export const processIntent = async (intent: Intent) => {
       sourceTokens: intent.sourceTokens,
     });
 
-    await depositToCompact(sourceSmartAccount, chain.id, 100n);
+    // await depositToCompact(sourceSmartAccount, chain.id, parseEther("0.0001"));
     await setEmissary(chain.id, sourceSmartAccount);
 
     await deployAccount({ smartAccount: sourceSmartAccount, chain });
   }
+
+  await deployAccount({ smartAccount: targetSmartAccount, chain: targetChain });
 
   const target = intent.tokenRecipient as Address;
 
@@ -155,42 +223,91 @@ export const processIntent = async (intent: Intent) => {
 
   console.log(`${ts()} Bundle ${bundleLabel}: Generating Intent`);
 
-  const orderPath = await orchestrator.getOrderPath(
-    metaIntent,
-    targetSmartAccount.account.address,
+  // const orderPath = await orchestrator.getOrderPath(
+  //   metaIntent,
+  //   targetSmartAccount.account.address,
+  // );
+
+  const { data: orderResponse } = await axios.post(
+    `${process.env.ORCHESTRATOR_API_URL}/accounts/${targetSmartAccount.account.address}/bundles/path`,
+    {
+      ...convertBigIntFields(metaIntent),
+    },
+    {
+      headers: {
+        "x-api-key": process.env.ORCHESTRATOR_API_KEY!,
+      },
+    },
   );
+
+  const orderBundle = parseCompactResponse(orderResponse.orderBundle);
+  // const orderPath = response.data.orderBundles.map((orderPath: any) => {
+  //   return {
+  //     orderBundle: parseCompactResponse(orderPath.orderBundle),
+  //     injectedExecutions: orderPath.injectedExecutions.map((exec: any) => {
+  //       return {
+  //         ...exec,
+  //         value: BigInt(exec.value),
+  //       };
+  //     }),
+  //     intentCost: parseOrderCost(orderPath.intentCost),
+  //   };
+  // });
 
   console.log(
-    `${ts()} Bundle ${bundleLabel}: Generated ${orderPath[0].orderBundle.nonce} in ${new Date().getTime() - startTime}ms`,
+    `${ts()} Bundle ${bundleLabel}: Generated ${orderBundle.nonce} in ${new Date().getTime() - startTime}ms`,
   );
 
-  orderPath[0].orderBundle.segments[0].witness.execs = [
-    ...orderPath[0].injectedExecutions.filter(
-      (e: any) => e.to !== getHookAddress(targetChain.id),
-    ),
-    ...metaIntent.targetExecutions,
-  ];
+  // orderPath[0].orderBundle.segments[0].witness.execs = [
+  //   ...orderPath[0].injectedExecutions.filter(
+  //     (e: any) => e.to !== getHookAddress(targetChain.id),
+  //   ),
+  //   ...metaIntent.targetExecutions,
+  // ];
 
   const signedOrderBundle = await signOrderBundle({
-    orderPath,
+    orderBundle,
     owner,
   });
+
+  console.dir(orderResponse, { depth: null });
+  console.dir(signedOrderBundle, { depth: null });
 
   console.log(
     `${ts()} Bundle ${bundleLabel}: Signed in ${new Date().getTime() - startTime}ms`,
   );
 
   // send the signed bundle
-  const bundleResults: PostOrderBundleResult =
-    await orchestrator.postSignedOrderBundle([
-      {
-        signedOrderBundle,
-        initCode: encodePacked(
-          ["address", "bytes"],
-          [targetSmartAccount.factory, targetSmartAccount.factoryData],
-        ),
+  // const bundleResults: PostOrderBundleResult =
+  //   await orchestrator.postSignedOrderBundle([
+  //     {
+  //       signedOrderBundle,
+  //       // initCode: encodePacked(
+  //       //   ["address", "bytes"],
+  //       //   [targetSmartAccount.factory, targetSmartAccount.factoryData],
+  //       // ),
+  //     },
+  //   ]);
+
+  console.dir(signedOrderBundle, { depth: null });
+  const response = await axios.post(
+    `${process.env.ORCHESTRATOR_API_URL}/bundles`,
+    {
+      bundles: [{ signedOrderBundle: convertBigIntFields(signedOrderBundle) }],
+    },
+    {
+      headers: {
+        "x-api-key": process.env.ORCHESTRATOR_API_KEY!,
       },
-    ]);
+    },
+  );
+
+  const bundleResults = response.data.bundleResults.map((bundleResult: any) => {
+    return {
+      ...bundleResult,
+      bundleId: BigInt(bundleResult.bundleId),
+    };
+  });
 
   console.log(
     `${ts()} Bundle ${bundleLabel}: Sent in ${new Date().getTime() - startTime}ms`,
@@ -215,12 +332,12 @@ export const processIntent = async (intent: Intent) => {
   );
 
   if (process.env.FEE_DEBUG === "true") {
-    const fees = await handleFeeAnalysis({
-      result,
-      orderPath,
-      targetGasUnits,
-    });
-
-    console.log(`${ts()} Bundle ${bundleLabel}: Fees`, fees);
+    // const fees = await handleFeeAnalysis({
+    //   result,
+    //   orderPath,
+    //   targetGasUnits,
+    // });
+    //
+    // console.log(`${ts()} Bundle ${bundleLabel}: Fees`, fees);
   }
 };

@@ -144,27 +144,56 @@ export const deployAccount = async ({
   smartAccount: any;
   chain: Chain;
 }) => {
-  const publicClient = getPublicClientByChainId(chain.id);
+  if (await isDeployed({ chain, address: smartAccount.account.address })) {
+    console.log("Account already deployed:", smartAccount.account.address);
+    return;
+  }
+  const txHash = await smartAccount.sendTransaction({
+    calls: [
+      {
+        to: zeroAddress,
+        data: "0x",
+      },
+    ],
+  });
+  console.log("deployment tx hash:", txHash);
 
-  const deploymentAccount: Account = privateKeyToAccount(
-    process.env.DEPLOYMENT_PRIVATE_KEY! as Hex,
-  );
-
-  const walletClient = createWalletClient({
-    chain: smartAccount.chain,
-    transport: http(),
+  const targetPimlicoClient = createPimlicoClient({
+    transport: http(
+      `https://api.pimlico.io/v2/${chain.id}/rpc?apikey=${process.env.PIMLICO_API_KEY}`,
+    ),
+    entryPoint: {
+      address: entryPoint07Address,
+      version: "0.7",
+    },
+  });
+  await targetPimlicoClient.waitForUserOperationReceipt({
+    hash: txHash,
   });
 
-  const fundingTxHash = await walletClient.sendTransaction({
-    chain: smartAccount.chain,
-    account: deploymentAccount,
-    to: smartAccount.factory,
-    data: smartAccount.factoryData,
-  });
-
-  await publicClient.waitForTransactionReceipt({
-    hash: fundingTxHash,
-  });
+  // const publicClient = getPublicClientByChainId(chain.id);
+  //
+  // const deploymentAccount: Account = privateKeyToAccount(
+  //   process.env.DEPLOYMENT_PRIVATE_KEY! as Hex,
+  // );
+  //
+  // const walletClient = createWalletClient({
+  //   chain: smartAccount.chain,
+  //   transport: http(),
+  // });
+  //
+  // const fundingTxHash = await walletClient.sendTransaction({
+  //   chain: smartAccount.chain,
+  //   account: deploymentAccount,
+  //   to: smartAccount.factory,
+  //   data: smartAccount.factoryData,
+  // });
+  //
+  // console.log("deployment tx hash:", fundingTxHash);
+  //
+  // await publicClient.waitForTransactionReceipt({
+  //   hash: fundingTxHash,
+  // });
 };
 
 export const isDeployed = async ({
