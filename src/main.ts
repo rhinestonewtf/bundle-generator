@@ -134,9 +134,21 @@ export const processIntent = async (intent: Intent) => {
     await setEmissary(chain.id, sourceSmartAccount);
 
     await deployAccount({ smartAccount: sourceSmartAccount, chain });
+
   }
 
   await deployAccount({ smartAccount: targetSmartAccount, chain: targetChain });
+
+  // check balances
+  const { data } = await axios.get(
+    `${process.env.ORCHESTRATOR_API_URL}/accounts/${targetSmartAccount.account.address}/portfolio`,
+    {
+      headers: {
+        "x-api-key": process.env.ORCHESTRATOR_API_KEY!,
+      },
+    },
+  );
+  console.log(`Portfolio of ${targetSmartAccount.account.address}`, JSON.stringify(data, undefined, 2))
 
   const target = intent.tokenRecipient as Address;
 
@@ -169,18 +181,18 @@ export const processIntent = async (intent: Intent) => {
           token.symbol == "ETH"
             ? "0x"
             : encodeFunctionData({
-                abi: erc20Abi,
-                functionName: "transfer",
-                args: [target, convertTokenAmount({ token })],
-              }),
+              abi: erc20Abi,
+              functionName: "transfer",
+              args: [target, convertTokenAmount({ token })],
+            }),
         callData:
           token.symbol == "ETH"
             ? "0x"
             : encodeFunctionData({
-                abi: erc20Abi,
-                functionName: "transfer",
-                args: [target, convertTokenAmount({ token })],
-              }),
+              abi: erc20Abi,
+              functionName: "transfer",
+              args: [target, convertTokenAmount({ token })],
+            }),
       };
     }),
     targetGasUnits,
