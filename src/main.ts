@@ -63,6 +63,7 @@ function convertBigIntFields(obj: any): any {
 }
 
 function parseCompactResponse(response: any): any {
+  console.dir(response, { depth: null });
   return {
     sponsor: response.sponsor as Address,
     nonce: BigInt(response.nonce),
@@ -79,9 +80,9 @@ function parseCompactResponse(response: any): any {
           tokenOut: segment.mandate.tokenOut.map((tokenOut: any) => {
             return [BigInt(tokenOut[0]), BigInt(tokenOut[1])];
           }),
-          targetChainId: BigInt(segment.mandate.targetChainId),
+          destinationChainId: BigInt(segment.mandate.destinationChainId),
           fillDeadline: segment.mandate.fillDeadline,
-          targetOps: segment.mandate.targetOps.map((exec: any) => {
+          destinationOps: segment.mandate.destinationOps.map((exec: any) => {
             return {
               to: exec.to as Address,
               value: BigInt(exec.value),
@@ -142,28 +143,23 @@ export const processIntent = async (intent: Intent) => {
 
   const startTime = new Date().getTime();
 
-  const targetGasUnits = 500_000n;
+  const destinationGasUnits = 500_000n;
   // create the meta intent
-  const metaIntent: MetaIntent = {
-    targetChainId: targetChain.id,
+  const metaIntent: any = {
+    destinationChainId: targetChain.id,
     tokenTransfers: intent.targetTokens.map((token: Token) => {
       return {
         tokenAddress: getTokenAddress(token.symbol, targetChain.id),
         amount: convertTokenAmount({ token }),
       };
     }),
-    targetAccount: targetSmartAccount.account.address,
-    targetExecutions: intent.targetTokens.map((token: Token) => {
+    account: targetSmartAccount.account.address,
+    destinationExecutions: intent.targetTokens.map((token: Token) => {
       return {
         to:
           token.symbol == "ETH"
             ? target
             : getTokenAddress(token.symbol, targetChain.id),
-        target:
-          token.symbol == "ETH"
-            ? target
-            : getTokenAddress(token.symbol, targetChain.id),
-
         value: token.symbol == "ETH" ? convertTokenAmount({ token }) : 0n,
         data:
           token.symbol == "ETH"
@@ -173,17 +169,9 @@ export const processIntent = async (intent: Intent) => {
                 functionName: "transfer",
                 args: [target, convertTokenAmount({ token })],
               }),
-        callData:
-          token.symbol == "ETH"
-            ? "0x"
-            : encodeFunctionData({
-                abi: erc20Abi,
-                functionName: "transfer",
-                args: [target, convertTokenAmount({ token })],
-              }),
       };
     }),
-    targetGasUnits,
+    destinationGasUnits,
   };
 
   await new Promise((resolve) => {
@@ -229,7 +217,7 @@ export const processIntent = async (intent: Intent) => {
   // );
 
   const { data: orderResponse } = await axios.post(
-    `${process.env.ORCHESTRATOR_API_URL}/intent/route`,
+    `${process.env.ORCHESTRATOR_API_URL}/intents/route`,
     {
       ...convertBigIntFields(metaIntent),
     },
@@ -240,7 +228,7 @@ export const processIntent = async (intent: Intent) => {
     },
   );
 
-  const orderBundle = parseCompactResponse(orderResponse.orderBundle);
+  const intentOps = parseCompactResponse(orderResponse.intentOps);
   // const orderPath = response.data.orderBundles.map((orderPath: any) => {
   //   return {
   //     orderBundle: parseCompactResponse(orderPath.orderBundle),
@@ -255,7 +243,7 @@ export const processIntent = async (intent: Intent) => {
   // });
 
   console.log(
-    `${ts()} Bundle ${bundleLabel}: Generated ${orderBundle.nonce} in ${new Date().getTime() - startTime}ms`,
+    `${ts()} Bundle ${bundleLabel}: Generated ${intentOps.nonce} in ${new Date().getTime() - startTime}ms`,
   );
 
   // orderPath[0].orderBundle.segments[0].witness.execs = [
@@ -265,13 +253,13 @@ export const processIntent = async (intent: Intent) => {
   //   ...metaIntent.targetExecutions,
   // ];
 
-  const signedOrderBundle = await signOrderBundle({
-    orderBundle,
+  const signedIntentOps = await signOrderBundle({
+    intentOps,
     owner,
   });
 
   console.dir(orderResponse, { depth: null });
-  console.dir(signedOrderBundle, { depth: null });
+  console.dir(signedIntentOps, { depth: null });
 
   console.log(
     `${ts()} Bundle ${bundleLabel}: Signed in ${new Date().getTime() - startTime}ms`,
@@ -289,11 +277,10 @@ export const processIntent = async (intent: Intent) => {
   //     },
   //   ]);
 
-  console.dir(signedOrderBundle, { depth: null });
   const response = await axios.post(
-    `${process.env.ORCHESTRATOR_API_URL}/intent`,
+    `${process.env.ORCHESTRATOR_API_URL}/intents`,
     {
-      signedOrderBundle: convertBigIntFields(signedOrderBundle),
+      signedIntentOps: convertBigIntFields(signedIntentOps),
     },
     {
       headers: {
@@ -306,7 +293,7 @@ export const processIntent = async (intent: Intent) => {
 
   const bundleResult = {
     ...response.data,
-    bundleId: BigInt(response.data.bundleResult.bundleId),
+    id: BigInt(response.data.result.id),
   };
 
   console.log(
@@ -325,7 +312,7 @@ export const processIntent = async (intent: Intent) => {
     {
       status: result.status,
       claims: result.claims,
-      targetChainId: result.targetChainId,
+      targetChainId: result.destinationChainId,
       fillTransactionHash: result.fillTransactionHash,
       fillTimestamp: result.fillTimestamp,
     },

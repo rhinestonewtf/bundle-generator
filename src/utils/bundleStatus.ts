@@ -8,7 +8,7 @@ import axios from "axios";
 
 const getBundleStatus = async (bundleId: bigint): Promise<BundleResult> => {
   const response = await axios.get(
-    `${process.env.ORCHESTRATOR_API_URL}/intent/${bundleId.toString()}`,
+    `${process.env.ORCHESTRATOR_API_URL}/intents/${bundleId.toString()}`,
     {
       headers: {
         "x-api-key": process.env.ORCHESTRATOR_API_KEY,
@@ -43,7 +43,7 @@ export const waitForBundleResult = async ({
 }) => {
   const startTime = Date.now();
 
-  let bundleStatus = await getBundleStatus(bundleResult.bundleId);
+  let bundleStatus = await getBundleStatus(bundleResult.id);
   console.dir(bundleStatus, { depth: null });
 
   console.log(
@@ -84,7 +84,7 @@ export const waitForBundleResult = async ({
     }
 
     await new Promise((resolve) => setTimeout(resolve, iterationTime));
-    bundleStatus = await getBundleStatus(bundleResult.bundleId);
+    bundleStatus = await getBundleStatus(bundleResult.id);
   }
 
   return bundleStatus;
