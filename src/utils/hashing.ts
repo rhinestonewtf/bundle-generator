@@ -47,9 +47,9 @@ export const typedData = {
   ],
   Qualifier: [{ name: "encodedVal", type: "bytes" }],
   Execution: [
-    { name: "target", type: "address" },
+    { name: "to", type: "address" },
     { name: "value", type: "uint256" },
-    { name: "callData", type: "bytes" },
+    { name: "data", type: "bytes" },
   ],
   PreClaimExecution: [
     { name: "gasStipend", type: "uint256" },
@@ -500,9 +500,9 @@ function isExecutionArray(input: any): input is readonly Execution[] {
     Array.isArray(input) &&
     (input.length === 0 ||
       (input[0] &&
-        typeof input[0].target === "string" &&
+        typeof input[0].to === "string" &&
         typeof input[0].value === "bigint" &&
-        typeof input[0].callData === "string"))
+        typeof input[0].data === "string"))
   );
 }
 
@@ -655,15 +655,15 @@ function getExecutionHash(execution: Execution): Hex {
     encodeAbiParameters(
       [
         { type: "bytes32", name: "TYPEHASH_COMPACT" },
-        { type: "address", name: "target" },
+        { type: "address", name: "to" },
         { type: "uint256", name: "value" },
-        { type: "bytes32", name: "callData" },
+        { type: "bytes32", name: "data" },
       ],
       [
         OPERATION_TYPEHASH,
-        execution.target,
+        execution.to,
         execution.value,
-        keccak256(execution.callData),
+        keccak256(execution.data),
       ],
     ),
   );
@@ -751,9 +751,9 @@ export function encodeExecutions(executions: readonly Execution[]): Hex {
             {
               type: "tuple[]",
               components: [
-                { type: "address", name: "target" },
+                { type: "address", name: "to" },
                 { type: "uint256", name: "value" },
-                { type: "bytes", name: "callData" },
+                { type: "bytes", name: "data" },
               ],
             },
           ],

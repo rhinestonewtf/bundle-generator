@@ -83,9 +83,9 @@ function parseCompactResponse(response: any): any {
           fillDeadline: segment.mandate.fillDeadline,
           targetOps: segment.mandate.targetOps.map((exec: any) => {
             return {
-              target: exec.target as Address,
+              to: exec.to as Address,
               value: BigInt(exec.value),
-              callData: exec.callData as Hex,
+              data: exec.data as Hex,
             };
           }),
           preClaimOps: [], // todo
@@ -134,21 +134,9 @@ export const processIntent = async (intent: Intent) => {
     await setEmissary(chain.id, sourceSmartAccount);
 
     await deployAccount({ smartAccount: sourceSmartAccount, chain });
-
   }
 
   await deployAccount({ smartAccount: targetSmartAccount, chain: targetChain });
-
-  // check balances
-  const { data } = await axios.get(
-    `${process.env.ORCHESTRATOR_API_URL}/accounts/${targetSmartAccount.account.address}/portfolio`,
-    {
-      headers: {
-        "x-api-key": process.env.ORCHESTRATOR_API_KEY!,
-      },
-    },
-  );
-  console.log(`Portfolio of ${targetSmartAccount.account.address}`, JSON.stringify(data, undefined, 2))
 
   const target = intent.tokenRecipient as Address;
 
@@ -181,18 +169,18 @@ export const processIntent = async (intent: Intent) => {
           token.symbol == "ETH"
             ? "0x"
             : encodeFunctionData({
-              abi: erc20Abi,
-              functionName: "transfer",
-              args: [target, convertTokenAmount({ token })],
-            }),
+                abi: erc20Abi,
+                functionName: "transfer",
+                args: [target, convertTokenAmount({ token })],
+              }),
         callData:
           token.symbol == "ETH"
             ? "0x"
             : encodeFunctionData({
-              abi: erc20Abi,
-              functionName: "transfer",
-              args: [target, convertTokenAmount({ token })],
-            }),
+                abi: erc20Abi,
+                functionName: "transfer",
+                args: [target, convertTokenAmount({ token })],
+              }),
       };
     }),
     targetGasUnits,
@@ -241,7 +229,7 @@ export const processIntent = async (intent: Intent) => {
   // );
 
   const { data: orderResponse } = await axios.post(
-    `${process.env.ORCHESTRATOR_API_URL}/accounts/${targetSmartAccount.account.address}/bundles/path`,
+    `${process.env.ORCHESTRATOR_API_URL}/intent/route`,
     {
       ...convertBigIntFields(metaIntent),
     },
@@ -303,9 +291,9 @@ export const processIntent = async (intent: Intent) => {
 
   console.dir(signedOrderBundle, { depth: null });
   const response = await axios.post(
-    `${process.env.ORCHESTRATOR_API_URL}/bundles`,
+    `${process.env.ORCHESTRATOR_API_URL}/intent`,
     {
-      bundles: [{ signedOrderBundle: convertBigIntFields(signedOrderBundle) }],
+      signedOrderBundle: convertBigIntFields(signedOrderBundle),
     },
     {
       headers: {
@@ -314,19 +302,19 @@ export const processIntent = async (intent: Intent) => {
     },
   );
 
-  const bundleResults = response.data.bundleResults.map((bundleResult: any) => {
-    return {
-      ...bundleResult,
-      bundleId: BigInt(bundleResult.bundleId),
-    };
-  });
+  console.dir(response.data, { depth: null });
+
+  const bundleResult = {
+    ...response.data,
+    bundleId: BigInt(response.data.bundleResult.bundleId),
+  };
 
   console.log(
     `${ts()} Bundle ${bundleLabel}: Sent in ${new Date().getTime() - startTime}ms`,
   );
 
   const result = await waitForBundleResult({
-    bundleResults,
+    bundleResult,
     orchestrator,
     bundleLabel,
     processStartTime: startTime,

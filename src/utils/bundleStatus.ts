@@ -1,19 +1,41 @@
 import {
+  BundleResult,
   BundleStatus,
   type PostOrderBundleResult,
 } from "@rhinestone/sdk/orchestrator";
 import { ts } from "../main.js";
+import axios from "axios";
+
+const getBundleStatus = async (bundleId: bigint): Promise<BundleResult> => {
+  const response = await axios.get(
+    `${process.env.ORCHESTRATOR_API_URL}/intent/${bundleId.toString()}`,
+    {
+      headers: {
+        "x-api-key": process.env.ORCHESTRATOR_API_KEY,
+      },
+    },
+  );
+
+  response.data.claims = response.data.claims.map((claim: any) => {
+    return {
+      ...claim,
+      depositId: BigInt(claim.depositId),
+    };
+  });
+
+  return response.data;
+};
 
 export const waitForBundleResult = async ({
   orchestrator,
-  bundleResults,
+  bundleResult,
   bundleLabel = "",
   processStartTime,
   maxWaitTime = 20000,
   iterationTime = 500,
 }: {
   orchestrator: any;
-  bundleResults: PostOrderBundleResult;
+  bundleResult: any;
   processStartTime: number;
   bundleLabel?: string;
   maxWaitTime?: number;
@@ -21,9 +43,8 @@ export const waitForBundleResult = async ({
 }) => {
   const startTime = Date.now();
 
-  let bundleStatus = await orchestrator.getBundleStatus(
-    bundleResults[0].bundleId,
-  );
+  let bundleStatus = await getBundleStatus(bundleResult.bundleId);
+  console.dir(bundleStatus, { depth: null });
 
   console.log(
     `${ts()} Bundle ${bundleLabel ? bundleLabel + ": " : ""}Pending...`,
@@ -63,9 +84,7 @@ export const waitForBundleResult = async ({
     }
 
     await new Promise((resolve) => setTimeout(resolve, iterationTime));
-    bundleStatus = await orchestrator.getBundleStatus(
-      bundleResults[0].bundleId,
-    );
+    bundleStatus = await getBundleStatus(bundleResult.bundleId);
   }
 
   return bundleStatus;
