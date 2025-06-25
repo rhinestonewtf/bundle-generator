@@ -211,6 +211,27 @@ export const processIntent = async (intent: Intent) => {
 
   console.log(`${ts()} Bundle ${bundleLabel}: Generating Intent`);
 
+  const { data: orderCost } = await axios.post(
+    `${process.env.ORCHESTRATOR_API_URL}/intents/cost`,
+    {
+      ...convertBigIntFields({
+        ...metaIntent,
+        tokenTransfers: metaIntent.tokenTransfers.map(
+          (transfer: TokenTransfer) => ({
+            tokenAddress: transfer.tokenAddress,
+          }),
+        ),
+      }),
+    },
+    {
+      headers: {
+        "x-api-key": process.env.ORCHESTRATOR_API_KEY!,
+      },
+    },
+  );
+
+  console.dir(orderCost, { depth: null });
+
   // const orderPath = await orchestrator.getOrderPath(
   //   metaIntent,
   //   targetSmartAccount.account.address,
@@ -228,7 +249,7 @@ export const processIntent = async (intent: Intent) => {
     },
   );
 
-  const intentOps = parseCompactResponse(orderResponse.intentOps);
+  const intentOp = parseCompactResponse(orderResponse.intentOp);
   // const orderPath = response.data.orderBundles.map((orderPath: any) => {
   //   return {
   //     orderBundle: parseCompactResponse(orderPath.orderBundle),
@@ -243,7 +264,7 @@ export const processIntent = async (intent: Intent) => {
   // });
 
   console.log(
-    `${ts()} Bundle ${bundleLabel}: Generated ${intentOps.nonce} in ${new Date().getTime() - startTime}ms`,
+    `${ts()} Bundle ${bundleLabel}: Generated ${intentOp.nonce} in ${new Date().getTime() - startTime}ms`,
   );
 
   // orderPath[0].orderBundle.segments[0].witness.execs = [
@@ -253,13 +274,13 @@ export const processIntent = async (intent: Intent) => {
   //   ...metaIntent.targetExecutions,
   // ];
 
-  const signedIntentOps = await signOrderBundle({
-    intentOps,
+  const signedIntentOp = await signOrderBundle({
+    intentOp,
     owner,
   });
 
   console.dir(orderResponse, { depth: null });
-  console.dir(signedIntentOps, { depth: null });
+  console.dir(signedIntentOp, { depth: null });
 
   console.log(
     `${ts()} Bundle ${bundleLabel}: Signed in ${new Date().getTime() - startTime}ms`,
@@ -278,9 +299,9 @@ export const processIntent = async (intent: Intent) => {
   //   ]);
 
   const response = await axios.post(
-    `${process.env.ORCHESTRATOR_API_URL}/intents`,
+    `${process.env.ORCHESTRATOR_API_URL}/intent-operations`,
     {
-      signedIntentOps: convertBigIntFields(signedIntentOps),
+      signedIntentOp: convertBigIntFields(signedIntentOp),
     },
     {
       headers: {

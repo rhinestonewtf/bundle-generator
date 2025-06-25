@@ -8,7 +8,7 @@ import axios from "axios";
 
 const getBundleStatus = async (bundleId: bigint): Promise<BundleResult> => {
   const response = await axios.get(
-    `${process.env.ORCHESTRATOR_API_URL}/intents/${bundleId.toString()}`,
+    `${process.env.ORCHESTRATOR_API_URL}/intent-operation/${bundleId.toString()}`,
     {
       headers: {
         "x-api-key": process.env.ORCHESTRATOR_API_KEY,

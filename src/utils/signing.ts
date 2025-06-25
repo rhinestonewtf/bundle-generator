@@ -20,13 +20,13 @@ export function getEmissaryCompactDigest(bundle: any): Hex {
 }
 
 export const signOrderBundle = async ({
-  intentOps,
+  intentOp,
   owner,
 }: {
-  intentOps: any;
+  intentOp: any;
   owner: LocalAccount;
 }) => {
-  const orderBundleHash = getEmissaryCompactDigest(intentOps);
+  const orderBundleHash = getEmissaryCompactDigest(intentOp);
 
   const bundleSignature = await owner.signMessage({
     message: { raw: orderBundleHash },
@@ -36,10 +36,10 @@ export const signOrderBundle = async ({
     [OWNABLE_VALIDATOR_ADDRESS, DEFAULT_CONFIG_ID, bundleSignature],
   );
 
-  const signedIntentOps = {
-    ...intentOps,
-    originSignatures: Array(intentOps.elements.length).fill(packedSig),
+  const signedIntentOp = {
+    ...intentOp,
+    originSignatures: Array(intentOp.elements.length).fill(packedSig),
     destinationSignature: packedSig,
   };
-  return signedIntentOps;
+  return signedIntentOp;
 };
