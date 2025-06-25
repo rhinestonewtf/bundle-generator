@@ -23,7 +23,7 @@ import {
 } from "viem";
 import { deployAccount, getSmartAccount } from "./account.js";
 import { signOrderBundle } from "./utils/signing.js";
-import { waitForBundleResult } from "./utils/bundleStatus.js";
+import { getPortfolio, waitForBundleResult } from "./utils/bundleStatus.js";
 import { Intent, Token } from "./types.js";
 import { getChain } from "./utils/chains.js";
 import { convertTokenAmount } from "./utils/tokens.js";
@@ -118,6 +118,7 @@ export const processIntent = async (intent: Intent) => {
     owner,
   });
 
+  /*
   for (const sourceChain of intent.sourceChains) {
     const chain = getChain(sourceChain);
     const sourceSmartAccount = await getSmartAccount({
@@ -136,8 +137,13 @@ export const processIntent = async (intent: Intent) => {
 
     await deployAccount({ smartAccount: sourceSmartAccount, chain });
   }
+  */
 
-  await deployAccount({ smartAccount: targetSmartAccount, chain: targetChain });
+  //await deployAccount({ smartAccount: targetSmartAccount, chain: targetChain });
+
+  const portfolio = await getPortfolio(targetSmartAccount.account.address)
+  console.log(`Portfolio of ${targetSmartAccount.account.address}`, JSON.stringify(portfolio, undefined, 2))
+
 
   const target = intent.tokenRecipient as Address;
 
@@ -165,10 +171,10 @@ export const processIntent = async (intent: Intent) => {
           token.symbol == "ETH"
             ? "0x"
             : encodeFunctionData({
-                abi: erc20Abi,
-                functionName: "transfer",
-                args: [target, convertTokenAmount({ token })],
-              }),
+              abi: erc20Abi,
+              functionName: "transfer",
+              args: [target, convertTokenAmount({ token })],
+            }),
       };
     }),
     destinationGasUnits,

@@ -5,6 +5,7 @@ import {
 } from "@rhinestone/sdk/orchestrator";
 import { ts } from "../main.js";
 import axios from "axios";
+import { Address } from "viem";
 
 const getBundleStatus = async (bundleId: bigint): Promise<BundleResult> => {
   const response = await axios.get(
@@ -89,3 +90,15 @@ export const waitForBundleResult = async ({
 
   return bundleStatus;
 };
+
+export const getPortfolio = async (account: Address): Promise<any> => {
+  const { data } = await axios.get(
+    `${process.env.ORCHESTRATOR_API_URL}/accounts/${account}/portfolio`,
+    {
+      headers: {
+        "x-api-key": process.env.ORCHESTRATOR_API_KEY!,
+      },
+    },
+  );
+  return data
+} 
