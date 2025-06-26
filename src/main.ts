@@ -134,7 +134,7 @@ export const processIntent = async (intent: Intent) => {
     // await depositToCompact(sourceSmartAccount, chain.id, parseEther("0.0001"));
     await setEmissary(chain.id, sourceSmartAccount);
 
-    await deployAccount({ smartAccount: sourceSmartAccount, chain });
+    // await deployAccount({ smartAccount: sourceSmartAccount, chain });
   }
 
   await deployAccount({ smartAccount: targetSmartAccount, chain: targetChain });

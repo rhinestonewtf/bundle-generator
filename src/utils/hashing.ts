@@ -19,6 +19,8 @@ import {
   encodeAbiParameters,
   encodePacked,
   keccak256,
+  slice,
+  toHex,
 } from "viem";
 import { IsTypedData, TypedDataToPrimitiveTypes } from "abitype";
 import { COMPACT_ADDRESS } from "../compact";
@@ -33,17 +35,34 @@ export const typedData = {
   Element: [
     { name: "arbiter", type: "address" },
     { name: "chainId", type: "uint256" },
-    { name: "idsAndAmounts", type: "uint256[2][]" },
+    { name: "commitments", type: "Lock[]" },
     { name: "mandate", type: "Mandate" },
   ],
+  Lock: [
+    { name: "lockTag", type: "bytes12" },
+    { name: "token", type: "address" },
+    { name: "amount", type: "uint256" },
+  ],
   Mandate: [
+    { name: "target", type: "Target" },
+    { name: "preClaimOps", type: "Op[]" },
+    { name: "targetOps", type: "Op[]" },
+    { name: "q", type: "bytes32" },
+  ],
+  Op: [
+    { name: "to", type: "address" },
+    { name: "value", type: "uint256" },
+    { name: "data", type: "bytes" },
+  ],
+  Target: [
     { name: "recipient", type: "address" },
-    { name: "tokenOut", type: "uint256[2][]" },
-    { name: "destinationChainId", type: "uint256" },
-    { name: "fillDeadline", type: "uint256" },
-    { name: "preClaimOps", type: "Execution[]" },
-    { name: "destinationOps", type: "Execution[]" },
-    { name: "qualifier", type: "Qualifier" },
+    { name: "tokenOut", type: "Token[]" },
+    { name: "targetChain", type: "uint256" },
+    { name: "fillExpires", type: "uint256" },
+  ],
+  Token: [
+    { name: "token", type: "address" },
+    { name: "amount", type: "uint256" },
   ],
   Qualifier: [{ name: "encodedVal", type: "bytes" }],
   Execution: [
@@ -263,6 +282,9 @@ export type Bundle = Omit<MultiChainCompact, "elements"> & {
 };
 
 export type Element = types["Element"];
+export type ElementWithIdsAndAmounts = Omit<Element, "commitments"> & {
+  idsAndAmounts: readonly [bigint, bigint][];
+};
 /// @dev This is the response of the orchestrator to include the settlement layer in the mandate
 export type FullElement = Omit<Element, "mandate"> & {
   mandate: FullMandate;
@@ -295,6 +317,7 @@ export type WithChainId = {
 export type Execution = types["Execution"];
 export type ChainExec = Execution & WithChainId;
 export type PreClaimExecution = types["PreClaimExecution"];
+export type Target = types["Target"];
 
 export type QualificationWitness = types["QualificationWitness"];
 export type MultiOriginMessage = types["MultiOriginMessage"];
@@ -363,15 +386,21 @@ export type HashedEIP712Domain = {
 export type HashedEIP712DomainSansChainId = Omit<HashedEIP712Domain, "chainId">;
 
 export const COMPACT_TYPEHASH =
-  "0x57148f548740ae036cc912a571c25813a2352602b0117dea9256652ad4fdef08";
+  "0x7202a47227c093d7f235abd395b73a0c7f736fb82ebbd971a17538559872f404";
 export const MANDATE_TYPEHASH =
-  "0x1f992b7d8bdf0981df19a0513a88584d57c0be9b397fd8eafa65eeb81aff1426";
+  "0xfe3f51ad75a92111993999292975d6ffca53caa5cfbf89abf5f2479207ab711a";
 export const ELEMENT_TYPEHASH =
-  "0x3e2dc0c6b991e631e860541a1ac72b28b72af687cd7ebf80678e8818a19f2ed2";
+  "0x86dc39de86177bd80ad40f6f8edd7ee4d745724b9a19bbaa37e3044247e44ec5";
 export const QUALIFIER_TYPEHASH =
   "0x76a68ec923fb97f462b8f0abfcfcceb38f4e62169241cf215fec51ab87b2a6da";
 export const OPERATION_TYPEHASH =
-  "0xe21d36e59bd7a6621212089e9cd43a207e17053bef45c3ffc3a3c16749fc0752";
+  "0x0e566a6f316e5e094e69d814664f5635daa1531cbcaa71a46bc8c9fa20ab2be6";
+export const TYPEHASH_TARGET =
+  "0x056c9d1490ced795b31a94d91b0b846e3aefde8d0acdfb63c9c28fdff1276b65";
+export const TYPEHASH_TOKENOUT =
+  "0x1915534d8e0225348ff204045b6f79a928be89e8c53411c56d29fa836d247826";
+export const TYPEHASH_LOCK =
+  "0xfb7744571d97aa61eb9c2bc3c67b9b1ba047ac9e95afb2ef02bc5b3d9e64fbe5";
 
 export const QUALIFICATION_TYPEHASH =
   "0xa002e4a5708d4424abeaa7aa762b36027c1c7eb8604af120ad2ddda6f419c071";
@@ -445,7 +474,8 @@ export function hash(
     | Bundle
     | QualifiedClaim
     | Element[]
-    | HashedEIP712Domain,
+    | HashedEIP712Domain
+    | ElementWithIdsAndAmounts,
 ): Hex {
   // Type guards to determine the input type and dispatch to appropriate function
   if (isElement(input)) {
@@ -472,7 +502,7 @@ export function hash(
 }
 
 // Type guard functions
-function isElement(input: any): input is Element {
+function isElement(input: any): input is ElementWithIdsAndAmounts {
   return (
     input &&
     typeof input.arbiter === "string" &&
@@ -539,7 +569,7 @@ function isQualifiedClaim(input: any): input is QualifiedClaim {
   );
 }
 
-function isElementArray(input: any): input is Element[] {
+function isElementArray(input: any): input is ElementWithIdsAndAmounts[] {
   return (
     Array.isArray(input) &&
     (input.length === 0 ||
@@ -586,49 +616,49 @@ export function getBundleClaimHash(bundle: Bundle): Hex {
   return claimHash;
 }
 
-export function getElementHash(element: Element): Hex {
+export function getElementHash(element: ElementWithIdsAndAmounts): Hex {
   return keccak256(
     encodeAbiParameters(
       [
-        { type: "bytes32", name: "TYPEHASH_COMPACT" },
+        { type: "bytes32", name: "ELEMENT_TYPEHASH" },
         { type: "address", name: "arbiter" },
-        { type: "uint256", name: "originChainId" },
-        { type: "bytes32", name: "idsAndAmountsHash" },
+        { type: "uint256", name: "chainId" },
+        { type: "bytes32", name: "tokenInHash" },
         { type: "bytes32", name: "mandateHash" },
       ],
       [
-        COMPACT_TYPEHASH,
+        ELEMENT_TYPEHASH,
         element.arbiter,
         element.chainId,
-        hashTokenArrays6909(element.idsAndAmounts),
+        hashTokenIn(element.idsAndAmounts),
         getMandateHash(element.mandate),
       ],
     ),
   );
 }
 
-export function getMandateHash(mandate: Mandate): Hex {
+export function getMandateHash(mandate: any): Hex {
+  console.log(mandate);
   const hash = keccak256(
     encodeAbiParameters(
       [
-        { type: "bytes32", name: "TYPEHASH_COMPACT" },
-        { type: "address", name: "recipient" },
-        { type: "bytes32", name: "tokenOut" },
-        { type: "uint256", name: "destinationChainId" },
-        { type: "uint256", name: "fillDeadline" },
+        { type: "bytes32", name: "MANDATE_TYPEHASH" },
+        { type: "bytes32", name: "targetAttributes" },
         { type: "bytes32", name: "preClaimOps" },
         { type: "bytes32", name: "destinationOps" },
         { type: "bytes32", name: "qualifierHash" },
       ],
       [
-        COMPACT_TYPEHASH,
-        mandate.recipient,
-        hashTokenArrays6909(mandate.tokenOut),
-        mandate.destinationChainId,
-        mandate.fillDeadline,
+        MANDATE_TYPEHASH,
+        hashTargetAttributes(
+          mandate.recipient,
+          mandate.tokenOut,
+          mandate.destinationChainId,
+          BigInt(mandate.fillDeadline),
+        ),
         getExecutionsHash(mandate.preClaimOps),
         getExecutionsHash(mandate.destinationOps),
-        qualifierHash(mandate.qualifier),
+        keccak256(mandate.qualifier.encodedVal),
       ],
     ),
   );
@@ -686,13 +716,77 @@ function qualificationHash(claimHash: Hex, _qualificationHash: Hex): Hex {
   );
 }
 
-function hashElementArray(elements: Element[]): Hex {
+function hashElementArray(elements: ElementWithIdsAndAmounts[]): Hex {
   const elementHashes = elements.map(getElementHash);
   return keccak256(encodePacked(["bytes32[]"], [elementHashes]));
 }
 
 export function hashTokenArrays6909(tokenArrays6909: TokenArrays6909): Hex {
   return keccak256(encodePacked(["uint256[2][]"], [tokenArrays6909]));
+}
+
+export function hashTokenIn(tokenIn: TokenArrays6909): Hex {
+  const hashes: Hex[] = tokenIn.map((token) =>
+    keccak256(
+      encodeAbiParameters(
+        [
+          { type: "bytes32", name: "TYPEHASH_LOCK" },
+          { type: "bytes12", name: "lockTag" },
+          { type: "address", name: "token" },
+          { type: "uint256", name: "amount" },
+        ],
+        [
+          TYPEHASH_LOCK,
+          slice(toHex(token[0]), 0, 12),
+          slice(toHex(token[0]), 12, 32),
+          token[1],
+        ],
+      ),
+    ),
+  );
+  return keccak256(encodePacked(["bytes32[]"], [hashes]));
+}
+
+export function hashTokenOut(tokenOut: TokenArrays6909): Hex {
+  const hashes: Hex[] = tokenOut.map((token) =>
+    keccak256(
+      encodeAbiParameters(
+        [
+          { type: "bytes32", name: "TYPEHASH_TOKENOUT" },
+          { type: "address", name: "token" },
+          { type: "uint256", name: "amount" },
+        ],
+        [TYPEHASH_TOKENOUT, slice(toHex(token[0]), 12, 32), token[1]],
+      ),
+    ),
+  );
+  return keccak256(encodePacked(["bytes32[]"], [hashes]));
+}
+
+export function hashTargetAttributes(
+  recipient: Address,
+  tokenOut: TokenArrays6909,
+  targetChain: bigint,
+  fillExpires: bigint,
+): Hex {
+  return keccak256(
+    encodeAbiParameters(
+      [
+        { type: "bytes32", name: "TYPEHASH_TARGET" },
+        { type: "address", name: "recipient" },
+        { type: "bytes32", name: "tokenOutHash" },
+        { type: "uint256", name: "destChain" },
+        { type: "uint256", name: "fillExpires" },
+      ],
+      [
+        TYPEHASH_TARGET,
+        recipient,
+        hashTokenOut(tokenOut),
+        targetChain,
+        fillExpires,
+      ],
+    ),
+  );
 }
 
 export function hashEIP712DomainSeparator(domain: HashedEIP712Domain): Hex {
