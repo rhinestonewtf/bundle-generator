@@ -8,20 +8,13 @@ import axios from "axios";
 
 const getBundleStatus = async (bundleId: bigint): Promise<BundleResult> => {
   const response = await axios.get(
-    `${process.env.ORCHESTRATOR_API_URL}/intent-operation/${bundleId.toString()}`,
+    `${process.env.ORCHESTRATOR_API_URL}/intent-operation/${bundleId.toString()}/status`,
     {
       headers: {
         "x-api-key": process.env.ORCHESTRATOR_API_KEY,
       },
     },
   );
-
-  response.data.claims = response.data.claims.map((claim: any) => {
-    return {
-      ...claim,
-      depositId: BigInt(claim.depositId),
-    };
-  });
 
   return response.data;
 };
