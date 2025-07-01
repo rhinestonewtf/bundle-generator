@@ -21,6 +21,7 @@ import {
   keccak256,
   slice,
   toHex,
+  zeroAddress,
 } from "viem";
 import { IsTypedData, TypedDataToPrimitiveTypes } from "abitype";
 import { COMPACT_ADDRESS } from "../compact";
@@ -386,17 +387,17 @@ export type HashedEIP712Domain = {
 export type HashedEIP712DomainSansChainId = Omit<HashedEIP712Domain, "chainId">;
 
 export const COMPACT_TYPEHASH =
-  "0x7202a47227c093d7f235abd395b73a0c7f736fb82ebbd971a17538559872f404";
+  "0x4e68b5f94568326f123b98cc674218034b0ad104191b3c5a466808fb30f6e9a0";
 export const MANDATE_TYPEHASH =
-  "0xfe3f51ad75a92111993999292975d6ffca53caa5cfbf89abf5f2479207ab711a";
+  "0x1c82886d3d0902b7aa88a30f07d2127bbbef080957680ae5bfb3ede21dc33d9c";
 export const ELEMENT_TYPEHASH =
-  "0x86dc39de86177bd80ad40f6f8edd7ee4d745724b9a19bbaa37e3044247e44ec5";
+  "0xb737cc04f38312834b7b0bb120e81e5a84a333607d293e1fcac2084d70da0299";
 export const QUALIFIER_TYPEHASH =
   "0x76a68ec923fb97f462b8f0abfcfcceb38f4e62169241cf215fec51ab87b2a6da";
 export const OPERATION_TYPEHASH =
   "0x0e566a6f316e5e094e69d814664f5635daa1531cbcaa71a46bc8c9fa20ab2be6";
 export const TYPEHASH_TARGET =
-  "0x056c9d1490ced795b31a94d91b0b846e3aefde8d0acdfb63c9c28fdff1276b65";
+  "0xf31ce097f6dc460bf61b6e6f69a70c82800a64fbd1c8f918c1bbb5a291e31bba";
 export const TYPEHASH_TOKENOUT =
   "0x1915534d8e0225348ff204045b6f79a928be89e8c53411c56d29fa836d247826";
 export const TYPEHASH_LOCK =
@@ -777,6 +778,7 @@ export function hashTargetAttributes(
         { type: "bytes32", name: "tokenOutHash" },
         { type: "uint256", name: "destChain" },
         { type: "uint256", name: "fillExpires" },
+        { type: "address", name: "claimProofSender" },
       ],
       [
         TYPEHASH_TARGET,
@@ -784,6 +786,7 @@ export function hashTargetAttributes(
         hashTokenOut(tokenOut),
         targetChain,
         fillExpires,
+        zeroAddress,
       ],
     ),
   );
@@ -869,5 +872,81 @@ export function getCompactDomainSeparator(chainId: number): HashedEIP712Domain {
   return {
     ...COMPACT_DOMAIN_SEPARATOR_SANS_CHAIN_ID,
     chainId,
+  };
+}
+
+type Component = {
+  claimant: bigint;
+  amount: bigint;
+};
+
+type BatchClaimComponent = {
+  id: bigint;
+  allocatedAmount: bigint;
+  portions: Component[];
+};
+
+type BatchMultichainClaim = {
+  allocatorData: Hex;
+  sponsorSignature: Hex;
+  sponsor: Address;
+  nonce: bigint;
+  expires: bigint;
+  witness: Hex;
+  witnessTypestring: string;
+  claims: BatchClaimComponent[];
+  additionalChains: Hex[];
+};
+
+function toCommitmentsHash({
+  claims,
+}: {
+  claims: BatchClaimComponent[];
+}): bigint {
+  return 0n;
+}
+
+function toMultichainClaimTypehashes({
+  claim,
+}: {
+  claim: BatchMultichainClaim;
+}): {
+  allocationTypehash: Hex;
+  compactTypehash: Hex;
+} {
+  return {
+    allocationTypehash: "0x",
+    compactTypehash: "0x",
+  };
+}
+
+function toMultichainClaimHash({
+  allocationTypehash,
+  compactTypehash,
+  commitmentsHash,
+}: {
+  allocationTypehash: Hex;
+  compactTypehash: Hex;
+  commitmentsHash: bigint;
+}): Hex {
+  return "0x";
+}
+
+export function toClaimHashAndTypehash({
+  claim,
+}: {
+  claim: BatchMultichainClaim;
+}) {
+  const commitmentsHash = toCommitmentsHash({ claims: claim.claims });
+  const { allocationTypehash, compactTypehash } = toMultichainClaimTypehashes({
+    claim,
+  });
+  return {
+    claimHash: toMultichainClaimHash({
+      allocationTypehash,
+      compactTypehash,
+      commitmentsHash,
+    }),
+    compactTypehash,
   };
 }

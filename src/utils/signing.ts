@@ -8,12 +8,18 @@ import {
 } from "@rhinestone/sdk/orchestrator";
 import { getCompactDomainSeparator, hash } from "./hashing";
 import { DEFAULT_CONFIG_ID, hashTypedData } from "../compact";
+import { toClaimHashAndTypehashFromTest } from "./new-hashing";
+import { toViemHash } from "./hashing-viem";
 
 export function getEmissaryCompactDigest(bundle: any): Hex {
-  const claimHash = hash(bundle);
+  // const claimHash = hash(bundle);
+  const { claimHash, compactTypehash } = toClaimHashAndTypehashFromTest({
+    intent: bundle,
+  });
+
   const notarizedCompactDomainSeparator = {
     ...getCompactDomainSeparator(Number(bundle.elements[0].chainId)),
-    verifyingContract: "0x66c78EDBb13aF2Cb8990d1E70eb25C29c2921e69" as Address, // NOTE: Weird issue here
+    verifyingContract: "0xa2E6C7Ba8613E1534dCB990e7e4962216C0a5d58" as Address, // NOTE: Weird issue here
   };
 
   return hashTypedData(notarizedCompactDomainSeparator, claimHash);
@@ -27,9 +33,17 @@ export const signOrderBundle = async ({
   owner: LocalAccount;
 }) => {
   const orderBundleHash = getEmissaryCompactDigest(intentOp);
+  const viemHash = toViemHash(intentOp);
+
+  console.log("Order Bundle Hash:", orderBundleHash);
+  console.log("Viem Hash:", viemHash);
+
+  // if (orderBundleHash !== viemHash) {
+  //   throw new Error("Order Bundle Hash does not match Viem hash");
+  // }
 
   const bundleSignature = await owner.signMessage({
-    message: { raw: orderBundleHash },
+    message: { raw: viemHash },
   });
   const packedSig = encodePacked(
     ["address", "uint8", "bytes"],
