@@ -63,9 +63,6 @@ function convertBigIntFields(obj: any): any {
 }
 
 function parseCompactResponse(response: any): any {
-  console.log("heeeeeere");
-  console.dir(response, { depth: null });
-  console.log(response.elements[0].mandate.qualifier);
   return {
     sponsor: response.sponsor as Address,
     nonce: BigInt(response.nonce),
@@ -92,7 +89,7 @@ function parseCompactResponse(response: any): any {
             };
           }),
           preClaimOps: [], // todo
-          qualifier: segment.mandate.qualifier.encodedVal, // todo
+          qualifier: segment.mandate.qualifier,
         },
       };
     }),
@@ -234,7 +231,7 @@ export const processIntent = async (intent: Intent) => {
     },
   );
 
-  console.dir(orderCost, { depth: null });
+  // console.dir(orderCost, { depth: null });
 
   // const orderPath = await orchestrator.getOrderPath(
   //   metaIntent,
@@ -283,8 +280,8 @@ export const processIntent = async (intent: Intent) => {
     owner,
   });
 
-  console.dir(orderResponse, { depth: null });
-  console.dir(signedIntentOp, { depth: null });
+  // console.dir(orderResponse, { depth: null });
+  // console.dir(signedIntentOp, { depth: null });
 
   console.log(
     `${ts()} Bundle ${bundleLabel}: Signed in ${new Date().getTime() - startTime}ms`,
@@ -314,7 +311,7 @@ export const processIntent = async (intent: Intent) => {
     },
   );
 
-  console.dir(response.data, { depth: null });
+  // console.dir(response.data, { depth: null });
 
   const bundleResult = {
     ...response.data,
