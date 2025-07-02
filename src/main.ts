@@ -63,25 +63,27 @@ function convertBigIntFields(obj: any): any {
 }
 
 function parseCompactResponse(response: any): any {
+  console.dir(response, { depth: null });
   return {
     sponsor: response.sponsor as Address,
     nonce: BigInt(response.nonce),
     expires: BigInt(response.expires),
-    elements: response.elements.map((segment: any) => {
+    elements: response.elements.map((element: any) => {
       return {
-        arbiter: segment.arbiter as Address,
-        chainId: BigInt(segment.chainId),
-        idsAndAmounts: segment.idsAndAmounts.map((idsAndAmount: any) => {
+        arbiter: element.arbiter as Address,
+        chainId: BigInt(element.chainId),
+        idsAndAmounts: element.idsAndAmounts.map((idsAndAmount: any) => {
           return [BigInt(idsAndAmount[0]), BigInt(idsAndAmount[1])];
         }),
+        beforeFill: element.beforeFill,
         mandate: {
-          recipient: segment.mandate.recipient as Address,
-          tokenOut: segment.mandate.tokenOut.map((tokenOut: any) => {
+          recipient: element.mandate.recipient as Address,
+          tokenOut: element.mandate.tokenOut.map((tokenOut: any) => {
             return [BigInt(tokenOut[0]), BigInt(tokenOut[1])];
           }),
-          destinationChainId: BigInt(segment.mandate.destinationChainId),
-          fillDeadline: segment.mandate.fillDeadline,
-          destinationOps: segment.mandate.destinationOps.map((exec: any) => {
+          destinationChainId: BigInt(element.mandate.destinationChainId),
+          fillDeadline: element.mandate.fillDeadline,
+          destinationOps: element.mandate.destinationOps.map((exec: any) => {
             return {
               to: exec.to as Address,
               value: BigInt(exec.value),
@@ -89,14 +91,12 @@ function parseCompactResponse(response: any): any {
             };
           }),
           preClaimOps: [], // todo
-          qualifier: segment.mandate.qualifier,
+          qualifier: element.mandate.qualifier,
         },
       };
     }),
-    tokenPrices: response.tokenPrices,
-    gasPrices: response.gasPrices,
-    opGasParams: response.opGasParams,
     serverSignature: response.serverSignature,
+    signedMetadata: response.signedMetadata,
   };
 }
 
@@ -212,24 +212,28 @@ export const processIntent = async (intent: Intent) => {
 
   console.log(`${ts()} Bundle ${bundleLabel}: Generating Intent`);
 
-  const { data: orderCost } = await axios.post(
-    `${process.env.ORCHESTRATOR_API_URL}/intents/cost`,
-    {
-      ...convertBigIntFields({
-        ...metaIntent,
-        tokenTransfers: metaIntent.tokenTransfers.map(
-          (transfer: TokenTransfer) => ({
-            tokenAddress: transfer.tokenAddress,
-          }),
-        ),
-      }),
-    },
-    {
-      headers: {
-        "x-api-key": process.env.ORCHESTRATOR_API_KEY!,
-      },
-    },
-  );
+  const BEARER_TOKEN =
+    "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySWQiOjEsInVzZXJOYW1lIjoiVGVzdCB1c2VyIiwidXNlckF0dHJpYnV0ZXMiOiJ7fSIsImlhdCI6MTc1MTQ3MDg5MywiZXhwIjoxNzUxNDc0NDkzLCJhdWQiOiJyaGluZXN0b25lLXNlcnZpY2VzIiwiaXNzIjoidXNlci1zZXJ2aWNlIn0.kbAxs57dyOa4VHZl35n4U9FgGC3ghdN-dTam4qN0AYQ";
+
+  // const { data: orderCost } = await axios.post(
+  //   `${process.env.ORCHESTRATOR_API_URL}/intents/cost`,
+  //   {
+  //     ...convertBigIntFields({
+  //       ...metaIntent,
+  //       tokenTransfers: metaIntent.tokenTransfers.map(
+  //         (transfer: TokenTransfer) => ({
+  //           tokenAddress: transfer.tokenAddress,
+  //         }),
+  //       ),
+  //     }),
+  //   },
+  //   {
+  //     headers: {
+  //       "x-api-key": process.env.ORCHESTRATOR_API_KEY!,
+  //       Authorization: `Bearer ${BEARER_TOKEN}`,
+  //     },
+  //   },
+  // );
 
   // console.dir(orderCost, { depth: null });
 
@@ -246,6 +250,7 @@ export const processIntent = async (intent: Intent) => {
     {
       headers: {
         "x-api-key": process.env.ORCHESTRATOR_API_KEY!,
+        Authorization: `Bearer ${BEARER_TOKEN}`,
       },
     },
   );
@@ -299,6 +304,7 @@ export const processIntent = async (intent: Intent) => {
   //     },
   //   ]);
 
+  console.dir(signedIntentOp, { depth: null });
   const response = await axios.post(
     `${process.env.ORCHESTRATOR_API_URL}/intent-operations`,
     {
@@ -307,6 +313,7 @@ export const processIntent = async (intent: Intent) => {
     {
       headers: {
         "x-api-key": process.env.ORCHESTRATOR_API_KEY!,
+        Authorization: `Bearer ${BEARER_TOKEN}`,
       },
     },
   );
