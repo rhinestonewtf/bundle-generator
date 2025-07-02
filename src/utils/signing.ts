@@ -11,6 +11,12 @@ import {
 
 function toSignatureHash(intentOp: any) {
   const notarizedChainElement = intentOp.elements[0];
+  const settlementSystem =
+    notarizedChainElement.mandate.qualifier.settlementSystem;
+  const claimProofer =
+    settlementSystem == "ACROSS"
+      ? "0x1990c54b361C42e23E90d60Eb84071b50b04bE4a"
+      : zeroAddress;
   return hashTypedData({
     domain: {
       name: "The Compact",
@@ -81,7 +87,7 @@ function toSignatureHash(intentOp: any) {
             })),
             targetChain: element.mandate.destinationChainId,
             fillExpiry: element.mandate.fillDeadline,
-            claimProofer: zeroAddress,
+            claimProofer: claimProofer,
           },
           originOps: element.mandate.preClaimOps.map((op: any) => ({
             to: op.to,
@@ -109,6 +115,7 @@ export const signOrderBundle = async ({
 }) => {
   const orderBundleHash = toSignatureHash(intentOp);
 
+  console.log("hash to sign", orderBundleHash);
   const bundleSignature = await owner.signMessage({
     message: { raw: orderBundleHash },
   });
