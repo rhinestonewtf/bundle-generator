@@ -63,7 +63,9 @@ function convertBigIntFields(obj: any): any {
 }
 
 function parseCompactResponse(response: any): any {
+  console.log("heeeeeere");
   console.dir(response, { depth: null });
+  console.log(response.elements[0].mandate.qualifier);
   return {
     sponsor: response.sponsor as Address,
     nonce: BigInt(response.nonce),
@@ -90,7 +92,7 @@ function parseCompactResponse(response: any): any {
             };
           }),
           preClaimOps: [], // todo
-          qualifier: segment.mandate.qualifier, // todo
+          qualifier: segment.mandate.qualifier.encodedVal, // todo
         },
       };
     }),

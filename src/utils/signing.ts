@@ -26,45 +26,36 @@ export function getEmissaryCompactDigest(bundle: any): Hex {
 }
 
 const mockIntentOp: any = {
-  sponsor: "0x0000000000000000000000000000000000000006",
-  nonce: 1n,
-  expires: 2000n,
+  sponsor: "0x5b04415cB6E002F2f315531CFa56b1112A2159AA",
+  nonce:
+    9640911881560008175144633844095210830337614424550972085581633153162897522688n,
+  expires: 1782982338n,
   elements: [
     {
-      arbiter: "0x0000000000000000000000000000000000000004" as Address,
-      chainId: 1,
+      arbiter: "0x306ba68E347D83E6171389E80E0B7Be978a5303A" as Address,
+      chainId: 8453,
       idsAndAmounts: [
         [
-          hexToBigInt(
-            "0x1000000000000000000000000000000000000000000000000000000000000005",
-          ),
-          50n,
+          21854126412662723981022530371211081521698004233493962776526716101293957447680n,
+          2320010528690n,
         ],
       ],
       mandate: {
-        recipient: "0x0000000000000000000000000000000000000001" as Address,
+        recipient: "0x5b04415cB6E002F2f315531CFa56b1112A2159AA" as Address,
         tokenOut: [
           [
-            hexToBigInt(
-              "0x1000000000000000000000000000000000000000000000000000000000000003",
-            ),
-            100n,
+            21854126412662723981022530371960153272591467524068739237857809954054699231507n,
+            10n,
           ],
         ],
-        destinationChainId: 1,
-        fillDeadline: 1000n,
-        preClaimOps: [
-          {
-            to: "0x0000000000000000000000000000000000000001",
-            value: 0n,
-            data: "0x",
-          },
-        ],
+        destinationChainId: 8453,
+        fillDeadline: 1751446638n,
+        preClaimOps: [],
         destinationOps: [
           {
-            to: "0x0000000000000000000000000000000000000002",
-            value: 0n,
-            data: "0x",
+            to: "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913",
+            value: "0",
+            data: "0xa9059cbb000000000000000000000000f7c012789aac54b5e33ea5b88064ca1f1172de05000000000000000000000000000000000000000000000000000000000000000a",
           },
         ],
       },
@@ -85,16 +76,19 @@ export const signOrderBundle = async ({
 
   const mockHash = toViemHash(mockIntentOp);
   console.log("Mock Order Bundle Hash:", mockHash);
+  console.log(
+    "actual hash: 0x2816b61cc9f9250eb11815f8f583caa54707c63322f1609a6378657a389b7cb8",
+  );
 
-  const hardcodedMockHash = toViemHashHardcoded(mockIntentOp);
-  console.log("Hardcoded Mock Order Bundle Hash:", hardcodedMockHash);
+  // const hardcodedMockHash = toViemHashHardcoded(mockIntentOp);
+  // console.log("Hardcoded Mock Order Bundle Hash:", hardcodedMockHash);
 
-  const realHash =
-    "0x4d0cfac32252459b882d86d7fa984549b94c1099be87b6d8734df212e1c29ed2";
-  console.log("Real Order Bundle Hash:", realHash);
-
-  const match = mockHash === realHash;
-  console.log("Hash Match:", match);
+  // const realHash =
+  //   "0x4d0cfac32252459b882d86d7fa984549b94c1099be87b6d8734df212e1c29ed2";
+  // console.log("Real Order Bundle Hash:", realHash);
+  //
+  // const match = mockHash === realHash;
+  // console.log("Hash Match:", match);
 
   // console.log("Order Bundle Hash:", orderBundleHash);
   console.log("Viem Hash:", viemHash);
@@ -106,9 +100,13 @@ export const signOrderBundle = async ({
   const bundleSignature = await owner.signMessage({
     message: { raw: viemHash },
   });
+  // const packedSig = encodePacked(
+  //   ["address", "uint8", "bytes"],
+  //   [OWNABLE_VALIDATOR_ADDRESS, DEFAULT_CONFIG_ID, bundleSignature],
+  // );
   const packedSig = encodePacked(
-    ["address", "uint8", "bytes"],
-    [OWNABLE_VALIDATOR_ADDRESS, DEFAULT_CONFIG_ID, bundleSignature],
+    ["address", "bytes"],
+    [OWNABLE_VALIDATOR_ADDRESS, bundleSignature],
   );
 
   const signedIntentOp = {

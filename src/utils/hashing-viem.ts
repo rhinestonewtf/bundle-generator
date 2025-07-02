@@ -1,7 +1,77 @@
-import { hashTypedData, slice, toHex, zeroAddress, zeroHash } from "viem";
+import {
+  concat,
+  getTypesForEIP712Domain,
+  hashDomain,
+  hashStruct,
+  hashTypedData,
+  HashTypedDataParameters,
+  HashTypedDataReturnType,
+  Hex,
+  keccak256,
+  slice,
+  toHex,
+  TypedData,
+  validateTypedData,
+  zeroAddress,
+  zeroHash,
+} from "viem";
+
+export function hashTypedData<
+  const typedData extends TypedData | Record<string, unknown>,
+  primaryType extends keyof typedData | "EIP712Domain",
+>(
+  parameters: HashTypedDataParameters<typedData, primaryType>,
+): HashTypedDataReturnType {
+  const {
+    domain = {},
+    message,
+    primaryType,
+  } = parameters as HashTypedDataParameters;
+  const types = {
+    EIP712Domain: getTypesForEIP712Domain({ domain }),
+    ...parameters.types,
+  };
+
+  // Need to do a runtime validation check on addresses, byte ranges, integer ranges, etc
+  // as we can't statically check this with TypeScript.
+  validateTypedData({
+    domain,
+    message,
+    primaryType,
+    types,
+  });
+
+  const parts: Hex[] = ["0x1901"];
+  if (domain)
+    parts.push(
+      hashDomain({
+        domain,
+        types: types as Record<string, any[]>,
+      }),
+    );
+
+  if (primaryType !== "EIP712Domain")
+    parts.push(
+      hashStruct({
+        data: message,
+        primaryType,
+        types: types as Record<string, any[]>,
+      }),
+    );
+
+  console.log("Parts:", parts);
+
+  return keccak256(concat(parts));
+}
 
 export function toViemHash(intentOp: any) {
   const notarizedChainElement = intentOp.elements[0];
+  console.log("here hello");
+  console.dir(intentOp, { depth: null });
+  console.log("hahs", keccak256("0x"));
+  console.log(
+    "0xc5d2460186f7233c927e7db2dcc703c0e500b653ca82273b7bfad8045d85a470",
+  );
   return hashTypedData({
     domain: {
       name: "The Compact",
@@ -84,8 +154,7 @@ export function toViemHash(intentOp: any) {
             value: op.value,
             data: op.data,
           })),
-          // q: element.mandate.qualifier.encodedVal,
-          q: zeroHash,
+          q: keccak256(element.mandate.qualifier ?? "0x"),
         },
       })),
     },
