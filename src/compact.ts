@@ -187,6 +187,7 @@ export function lockTag(
     (BigInt(resetPeriod) << 252n) |
     (allocatorId << 160n);
   const hex = tagBig.toString(16).slice(0, 24);
+  // return "0x60999ecb8218b5b634707b0b";
   return `0x${hex}` as const;
 }
 
@@ -454,6 +455,8 @@ export function hashTypedData(domain: any, structHash: Hex): Hex {
     "chainId" in domain
       ? hashEIP712DomainSeparator(domain)
       : hashEIP712DomainSeparatorSansChainId(domain);
+
+  console.log("Domain Separator:", domainSeparator);
 
   return keccak256(
     encodePacked(
