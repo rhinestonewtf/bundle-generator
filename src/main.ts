@@ -76,6 +76,7 @@ function parseCompactResponse(response: any): any {
           return [BigInt(idsAndAmount[0]), BigInt(idsAndAmount[1])];
         }),
         beforeFill: element.beforeFill,
+        smartAccountStatus: element.smartAccountStatus,
         mandate: {
           recipient: element.mandate.recipient as Address,
           tokenOut: element.mandate.tokenOut.map((tokenOut: any) => {
@@ -173,6 +174,9 @@ export const processIntent = async (intent: Intent) => {
       };
     }),
     destinationGasUnits,
+    smartAccount: {
+      accountType: "ERC7579",
+    },
   };
 
   await new Promise((resolve) => {
