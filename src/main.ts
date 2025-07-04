@@ -21,7 +21,7 @@ import {
   Hex,
   parseEther,
 } from "viem";
-import { deployAccount, getSmartAccount } from "./account.js";
+import { deployAccount, getSmartAccount, isDeployed } from "./account.js";
 import { signOrderBundle } from "./utils/signing.js";
 import { waitForBundleResult } from "./utils/bundleStatus.js";
 import { Intent, Token } from "./types.js";
@@ -70,6 +70,7 @@ function parseCompactResponse(response: any): any {
     expires: BigInt(response.expires),
     elements: response.elements.map((element: any) => {
       return {
+        smartAccountStatus: element.smartAccountStatus,
         arbiter: element.arbiter as Address,
         chainId: BigInt(element.chainId),
         idsAndAmounts: element.idsAndAmounts.map((idsAndAmount: any) => {
@@ -110,6 +111,7 @@ export const processIntent = async (intent: Intent) => {
   const owner: Account = privateKeyToAccount(
     process.env.OWNER_PRIVATE_KEY! as Hex,
   );
+  console.log('Owner at: ', owner.address)
 
   const targetChain = getChain(intent.targetChain);
 
@@ -118,6 +120,8 @@ export const processIntent = async (intent: Intent) => {
     owner,
   });
 
+  let smartAccCode = undefined
+
   for (const sourceChain of intent.sourceChains) {
     const chain = getChain(sourceChain);
     const sourceSmartAccount = await getSmartAccount({
@@ -125,21 +129,40 @@ export const processIntent = async (intent: Intent) => {
       owner,
     });
 
+    // await depositToCompact(sourceSmartAccount, chain.id, parseEther("0.0001"));
+    // await setEmissary(chain.id, sourceSmartAccount);
+
+    // await deployAccount({ smartAccount: sourceSmartAccount, chain });
+    const deployed = await sourceSmartAccount.account.isDeployed()
+
+    console.log('Source smart acc at %s : %s deployed: %s', chain.id, sourceSmartAccount.account.address, deployed)
+    const getInitData = await sourceSmartAccount.account.getFactoryArgs()
+    smartAccCode = {
+      to: getInitData.factory!,
+      data: getInitData.factoryData!,
+    }
+
     await fundAccount({
       account: sourceSmartAccount.account.address,
       sourceChains: intent.sourceChains,
       sourceTokens: intent.sourceTokens,
     });
+  }
 
-    // await depositToCompact(sourceSmartAccount, chain.id, parseEther("0.0001"));
-    // await setEmissary(chain.id, sourceSmartAccount);
+  const BEARER_TOKEN = process.env.ORCHESTRATOR_JWT_TOKEN
 
-    await deployAccount({ smartAccount: sourceSmartAccount, chain });
+  let smartAccount = {
+    accountType: 'ERC7579'
+  }
+  if (smartAccCode) {
+    // we assume its the same deployment data on all chains
+    //console.log(JSON.stringify(smartAccCode, undefined, 2))
+    smartAccount.initCode = smartAccCode
   }
 
   // await setEmissary(targetChain.id, targetSmartAccount);
 
-  await deployAccount({ smartAccount: targetSmartAccount, chain: targetChain });
+  // await deployAccount({ smartAccount: targetSmartAccount, chain: targetChain });
 
   const target = intent.tokenRecipient as Address;
 
@@ -167,16 +190,14 @@ export const processIntent = async (intent: Intent) => {
           token.symbol == "ETH"
             ? "0x"
             : encodeFunctionData({
-                abi: erc20Abi,
-                functionName: "transfer",
-                args: [target, convertTokenAmount({ token })],
-              }),
+              abi: erc20Abi,
+              functionName: "transfer",
+              args: [target, convertTokenAmount({ token })],
+            }),
       };
     }),
     destinationGasUnits,
-    smartAccount: {
-      accountType: "ERC7579",
-    },
+    smartAccount,
   };
 
   await new Promise((resolve) => {
@@ -216,9 +237,6 @@ export const processIntent = async (intent: Intent) => {
 
   console.log(`${ts()} Bundle ${bundleLabel}: Generating Intent`);
 
-  const BEARER_TOKEN =
-    "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySWQiOjEsInVzZXJOYW1lIjoiVGVzdCB1c2VyIiwidXNlckF0dHJpYnV0ZXMiOiJ7fSIsImlhdCI6MTc1MTYzMTUxNiwiZXhwIjoxNzUxNjc0NzE2LCJhdWQiOiJyaGluZXN0b25lLXNlcnZpY2VzIiwiaXNzIjoidXNlci1zZXJ2aWNlIn0.-ZmJpsJ2t3d5s3jpWzA4Laaj0WzYj7Mp0GN2r1nSzl4";
-
   // const { data: orderCost } = await axios.post(
   //   `${process.env.ORCHESTRATOR_API_URL}/intents/cost`,
   //   {
@@ -245,7 +263,6 @@ export const processIntent = async (intent: Intent) => {
   //   metaIntent,
   //   targetSmartAccount.account.address,
   // );
-
   const { data: orderResponse } = await axios.post(
     `${process.env.ORCHESTRATOR_API_URL}/intents/route`,
     {
