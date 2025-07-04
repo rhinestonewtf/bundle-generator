@@ -6,12 +6,16 @@ import {
 import { ts } from "../main.js";
 import axios from "axios";
 
-const getBundleStatus = async (bundleId: bigint): Promise<BundleResult> => {
+const getBundleStatus = async (
+  bundleId: bigint,
+  bearerToken?: string,
+): Promise<BundleResult> => {
   const response = await axios.get(
     `${process.env.ORCHESTRATOR_API_URL}/intent-operation/${bundleId.toString()}/status`,
     {
       headers: {
         "x-api-key": process.env.ORCHESTRATOR_API_KEY,
+        Authorization: `Bearer ${bearerToken}`,
       },
     },
   );
@@ -26,6 +30,7 @@ export const waitForBundleResult = async ({
   processStartTime,
   maxWaitTime = 20000,
   iterationTime = 500,
+  bearerToken,
 }: {
   orchestrator: any;
   bundleResult: any;
@@ -33,10 +38,11 @@ export const waitForBundleResult = async ({
   bundleLabel?: string;
   maxWaitTime?: number;
   iterationTime?: number;
+  bearerToken?: string;
 }) => {
   const startTime = Date.now();
 
-  let bundleStatus = await getBundleStatus(bundleResult.id);
+  let bundleStatus = await getBundleStatus(bundleResult.id, bearerToken);
   console.dir(bundleStatus, { depth: null });
 
   console.log(
@@ -77,7 +83,7 @@ export const waitForBundleResult = async ({
     }
 
     await new Promise((resolve) => setTimeout(resolve, iterationTime));
-    bundleStatus = await getBundleStatus(bundleResult.id);
+    bundleStatus = await getBundleStatus(bundleResult.id, bearerToken);
   }
 
   return bundleStatus;

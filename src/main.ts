@@ -213,7 +213,7 @@ export const processIntent = async (intent: Intent) => {
   console.log(`${ts()} Bundle ${bundleLabel}: Generating Intent`);
 
   const BEARER_TOKEN =
-    "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySWQiOjEsInVzZXJOYW1lIjoiVGVzdCB1c2VyIiwidXNlckF0dHJpYnV0ZXMiOiJ7fSIsImlhdCI6MTc1MTQ3MDg5MywiZXhwIjoxNzUxNDc0NDkzLCJhdWQiOiJyaGluZXN0b25lLXNlcnZpY2VzIiwiaXNzIjoidXNlci1zZXJ2aWNlIn0.kbAxs57dyOa4VHZl35n4U9FgGC3ghdN-dTam4qN0AYQ";
+    "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySWQiOjEsInVzZXJOYW1lIjoiVGVzdCB1c2VyIiwidXNlckF0dHJpYnV0ZXMiOiJ7fSIsImlhdCI6MTc1MTYzMTUxNiwiZXhwIjoxNzUxNjc0NzE2LCJhdWQiOiJyaGluZXN0b25lLXNlcnZpY2VzIiwiaXNzIjoidXNlci1zZXJ2aWNlIn0.-ZmJpsJ2t3d5s3jpWzA4Laaj0WzYj7Mp0GN2r1nSzl4";
 
   // const { data: orderCost } = await axios.post(
   //   `${process.env.ORCHESTRATOR_API_URL}/intents/cost`,
@@ -305,55 +305,62 @@ export const processIntent = async (intent: Intent) => {
   //   ]);
 
   console.dir(signedIntentOp, { depth: null });
-  const response = await axios.post(
-    `${process.env.ORCHESTRATOR_API_URL}/intent-operations`,
-    {
-      signedIntentOp: convertBigIntFields(signedIntentOp),
-    },
-    {
-      headers: {
-        "x-api-key": process.env.ORCHESTRATOR_API_KEY!,
-        Authorization: `Bearer ${BEARER_TOKEN}`,
+  try {
+    const response = await axios.post(
+      `${process.env.ORCHESTRATOR_API_URL}/intent-operations`,
+      {
+        signedIntentOp: convertBigIntFields(signedIntentOp),
       },
-    },
-  );
+      {
+        headers: {
+          "x-api-key": process.env.ORCHESTRATOR_API_KEY!,
+          Authorization: `Bearer ${BEARER_TOKEN}`,
+        },
+      },
+    );
 
-  // console.dir(response.data, { depth: null });
+    console.dir(response.data, { depth: null });
 
-  const bundleResult = {
-    ...response.data,
-    id: BigInt(response.data.result.id),
-  };
+    const bundleResult = {
+      ...response.data,
+      id: BigInt(response.data.result.id),
+    };
 
-  console.log(
-    `${ts()} Bundle ${bundleLabel}: Sent in ${new Date().getTime() - startTime}ms`,
-  );
+    console.log(
+      `${ts()} Bundle ${bundleLabel}: Sent in ${new Date().getTime() - startTime}ms`,
+    );
 
-  const result = await waitForBundleResult({
-    bundleResult,
-    orchestrator,
-    bundleLabel,
-    processStartTime: startTime,
-  });
+    const result = await waitForBundleResult({
+      bundleResult,
+      orchestrator,
+      bundleLabel,
+      processStartTime: startTime,
+      bearerToken: BEARER_TOKEN,
+    });
 
-  console.log(
-    `${ts()} Bundle ${bundleLabel}: Result after ${new Date().getTime() - startTime} ms`,
-    {
-      status: result.status,
-      claims: result.claims,
-      targetChainId: result.destinationChainId,
-      fillTransactionHash: result.fillTransactionHash,
-      fillTimestamp: result.fillTimestamp,
-    },
-  );
+    console.log(
+      `${ts()} Bundle ${bundleLabel}: Result after ${new Date().getTime() - startTime} ms`,
+      {
+        status: result.status,
+        claims: result.claims,
+        targetChainId: result.destinationChainId,
+        fillTransactionHash: result.fillTransactionHash,
+        fillTimestamp: result.fillTimestamp,
+      },
+    );
 
-  if (process.env.FEE_DEBUG === "true") {
-    // const fees = await handleFeeAnalysis({
-    //   result,
-    //   orderPath,
-    //   targetGasUnits,
-    // });
-    //
-    // console.log(`${ts()} Bundle ${bundleLabel}: Fees`, fees);
+    if (process.env.FEE_DEBUG === "true") {
+      // const fees = await handleFeeAnalysis({
+      //   result,
+      //   orderPath,
+      //   targetGasUnits,
+      // });
+      //
+      // console.log(`${ts()} Bundle ${bundleLabel}: Fees`, fees);
+    }
+  } catch (error) {
+    console.log(error);
+    // @ts-ignore
+    console.dir(error?.response?.data, { depth: null });
   }
 };

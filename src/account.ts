@@ -73,7 +73,7 @@ export const getSmartAccount = async ({
     "0.7",
     "0x7579011aB74c46090561ea277Ba79D510c6C00ff"
   > = {
-    saltNonce: 5n,
+    saltNonce: 4n,
     // address: accountAddress,
     client: targetPublicClient,
     owners: [owner],
