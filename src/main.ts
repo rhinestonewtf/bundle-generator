@@ -308,10 +308,9 @@ export const processIntent = async (intent: Intent) => {
   //     },
   //   ]);
 
-  console.dir(signedIntentOp, { depth: null });
-  try {
+  if (process.env.SIMULATE === "true") {
     const response = await axios.post(
-      `${process.env.ORCHESTRATOR_API_URL}/intent-operations`,
+      `${process.env.ORCHESTRATOR_API_URL}/intent-operations/simulate`,
       {
         signedIntentOp: convertBigIntFields(signedIntentOp),
       },
@@ -323,48 +322,75 @@ export const processIntent = async (intent: Intent) => {
       },
     );
 
-    console.dir(response.data, { depth: null });
-
     const bundleResult = {
       ...response.data,
       id: BigInt(response.data.result.id),
     };
 
     console.log(
-      `${ts()} Bundle ${bundleLabel}: Sent in ${new Date().getTime() - startTime}ms`,
-    );
-
-    const result = await waitForBundleResult({
-      bundleResult,
-      orchestrator,
-      bundleLabel,
-      processStartTime: startTime,
-      bearerToken: BEARER_TOKEN,
-    });
-
-    console.log(
-      `${ts()} Bundle ${bundleLabel}: Result after ${new Date().getTime() - startTime} ms`,
+      `${ts()} Bundle ${bundleLabel}: Simulation result after ${new Date().getTime() - startTime} ms`,
       {
-        status: result.status,
-        claims: result.claims,
-        targetChainId: result.destinationChainId,
-        fillTransactionHash: result.fillTransactionHash,
-        fillTimestamp: result.fillTimestamp,
+        status: bundleResult.status,
       },
     );
+  } else {
+    try {
+      const response = await axios.post(
+        `${process.env.ORCHESTRATOR_API_URL}/intent-operations`,
+        {
+          signedIntentOp: convertBigIntFields(signedIntentOp),
+        },
+        {
+          headers: {
+            "x-api-key": process.env.ORCHESTRATOR_API_KEY!,
+            Authorization: `Bearer ${BEARER_TOKEN}`,
+          },
+        },
+      );
 
-    if (process.env.FEE_DEBUG === "true") {
-      // const fees = await handleFeeAnalysis({
-      //   result,
-      //   orderPath,
-      //   targetGasUnits,
-      // });
-      //
-      // console.log(`${ts()} Bundle ${bundleLabel}: Fees`, fees);
+      console.dir(response.data, { depth: null });
+
+      const bundleResult = {
+        ...response.data,
+        id: BigInt(response.data.result.id),
+      };
+
+      console.log(
+        `${ts()} Bundle ${bundleLabel}: Sent in ${new Date().getTime() - startTime}ms`,
+      );
+
+      const result = await waitForBundleResult({
+        bundleResult,
+        orchestrator,
+        bundleLabel,
+        processStartTime: startTime,
+        bearerToken: BEARER_TOKEN,
+      });
+
+      console.log(
+        `${ts()} Bundle ${bundleLabel}: Result after ${new Date().getTime() - startTime} ms`,
+        {
+          status: result.status,
+          claims: result.claims,
+          destinationChainId: result.destinationChainId,
+          fillTransactionHash: result.fillTransactionHash,
+          fillTimestamp: result.fillTimestamp,
+        },
+      );
+
+      if (process.env.FEE_DEBUG === "true") {
+        // const fees = await handleFeeAnalysis({
+        //   result,
+        //   orderPath,
+        //   targetGasUnits,
+        // });
+        //
+        // console.log(`${ts()} Bundle ${bundleLabel}: Fees`, fees);
+      }
+    } catch (error) {
+      console.log(error);
+      // @ts-ignore
+      console.dir(error?.response?.data, { depth: null });
     }
-  } catch (error) {
-    console.log(error);
-    // @ts-ignore
-    console.dir(error?.response?.data, { depth: null });
   }
 };
