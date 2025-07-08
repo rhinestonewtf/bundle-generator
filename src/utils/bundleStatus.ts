@@ -39,7 +39,7 @@ export const waitForBundleResult = async ({
   maxWaitTime?: number;
   iterationTime?: number;
   bearerToken?: string;
-}) => {
+}): Promise<any> => {
   const startTime = Date.now();
 
   let bundleStatus = await getBundleStatus(bundleResult.id, bearerToken);
