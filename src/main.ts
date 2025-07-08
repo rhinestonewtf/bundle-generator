@@ -134,12 +134,12 @@ export const processIntent = async (intent: Intent) => {
     // await depositToCompact(sourceSmartAccount, chain.id, parseEther("0.0001"));
     // await setEmissary(chain.id, sourceSmartAccount);
 
-    await deployAccount({ smartAccount: sourceSmartAccount, chain });
+    // await deployAccount({ smartAccount: sourceSmartAccount, chain });
   }
 
   // await setEmissary(targetChain.id, targetSmartAccount);
 
-  await deployAccount({ smartAccount: targetSmartAccount, chain: targetChain });
+  // await deployAccount({ smartAccount: targetSmartAccount, chain: targetChain });
 
   const target = intent.tokenRecipient as Address;
 
@@ -176,8 +176,13 @@ export const processIntent = async (intent: Intent) => {
     destinationGasUnits,
     smartAccount: {
       accountType: "ERC7579",
+      initCode: {
+        to: targetSmartAccount.factory,
+        data: targetSmartAccount.factoryData,
+      },
     },
   };
+  console.log(targetSmartAccount.factory, targetSmartAccount.factoryData);
 
   await new Promise((resolve) => {
     if (intent.sourceChains.length > 0 && intent.sourceTokens.length > 0) {
@@ -217,7 +222,7 @@ export const processIntent = async (intent: Intent) => {
   console.log(`${ts()} Bundle ${bundleLabel}: Generating Intent`);
 
   const BEARER_TOKEN =
-    "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySWQiOjEsInVzZXJOYW1lIjoiVGVzdCB1c2VyIiwidXNlckF0dHJpYnV0ZXMiOiJ7fSIsImlhdCI6MTc1MTYzMTUxNiwiZXhwIjoxNzUxNjc0NzE2LCJhdWQiOiJyaGluZXN0b25lLXNlcnZpY2VzIiwiaXNzIjoidXNlci1zZXJ2aWNlIn0.-ZmJpsJ2t3d5s3jpWzA4Laaj0WzYj7Mp0GN2r1nSzl4";
+    "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySWQiOjEsInVzZXJOYW1lIjoiVGVzdCB1c2VyIiwidXNlckF0dHJpYnV0ZXMiOiJ7fSIsImlhdCI6MTc1MTk3Mjc5MiwiZXhwIjoxNzUyMDE1OTkyLCJhdWQiOiJyaGluZXN0b25lLXNlcnZpY2VzIiwiaXNzIjoidXNlci1zZXJ2aWNlIn0.s5kA6d21SvFjM-t64UCzsvagtjFyQsQ2mkfK9HFJqnw";
 
   // const { data: orderCost } = await axios.post(
   //   `${process.env.ORCHESTRATOR_API_URL}/intents/cost`,
@@ -347,7 +352,7 @@ export const processIntent = async (intent: Intent) => {
       {
         status: result.status,
         claims: result.claims,
-        targetChainId: result.destinationChainId,
+        destinationChainId: result.destinationChainId,
         fillTransactionHash: result.fillTransactionHash,
         fillTimestamp: result.fillTimestamp,
       },
