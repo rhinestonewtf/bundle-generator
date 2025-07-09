@@ -1,4 +1,7 @@
-import { OWNABLE_VALIDATOR_ADDRESS } from "@rhinestone/module-sdk";
+import {
+  getOwnableValidator,
+  getOwnableValidatorSignature,
+} from "@rhinestone/module-sdk";
 import {
   encodePacked,
   hashTypedData,
@@ -8,6 +11,7 @@ import {
   toHex,
   zeroAddress,
 } from "viem";
+import { DEFAULT_EMISSARY_CONFIG_ID } from "../compact";
 
 function toSignatureHash(intentOp: any) {
   const notarizedChainElement = intentOp.elements[0];
@@ -116,25 +120,25 @@ export const signOrderBundle = async ({
   const orderBundleHash = toSignatureHash(intentOp);
 
   console.log("hash to sign", orderBundleHash);
-  const bundleSignature = await owner.signMessage({
+  const ownableValidator = getOwnableValidator({
+    owners: [owner.address],
+    threshold: 1,
+  });
+  const signature = await owner.signMessage({
     message: { raw: orderBundleHash },
   });
-
-  // this is for using the emissary
-  // const packedSig = encodePacked(
-  //   ["address", "uint8", "bytes"],
-  //   [OWNABLE_VALIDATOR_ADDRESS, DEFAULT_CONFIG_ID, bundleSignature],
-  // );
-
-  const packedSig = encodePacked(
-    ["address", "bytes"],
-    [OWNABLE_VALIDATOR_ADDRESS, bundleSignature],
+  const ownableValidatorSig = getOwnableValidatorSignature({
+    signatures: [signature],
+  });
+  const emissarySignature = encodePacked(
+    ["address", "uint8", "bytes"],
+    [ownableValidator.address, DEFAULT_EMISSARY_CONFIG_ID, ownableValidatorSig]
   );
 
   const signedIntentOp = {
     ...intentOp,
-    originSignatures: Array(intentOp.elements.length).fill(packedSig),
-    destinationSignature: packedSig,
+    originSignatures: Array(intentOp.elements.length).fill(emissarySignature),
+    destinationSignature: emissarySignature,
   };
   return signedIntentOp;
 };

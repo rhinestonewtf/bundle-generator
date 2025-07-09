@@ -1,26 +1,6 @@
-import {
-  getHookAddress,
-  getOrchestrator,
-  getTokenAddress,
-  type Execution,
-  type MetaIntent,
-  type PostOrderBundleResult,
-  type TokenTransfer,
-} from "@rhinestone/sdk/orchestrator";
-import {
-  Account,
-  generatePrivateKey,
-  privateKeyToAccount,
-} from "viem/accounts";
-import {
-  Address,
-  Chain,
-  encodeFunctionData,
-  encodePacked,
-  erc20Abi,
-  Hex,
-  parseEther,
-} from "viem";
+import { getOrchestrator, getTokenAddress } from "@rhinestone/sdk/orchestrator";
+import { Account, privateKeyToAccount } from "viem/accounts";
+import { Address, encodeFunctionData, erc20Abi, Hex } from "viem";
 import { deployAccount, getSmartAccount } from "./account.js";
 import { signOrderBundle } from "./utils/signing.js";
 import { waitForBundleResult } from "./utils/bundleStatus.js";
@@ -28,9 +8,8 @@ import { Intent, Token } from "./types.js";
 import { getChain } from "./utils/chains.js";
 import { convertTokenAmount } from "./utils/tokens.js";
 import { fundAccount } from "./funding.js";
-import { handleFeeAnalysis } from "./fees.js";
-import { depositToCompact, setEmissary } from "./compact.js";
 import axios from "axios";
+import { setEmissary } from "./compact.js";
 
 export function ts() {
   return new Date().toISOString().replace(/T/, " ").replace(/\..+/, "");
@@ -64,6 +43,14 @@ function convertBigIntFields(obj: any): any {
 
 function parseCompactResponse(response: any): any {
   console.dir(response, { depth: null });
+  const parseOp = (op: any) => {
+    return {
+      to: op.to as Address,
+      value: BigInt(op.value),
+      data: op.data as Hex,
+    };
+  };
+
   return {
     sponsor: response.sponsor as Address,
     nonce: BigInt(response.nonce),
@@ -84,14 +71,8 @@ function parseCompactResponse(response: any): any {
           }),
           destinationChainId: BigInt(element.mandate.destinationChainId),
           fillDeadline: element.mandate.fillDeadline,
-          destinationOps: element.mandate.destinationOps.map((exec: any) => {
-            return {
-              to: exec.to as Address,
-              value: BigInt(exec.value),
-              data: exec.data as Hex,
-            };
-          }),
-          preClaimOps: [], // todo
+          destinationOps: element.mandate.destinationOps.map(parseOp),
+          preClaimOps: element.mandate.preClaimOps.map(parseOp),
           qualifier: element.mandate.qualifier,
         },
       };
@@ -104,11 +85,11 @@ function parseCompactResponse(response: any): any {
 export const processIntent = async (intent: Intent) => {
   const orchestrator = getOrchestrator(
     process.env.ORCHESTRATOR_API_KEY!,
-    process.env.ORCHESTRATOR_API_URL,
+    process.env.ORCHESTRATOR_API_URL
   );
 
   const owner: Account = privateKeyToAccount(
-    process.env.OWNER_PRIVATE_KEY! as Hex,
+    process.env.OWNER_PRIVATE_KEY! as Hex
   );
 
   const targetChain = getChain(intent.targetChain);
@@ -135,9 +116,10 @@ export const processIntent = async (intent: Intent) => {
     // await setEmissary(chain.id, sourceSmartAccount);
 
     await deployAccount({ smartAccount: sourceSmartAccount, chain });
+    await setEmissary(chain.id, sourceSmartAccount);
   }
-
-  // await setEmissary(targetChain.id, targetSmartAccount);
+  
+  await setEmissary(targetChain.id, targetSmartAccount);
 
   await deployAccount({ smartAccount: targetSmartAccount, chain: targetChain });
 
@@ -156,7 +138,8 @@ export const processIntent = async (intent: Intent) => {
       };
     }),
     account: targetSmartAccount.account.address,
-    destinationExecutions: intent.targetTokens.map((token: Token) => {
+    destinationExecutions: //[],
+    intent.targetTokens.map((token: Token) => {
       return {
         to:
           token.symbol == "ETH"
@@ -199,14 +182,16 @@ export const processIntent = async (intent: Intent) => {
     .map((chain) =>
       intent.sourceTokens
         .map((token) => `${chain.slice(0, 3).toLowerCase()}.${token}`)
-        .join(", "),
+        .join(", ")
     )
     .join(" | ");
 
   const targetAssetsLabel = intent.targetTokens
     .map(
       (token) =>
-        `${token.amount} ${intent.targetChain.slice(0, 3).toLowerCase()}.${token.symbol.toLowerCase()}`,
+        `${token.amount} ${intent.targetChain
+          .slice(0, 3)
+          .toLowerCase()}.${token.symbol.toLowerCase()}`
     )
     .join(", ");
 
@@ -217,6 +202,7 @@ export const processIntent = async (intent: Intent) => {
   console.log(`${ts()} Bundle ${bundleLabel}: Generating Intent`);
 
   const BEARER_TOKEN =
+    process.env.ORCHESTRATOR_BEARER_TOKEN ??
     "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySWQiOjEsInVzZXJOYW1lIjoiVGVzdCB1c2VyIiwidXNlckF0dHJpYnV0ZXMiOiJ7fSIsImlhdCI6MTc1MTYzMTUxNiwiZXhwIjoxNzUxNjc0NzE2LCJhdWQiOiJyaGluZXN0b25lLXNlcnZpY2VzIiwiaXNzIjoidXNlci1zZXJ2aWNlIn0.-ZmJpsJ2t3d5s3jpWzA4Laaj0WzYj7Mp0GN2r1nSzl4";
 
   // const { data: orderCost } = await axios.post(
@@ -256,10 +242,11 @@ export const processIntent = async (intent: Intent) => {
         "x-api-key": process.env.ORCHESTRATOR_API_KEY!,
         Authorization: `Bearer ${BEARER_TOKEN}`,
       },
-    },
+    }
   );
 
   const intentOp = parseCompactResponse(orderResponse.intentOp);
+  console.log("intentOp", intentOp.elements[0].mandate.preClaimOps);
   // const orderPath = response.data.orderBundles.map((orderPath: any) => {
   //   return {
   //     orderBundle: parseCompactResponse(orderPath.orderBundle),
@@ -274,7 +261,9 @@ export const processIntent = async (intent: Intent) => {
   // });
 
   console.log(
-    `${ts()} Bundle ${bundleLabel}: Generated ${intentOp.nonce} in ${new Date().getTime() - startTime}ms`,
+    `${ts()} Bundle ${bundleLabel}: Generated ${intentOp.nonce} in ${
+      new Date().getTime() - startTime
+    }ms`
   );
 
   // orderPath[0].orderBundle.segments[0].witness.execs = [
@@ -293,7 +282,9 @@ export const processIntent = async (intent: Intent) => {
   // console.dir(signedIntentOp, { depth: null });
 
   console.log(
-    `${ts()} Bundle ${bundleLabel}: Signed in ${new Date().getTime() - startTime}ms`,
+    `${ts()} Bundle ${bundleLabel}: Signed in ${
+      new Date().getTime() - startTime
+    }ms`
   );
 
   // send the signed bundle
@@ -320,7 +311,7 @@ export const processIntent = async (intent: Intent) => {
           "x-api-key": process.env.ORCHESTRATOR_API_KEY!,
           Authorization: `Bearer ${BEARER_TOKEN}`,
         },
-      },
+      }
     );
 
     console.dir(response.data, { depth: null });
@@ -331,7 +322,9 @@ export const processIntent = async (intent: Intent) => {
     };
 
     console.log(
-      `${ts()} Bundle ${bundleLabel}: Sent in ${new Date().getTime() - startTime}ms`,
+      `${ts()} Bundle ${bundleLabel}: Sent in ${
+        new Date().getTime() - startTime
+      }ms`
     );
 
     const result = await waitForBundleResult({
@@ -343,14 +336,16 @@ export const processIntent = async (intent: Intent) => {
     });
 
     console.log(
-      `${ts()} Bundle ${bundleLabel}: Result after ${new Date().getTime() - startTime} ms`,
+      `${ts()} Bundle ${bundleLabel}: Result after ${
+        new Date().getTime() - startTime
+      } ms`,
       {
         status: result.status,
         claims: result.claims,
-        targetChainId: result.destinationChainId,
+        targetChainId: signedIntentOp.destinationChainId,
         fillTransactionHash: result.fillTransactionHash,
         fillTimestamp: result.fillTimestamp,
-      },
+      }
     );
 
     if (process.env.FEE_DEBUG === "true") {

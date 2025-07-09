@@ -1,23 +1,21 @@
-import {
-  BundleResult,
-  BundleStatus,
-  type PostOrderBundleResult,
-} from "@rhinestone/sdk/orchestrator";
+import { BundleResult, BundleStatus } from "@rhinestone/sdk/orchestrator";
 import { ts } from "../main.js";
 import axios from "axios";
 
 const getBundleStatus = async (
   bundleId: bigint,
-  bearerToken?: string,
+  bearerToken?: string
 ): Promise<BundleResult> => {
   const response = await axios.get(
-    `${process.env.ORCHESTRATOR_API_URL}/intent-operation/${bundleId.toString()}/status`,
+    `${
+      process.env.ORCHESTRATOR_API_URL
+    }/intent-operation/${bundleId.toString()}/status`,
     {
       headers: {
         "x-api-key": process.env.ORCHESTRATOR_API_KEY,
         Authorization: `Bearer ${bearerToken}`,
       },
-    },
+    }
   );
 
   return response.data;
@@ -46,7 +44,7 @@ export const waitForBundleResult = async ({
   console.dir(bundleStatus, { depth: null });
 
   console.log(
-    `${ts()} Bundle ${bundleLabel ? bundleLabel + ": " : ""}Pending...`,
+    `${ts()} Bundle ${bundleLabel ? bundleLabel + ": " : ""}Pending...`
   );
 
   let isPreconfirmed = false;
@@ -67,7 +65,9 @@ export const waitForBundleResult = async ({
     if (bundleStatus.status === BundleStatus.PRECONFIRMED) {
       if (!isPreconfirmed) {
         console.log(
-          `${ts()} Bundle ${bundleLabel}: Preconfirmed in ${new Date().getTime() - processStartTime}ms`,
+          `${ts()} Bundle ${bundleLabel}: Preconfirmed in ${
+            new Date().getTime() - processStartTime
+          }ms`
         );
         isPreconfirmed = true;
       }
@@ -76,7 +76,9 @@ export const waitForBundleResult = async ({
     if (bundleStatus.status === BundleStatus.FILLED) {
       if (isFilled) {
         console.log(
-          `${ts()} Bundle ${bundleLabel}: Filled in ${new Date().getTime() - processStartTime}ms`,
+          `${ts()} Bundle ${bundleLabel}: Filled in ${
+            new Date().getTime() - processStartTime
+          }ms`
         );
         isFilled = true;
       }

@@ -3,29 +3,15 @@ import {
   Address,
   Chain,
   createPublicClient,
-  createWalletClient,
   encodeAbiParameters,
-  encodeFunctionData,
-  encodePacked,
-  getAddress,
-  Hex,
   http,
-  keccak256,
-  parseAbi,
-  slice,
   zeroAddress,
 } from "viem";
-import { getPublicClient, getPublicClientByChainId } from "./utils/clients.js";
+import { getPublicClientByChainId } from "./utils/clients.js";
 import {
   getOwnableValidator,
   RHINESTONE_ATTESTER_ADDRESS,
 } from "@rhinestone/module-sdk";
-import {
-  getHookAddress,
-  getSameChainModuleAddress,
-  getTargetModuleAddress,
-} from "@rhinestone/sdk/orchestrator";
-import { privateKeyToAccount } from "viem/accounts";
 import { createPimlicoClient } from "permissionless/clients/pimlico";
 import { entryPoint07Address } from "viem/account-abstraction";
 import {
@@ -61,7 +47,7 @@ export const getSmartAccount = async ({
 
   const targetPimlicoClient = createPimlicoClient({
     transport: http(
-      `https://api.pimlico.io/v2/${chain.id}/rpc?apikey=${process.env.PIMLICO_API_KEY}`,
+      `https://api.pimlico.io/v2/${chain.id}/rpc?apikey=${process.env.PIMLICO_API_KEY}`
     ),
     entryPoint: {
       address: entryPoint07Address,
@@ -111,7 +97,7 @@ export const getSmartAccount = async ({
             { name: "flags", type: "bytes1" },
             { name: "data", type: "bytes" },
           ],
-          ["0x3a5be8cb", "0x00", "0x"],
+          ["0x3a5be8cb", "0x00", "0x"]
         ),
       },
     ],
@@ -126,7 +112,7 @@ export const getSmartAccount = async ({
     account: targetSafeAccount,
     chain,
     bundlerTransport: http(
-      `https://api.pimlico.io/v2/${chain.id}/rpc?apikey=${process.env.PIMLICO_API_KEY}`,
+      `https://api.pimlico.io/v2/${chain.id}/rpc?apikey=${process.env.PIMLICO_API_KEY}`
     ),
     userOperation: {
       estimateFeesPerGas: async () => {
@@ -161,7 +147,7 @@ export const deployAccount = async ({
 
   const targetPimlicoClient = createPimlicoClient({
     transport: http(
-      `https://api.pimlico.io/v2/${chain.id}/rpc?apikey=${process.env.PIMLICO_API_KEY}`,
+      `https://api.pimlico.io/v2/${chain.id}/rpc?apikey=${process.env.PIMLICO_API_KEY}`
     ),
     entryPoint: {
       address: entryPoint07Address,

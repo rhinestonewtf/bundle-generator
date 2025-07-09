@@ -33,6 +33,8 @@ export const DEFAULT_RESET_PERIOD: ResetPeriod = 3;
 export const DEFAULT_SCOPE: Scope = 0;
 const EMISSARY_ADDRESS = "0xfa5ad10Bb1764AbE37fC0b0c7685a13099d21BAB";
 
+export const DEFAULT_EMISSARY_CONFIG_ID: number = 42;
+
 const EMISSARY_EXPIRY_TIME = 10 * 60;
 
 const compactABI = [
@@ -86,7 +88,7 @@ const compactABI = [
     ],
     stateMutability: "view",
   },
-];
+] as const;
 
 const emissaryAbi = [
   {
@@ -148,7 +150,7 @@ const emissaryAbi = [
     outputs: [],
     stateMutability: "nonpayable",
   },
-];
+] as const;
 
 function toCompactFlag(allocator: Address): number {
   const addrBytes = Buffer.from(allocator.slice(2), "hex");
@@ -169,7 +171,7 @@ function toCompactFlag(allocator: Address): number {
 }
 
 export function usingAllocatorId(
-  allocator: Address = ALLOCATOR_ADDRESS,
+  allocator: Address = ALLOCATOR_ADDRESS
 ): bigint {
   const compactFlag = BigInt(toCompactFlag(allocator));
   const last88Bits = BigInt("0x" + allocator.slice(-22)); // Extract last 88 bits (11 bytes * 2 hex chars per byte)
@@ -179,7 +181,7 @@ export function usingAllocatorId(
 export function lockTag(
   allocator: Address = ALLOCATOR_ADDRESS,
   resetPeriod: ResetPeriod = DEFAULT_RESET_PERIOD,
-  scope: Scope = DEFAULT_SCOPE,
+  scope: Scope = DEFAULT_SCOPE
 ): Hex {
   const allocatorId = usingAllocatorId(allocator);
   const tagBig =
@@ -204,7 +206,7 @@ export async function depositToCompact(
   },
   chainId: number,
   amount: bigint,
-  tokenAddress?: Address,
+  tokenAddress?: Address
 ) {
   if (!account.account?.address) {
     throw new Error("Account not deployed");
@@ -282,9 +284,11 @@ export async function setEmissary(
       data: Hex;
       value: bigint;
     }) => Promise<Hex>;
-  },
+  }
 ) {
   const publicClient = getPublicClientByChainId(chainId);
+
+  console.log("Lock tag", lockTag());
 
   const [emissaryStatus, emissaryAssignmentAvailableAt, currentEmissary] =
     await publicClient.readContract({
@@ -293,6 +297,8 @@ export async function setEmissary(
       functionName: "getEmissaryStatus",
       args: [account.account.address, lockTag()],
     });
+    // 0x3050ff4913d663bb1f688507
+    // 0x60999ecb8218b5b634707b0b
   if (emissaryStatus === 2) {
     // TODO: check currentEmissary is expected emissary
     console.log("Emissary already assigned");
@@ -312,25 +318,29 @@ export async function setEmissary(
     });
   }
 
-  const configId = 42;
   const { address: validator, initData: validatorConfig } = getOwnableValidator(
     {
       owners: [owner.address],
       threshold: 1,
-    },
+    }
   );
 
   const emissaryConfig = await publicClient.readContract({
     address: EMISSARY_ADDRESS,
     abi: emissaryAbi,
     functionName: "_config",
-    args: [account.account.address, configId, lockTag(), validator],
+    args: [
+      account.account.address,
+      DEFAULT_EMISSARY_CONFIG_ID,
+      lockTag(),
+      validator,
+    ],
   });
   console.log("Emissary config:", emissaryConfig);
   if (emissaryConfig === "0x") {
     const emissaryEnableConfig = await enableEmissaryConfig(
       owner.address,
-      privateKeyToAccount(process.env.ORCHESTRATOR_PRIVATE_KEY as Hex),
+      privateKeyToAccount(process.env.OWNER_PRIVATE_KEY as Hex),
       [chainId],
     );
 
@@ -349,7 +359,7 @@ export async function setEmissary(
     });
     console.log(
       "Emissary config set transaction sent in tx:",
-      setEmissaryConfigTx,
+      setEmissaryConfigTx
     );
     await publicClient.waitForTransactionReceipt({
       hash: setEmissaryConfigTx,
@@ -361,7 +371,7 @@ export async function enableEmissaryConfig(
   owner: Address,
   allocatorSigner: PrivateKeyAccount,
   chainIds: number[] = [],
-  configId: number = DEFAULT_CONFIG_ID,
+  configId: number = DEFAULT_CONFIG_ID
 ): Promise<{
   config: any;
   enable: any;
@@ -370,7 +380,7 @@ export async function enableEmissaryConfig(
     {
       owners: [owner],
       threshold: 1,
-    },
+    }
   );
 
   const config: any = {
@@ -430,8 +440,8 @@ export function hashEIP712DomainSeparator(domain: any): Hex {
         versionHash,
         BigInt(chainId),
         verifyingContract,
-      ],
-    ),
+      ]
+    )
   );
 }
 
@@ -445,8 +455,8 @@ export function hashEIP712DomainSeparatorSansChainId(domain: any): Hex {
         { name: "version", type: "bytes32" },
         { name: "verifyingContract", type: "address" },
       ],
-      [DOMAIN_TYPEHASH_SANS_CHAIN_ID, nameHash, versionHash, verifyingContract],
-    ),
+      [DOMAIN_TYPEHASH_SANS_CHAIN_ID, nameHash, versionHash, verifyingContract]
+    )
   );
 }
 
@@ -461,8 +471,8 @@ export function hashTypedData(domain: any, structHash: Hex): Hex {
   return keccak256(
     encodePacked(
       ["string", "bytes32", "bytes32"],
-      [TYPE_HASH_PREFIX, domainSeparator, structHash],
-    ),
+      [TYPE_HASH_PREFIX, domainSeparator, structHash]
+    )
   );
 }
 
@@ -470,7 +480,7 @@ function hashEmissaryConfig(
   config: any,
   sponsor: Address,
   nonce: bigint,
-  chainIds: number[],
+  chainIds: number[]
 ) {
   const hash = keccak256(
     encodeAbiParameters(
@@ -495,8 +505,8 @@ function hashEmissaryConfig(
         keccak256(config.validatorConfig),
         nonce,
         keccak256(encodePacked(["uint256[]"], [chainIds.map(BigInt)])),
-      ],
-    ),
+      ]
+    )
   );
 
   const digest = hashTypedData(EMISSARY_DOMAIN_SEPARATOR_SANS_CHAIN_ID, hash);
