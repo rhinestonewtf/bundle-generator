@@ -63,7 +63,6 @@ function convertBigIntFields(obj: any): any {
 }
 
 function parseCompactResponse(response: any): any {
-  console.dir(response, { depth: null });
   return {
     sponsor: response.sponsor as Address,
     nonce: BigInt(response.nonce),
@@ -192,8 +191,6 @@ export const processIntent = async (intent: Intent) => {
     destinationGasUnits,
   };
 
-  console.log(targetSmartAccount.factory, targetSmartAccount.factoryData);
-
   await new Promise((resolve) => {
     if (intent.sourceChains.length > 0 && intent.sourceTokens.length > 0) {
       metaIntent.accountAccessList = [];
@@ -210,13 +207,19 @@ export const processIntent = async (intent: Intent) => {
     resolve(metaIntent);
   });
 
-  const sourceAssetsLabel = intent.sourceChains
-    .map((chain) =>
-      intent.sourceTokens
-        .map((token) => `${chain.slice(0, 3).toLowerCase()}.${token}`)
-        .join(", "),
-    )
-    .join(" | ");
+  const sourceAssetsLabel =
+    intent.sourceChains.length > 0
+      ? intent.sourceChains
+          .map((chain) => {
+            if (!intent.sourceTokens || intent.sourceTokens.length === 0) {
+              return `${chain.slice(0, 3).toLowerCase()}.*`;
+            }
+            return intent.sourceTokens
+              .map((token) => `${chain.slice(0, 3).toLowerCase()}.${token}`)
+              .join(", ");
+          })
+          .join(" | ")
+      : (intent.sourceTokens || []).join(", ");
 
   const targetAssetsLabel = intent.targetTokens
     .map(
@@ -339,13 +342,14 @@ export const processIntent = async (intent: Intent) => {
 
     const bundleResult = {
       ...response.data,
+      result: response.data.result.result,
       id: BigInt(response.data.result.id),
     };
 
     console.log(
       `${ts()} Bundle ${bundleLabel}: Simulation result after ${new Date().getTime() - startTime} ms`,
       {
-        status: bundleResult.status,
+        ...bundleResult,
       },
     );
   } else {
