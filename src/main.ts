@@ -91,7 +91,14 @@ function parseCompactResponse(response: any): any {
               data: exec.data as Hex,
             };
           }),
-          preClaimOps: [], // todo
+          preClaimOps: element.mandate.preClaimOps.map((exec: any) => {
+            return {
+              to: exec.to as Address,
+              value: BigInt(exec.value),
+              data: exec.data as Hex,
+            };
+          }),
+
           qualifier: element.mandate.qualifier,
         },
       };
@@ -155,7 +162,16 @@ export const processIntent = async (intent: Intent) => {
         amount: convertTokenAmount({ token }),
       };
     }),
-    account: targetSmartAccount.account.address,
+    account: {
+      address: targetSmartAccount.account.address,
+      accountType: "ERC7579",
+      setupOps: [
+        {
+          to: targetSmartAccount.factory,
+          data: targetSmartAccount.factoryData,
+        },
+      ],
+    },
     destinationExecutions: intent.targetTokens.map((token: Token) => {
       return {
         to:
@@ -174,14 +190,8 @@ export const processIntent = async (intent: Intent) => {
       };
     }),
     destinationGasUnits,
-    smartAccount: {
-      accountType: "ERC7579",
-      initCode: {
-        to: targetSmartAccount.factory,
-        data: targetSmartAccount.factoryData,
-      },
-    },
   };
+
   console.log(targetSmartAccount.factory, targetSmartAccount.factoryData);
 
   await new Promise((resolve) => {
@@ -222,7 +232,7 @@ export const processIntent = async (intent: Intent) => {
   console.log(`${ts()} Bundle ${bundleLabel}: Generating Intent`);
 
   const BEARER_TOKEN =
-    "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySWQiOjEsInVzZXJOYW1lIjoiVGVzdCB1c2VyIiwidXNlckF0dHJpYnV0ZXMiOiJ7fSIsImlhdCI6MTc1MTk3Mjc5MiwiZXhwIjoxNzUyMDE1OTkyLCJhdWQiOiJyaGluZXN0b25lLXNlcnZpY2VzIiwiaXNzIjoidXNlci1zZXJ2aWNlIn0.s5kA6d21SvFjM-t64UCzsvagtjFyQsQ2mkfK9HFJqnw";
+    "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySWQiOjEsInVzZXJOYW1lIjoiVGVzdCB1c2VyIiwidXNlckF0dHJpYnV0ZXMiOiJ7fSIsImlhdCI6MTc1MjA1MzkwMywiZXhwIjoxNzUyMDk3MTAzLCJhdWQiOiJyaGluZXN0b25lLXNlcnZpY2VzIiwiaXNzIjoidXNlci1zZXJ2aWNlIn0.75jwjoguSULdII5H4Dz2jTwA--5Mu1FaNBFaoxjvjFw";
 
   // const { data: orderCost } = await axios.post(
   //   `${process.env.ORCHESTRATOR_API_URL}/intents/cost`,
