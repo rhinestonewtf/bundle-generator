@@ -191,8 +191,16 @@ export const processIntent = async (intent: Intent) => {
     destinationGasUnits,
   };
 
-  await new Promise((resolve) => {
-    if (intent.sourceChains.length > 0 && intent.sourceTokens.length > 0) {
+  if (intent.sourceChains.length > 0) {
+    if (intent.sourceTokens.length === 0) {
+      metaIntent.accountAccessList = {
+        chainIds: [],
+      };
+      for (const sourceChain of intent.sourceChains) {
+        const chain = getChain(sourceChain);
+        metaIntent.accountAccessList.chainIds.push(chain.id);
+      }
+    } else {
       metaIntent.accountAccessList = [];
       for (const sourceChain of intent.sourceChains) {
         const chain = getChain(sourceChain);
@@ -204,8 +212,7 @@ export const processIntent = async (intent: Intent) => {
         }
       }
     }
-    resolve(metaIntent);
-  });
+  }
 
   const sourceAssetsLabel =
     intent.sourceChains.length > 0
@@ -235,7 +242,7 @@ export const processIntent = async (intent: Intent) => {
   console.log(`${ts()} Bundle ${bundleLabel}: Generating Intent`);
 
   const BEARER_TOKEN =
-    "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySWQiOjEsInVzZXJOYW1lIjoiVGVzdCB1c2VyIiwidXNlckF0dHJpYnV0ZXMiOiJ7fSIsImlhdCI6MTc1MjA1MzkwMywiZXhwIjoxNzUyMDk3MTAzLCJhdWQiOiJyaGluZXN0b25lLXNlcnZpY2VzIiwiaXNzIjoidXNlci1zZXJ2aWNlIn0.75jwjoguSULdII5H4Dz2jTwA--5Mu1FaNBFaoxjvjFw";
+    "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySWQiOjEsInVzZXJOYW1lIjoiVGVzdCB1c2VyIiwidXNlckF0dHJpYnV0ZXMiOiJ7fSIsImlhdCI6MTc1MjEzOTU4OCwiZXhwIjoxNzUyMTgyNzg4LCJhdWQiOiJyaGluZXN0b25lLXNlcnZpY2VzIiwiaXNzIjoidXNlci1zZXJ2aWNlIn0.RNFV-NPZy5CKHIyBboJQrwnX7LeCCLxQ4GkcgEgnCeQ";
 
   // const { data: orderCost } = await axios.post(
   //   `${process.env.ORCHESTRATOR_API_URL}/intents/cost`,
@@ -341,10 +348,12 @@ export const processIntent = async (intent: Intent) => {
     );
 
     const bundleResult = {
-      ...response.data,
+      simulations: response.data.result.simulations,
       result: response.data.result.result,
       id: BigInt(response.data.result.id),
     };
+
+    console.dir(response.data, { depth: null });
 
     console.log(
       `${ts()} Bundle ${bundleLabel}: Simulation result after ${new Date().getTime() - startTime} ms`,
