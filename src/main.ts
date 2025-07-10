@@ -115,13 +115,12 @@ export const processIntent = async (intent: Intent) => {
     // await depositToCompact(sourceSmartAccount, chain.id, parseEther("0.0001"));
     // await setEmissary(chain.id, sourceSmartAccount);
 
-    await deployAccount({ smartAccount: sourceSmartAccount, chain });
-    await setEmissary(chain.id, sourceSmartAccount);
+    // await deployAccount({ smartAccount: sourceSmartAccount, chain });
   }
   
-  await setEmissary(targetChain.id, targetSmartAccount);
+  // await setEmissary(targetChain.id, targetSmartAccount);
 
-  await deployAccount({ smartAccount: targetSmartAccount, chain: targetChain });
+  // await deployAccount({ smartAccount: targetSmartAccount, chain: targetChain });
 
   const target = intent.tokenRecipient as Address;
 
@@ -137,9 +136,17 @@ export const processIntent = async (intent: Intent) => {
         amount: convertTokenAmount({ token }),
       };
     }),
-    account: targetSmartAccount.account.address,
-    destinationExecutions: //[],
-    intent.targetTokens.map((token: Token) => {
+    account: {
+      address: targetSmartAccount.account.address,
+      accountType: "ERC7579",
+      setupOps: [
+        {
+          to: targetSmartAccount.factory,
+          data: targetSmartAccount.factoryData,
+        },
+      ],
+    },
+    destinationExecutions: intent.targetTokens.map((token: Token) => {
       return {
         to:
           token.symbol == "ETH"
@@ -157,13 +164,18 @@ export const processIntent = async (intent: Intent) => {
       };
     }),
     destinationGasUnits,
-    smartAccount: {
-      accountType: "ERC7579",
-    },
   };
 
-  await new Promise((resolve) => {
-    if (intent.sourceChains.length > 0 && intent.sourceTokens.length > 0) {
+  if (intent.sourceChains.length > 0) {
+    if (intent.sourceTokens.length === 0) {
+      metaIntent.accountAccessList = {
+        chainIds: [],
+      };
+      for (const sourceChain of intent.sourceChains) {
+        const chain = getChain(sourceChain);
+        metaIntent.accountAccessList.chainIds.push(chain.id);
+      }
+    } else {
       metaIntent.accountAccessList = [];
       for (const sourceChain of intent.sourceChains) {
         const chain = getChain(sourceChain);
@@ -175,16 +187,21 @@ export const processIntent = async (intent: Intent) => {
         }
       }
     }
-    resolve(metaIntent);
-  });
+  }
 
-  const sourceAssetsLabel = intent.sourceChains
-    .map((chain) =>
-      intent.sourceTokens
-        .map((token) => `${chain.slice(0, 3).toLowerCase()}.${token}`)
-        .join(", ")
-    )
-    .join(" | ");
+  const sourceAssetsLabel =
+    intent.sourceChains.length > 0
+      ? intent.sourceChains
+          .map((chain) => {
+            if (!intent.sourceTokens || intent.sourceTokens.length === 0) {
+              return `${chain.slice(0, 3).toLowerCase()}.*`;
+            }
+            return intent.sourceTokens
+              .map((token) => `${chain.slice(0, 3).toLowerCase()}.${token}`)
+              .join(", ");
+          })
+          .join(" | ")
+      : (intent.sourceTokens || []).join(", ");
 
   const targetAssetsLabel = intent.targetTokens
     .map(
@@ -299,10 +316,9 @@ export const processIntent = async (intent: Intent) => {
   //     },
   //   ]);
 
-  console.dir(signedIntentOp, { depth: null });
-  try {
+  if (process.env.SIMULATE === "true") {
     const response = await axios.post(
-      `${process.env.ORCHESTRATOR_API_URL}/intent-operations`,
+      `${process.env.ORCHESTRATOR_API_URL}/intent-operations/simulate`,
       {
         signedIntentOp: convertBigIntFields(signedIntentOp),
       },
@@ -314,52 +330,78 @@ export const processIntent = async (intent: Intent) => {
       }
     );
 
-    console.dir(response.data, { depth: null });
-
     const bundleResult = {
-      ...response.data,
+      simulations: response.data.result.simulations,
+      result: response.data.result.result,
       id: BigInt(response.data.result.id),
     };
 
-    console.log(
-      `${ts()} Bundle ${bundleLabel}: Sent in ${
-        new Date().getTime() - startTime
-      }ms`
-    );
-
-    const result = await waitForBundleResult({
-      bundleResult,
-      orchestrator,
-      bundleLabel,
-      processStartTime: startTime,
-      bearerToken: BEARER_TOKEN,
-    });
+    console.dir(response.data, { depth: null });
 
     console.log(
-      `${ts()} Bundle ${bundleLabel}: Result after ${
-        new Date().getTime() - startTime
-      } ms`,
+      `${ts()} Bundle ${bundleLabel}: Simulation result after ${new Date().getTime() - startTime} ms`,
       {
-        status: result.status,
-        claims: result.claims,
-        targetChainId: signedIntentOp.destinationChainId,
-        fillTransactionHash: result.fillTransactionHash,
-        fillTimestamp: result.fillTimestamp,
-      }
+        ...bundleResult,
+      },
     );
+  } else {
+    try {
+      const response = await axios.post(
+        `${process.env.ORCHESTRATOR_API_URL}/intent-operations`,
+        {
+          signedIntentOp: convertBigIntFields(signedIntentOp),
+        },
+        {
+          headers: {
+            "x-api-key": process.env.ORCHESTRATOR_API_KEY!,
+            Authorization: `Bearer ${BEARER_TOKEN}`,
+          },
+        },
+      );
 
-    if (process.env.FEE_DEBUG === "true") {
-      // const fees = await handleFeeAnalysis({
-      //   result,
-      //   orderPath,
-      //   targetGasUnits,
-      // });
-      //
-      // console.log(`${ts()} Bundle ${bundleLabel}: Fees`, fees);
+      console.dir(response.data, { depth: null });
+
+      const bundleResult = {
+        ...response.data,
+        id: BigInt(response.data.result.id),
+      };
+
+      console.log(
+        `${ts()} Bundle ${bundleLabel}: Sent in ${new Date().getTime() - startTime}ms`,
+      );
+
+      const result = await waitForBundleResult({
+        bundleResult,
+        orchestrator,
+        bundleLabel,
+        processStartTime: startTime,
+        bearerToken: BEARER_TOKEN,
+      });
+
+      console.log(
+        `${ts()} Bundle ${bundleLabel}: Result after ${new Date().getTime() - startTime} ms`,
+        {
+          status: result.status,
+          claims: result.claims,
+          destinationChainId: result.destinationChainId,
+          fillTransactionHash: result.fillTransactionHash,
+          fillTimestamp: result.fillTimestamp,
+        },
+      );
+
+      if (process.env.FEE_DEBUG === "true") {
+        // const fees = await handleFeeAnalysis({
+        //   result,
+        //   orderPath,
+        //   targetGasUnits,
+        // });
+        //
+        // console.log(`${ts()} Bundle ${bundleLabel}: Fees`, fees);
+      }
+    } catch (error) {
+      console.log(error);
+      // @ts-ignore
+      console.dir(error?.response?.data, { depth: null });
     }
-  } catch (error) {
-    console.log(error);
-    // @ts-ignore
-    console.dir(error?.response?.data, { depth: null });
   }
 };
