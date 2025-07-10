@@ -171,13 +171,17 @@ export const getReplayParams = async () => {
     return { file, count: data.intentList ? data.intentList.length : 0 };
   });
 
-  const isAll = await select({
-    message: "Do you want to replay all intents?",
-    choices: [
-      { name: "Yes", value: true },
-      { name: "No", value: false },
-    ],
-  });
+  const autoAll = process.argv.includes("--all");
+
+  const isAll = autoAll
+    ? true
+    : await select({
+        message: "Do you want to replay all intents?",
+        choices: [
+          { name: "Yes", value: true },
+          { name: "No", value: false },
+        ],
+      });
 
   let intentsToReplay: string[] = [];
   let totalIntentsSelected = 0;
