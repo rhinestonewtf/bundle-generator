@@ -30,7 +30,7 @@ export const moduleAttester: Address =
   "0x6D0515e8E499468DCe9583626f0cA15b887f9d03";
 
 export const INTENT_EXECUTOR_ADDRESS: Address =
-  "0x0530Ff05cf0F7e44db6F33Fc2D10C2838e38ec79";
+  "0x24d0A453cE60c63208680cB5592d3D1d518a7fA2";
 
 export const getSmartAccount = async ({
   chain,

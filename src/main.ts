@@ -1,6 +1,26 @@
-import { getOrchestrator, getTokenAddress } from "@rhinestone/sdk/orchestrator";
-import { Account, privateKeyToAccount } from "viem/accounts";
-import { Address, encodeFunctionData, erc20Abi, Hex } from "viem";
+import {
+  getOrchestrator,
+  getTokenAddress,
+  type Execution,
+  type MetaIntent,
+  type PostOrderBundleResult,
+  type TokenTransfer,
+} from "@rhinestone/sdk/orchestrator";
+import {
+  Account,
+  generatePrivateKey,
+  privateKeyToAccount,
+} from "viem/accounts";
+import {
+  Address,
+  Chain,
+  encodeFunctionData,
+  encodePacked,
+  erc20Abi,
+  Hex,
+  keccak256,
+  parseEther,
+} from "viem";
 import { deployAccount, getSmartAccount } from "./account.js";
 import { signOrderBundle } from "./utils/signing.js";
 import { waitForBundleResult } from "./utils/bundleStatus.js";
@@ -85,11 +105,11 @@ function parseCompactResponse(response: any): any {
 export const processIntent = async (intent: Intent) => {
   const orchestrator = getOrchestrator(
     process.env.ORCHESTRATOR_API_KEY!,
-    process.env.ORCHESTRATOR_API_URL
+    process.env.ORCHESTRATOR_API_URL,
   );
 
   const owner: Account = privateKeyToAccount(
-    process.env.OWNER_PRIVATE_KEY! as Hex
+    process.env.OWNER_PRIVATE_KEY! as Hex,
   );
 
   const targetChain = getChain(intent.targetChain);
@@ -117,7 +137,7 @@ export const processIntent = async (intent: Intent) => {
 
     // await deployAccount({ smartAccount: sourceSmartAccount, chain });
   }
-  
+
   // await setEmissary(targetChain.id, targetSmartAccount);
 
   // await deployAccount({ smartAccount: targetSmartAccount, chain: targetChain });
@@ -145,6 +165,14 @@ export const processIntent = async (intent: Intent) => {
           data: targetSmartAccount.factoryData,
         },
       ],
+      eip7702Delegation: {
+        chainId: 0,
+        nonce: 0n,
+        contractAddress: "0x0000000071727de22e5e9d8baf0edac6f37da032",
+        r: keccak256("0x"),
+        s: keccak256("0x"),
+        yParity: 0,
+      },
     },
     destinationExecutions: intent.targetTokens.map((token: Token) => {
       return {
@@ -208,7 +236,7 @@ export const processIntent = async (intent: Intent) => {
       (token) =>
         `${token.amount} ${intent.targetChain
           .slice(0, 3)
-          .toLowerCase()}.${token.symbol.toLowerCase()}`
+          .toLowerCase()}.${token.symbol.toLowerCase()}`,
     )
     .join(", ");
 
@@ -259,7 +287,7 @@ export const processIntent = async (intent: Intent) => {
         "x-api-key": process.env.ORCHESTRATOR_API_KEY!,
         Authorization: `Bearer ${BEARER_TOKEN}`,
       },
-    }
+    },
   );
 
   const intentOp = parseCompactResponse(orderResponse.intentOp);
@@ -280,7 +308,7 @@ export const processIntent = async (intent: Intent) => {
   console.log(
     `${ts()} Bundle ${bundleLabel}: Generated ${intentOp.nonce} in ${
       new Date().getTime() - startTime
-    }ms`
+    }ms`,
   );
 
   // orderPath[0].orderBundle.segments[0].witness.execs = [
@@ -301,7 +329,7 @@ export const processIntent = async (intent: Intent) => {
   console.log(
     `${ts()} Bundle ${bundleLabel}: Signed in ${
       new Date().getTime() - startTime
-    }ms`
+    }ms`,
   );
 
   // send the signed bundle
@@ -327,7 +355,7 @@ export const processIntent = async (intent: Intent) => {
           "x-api-key": process.env.ORCHESTRATOR_API_KEY!,
           Authorization: `Bearer ${BEARER_TOKEN}`,
         },
-      }
+      },
     );
 
     const bundleResult = {
