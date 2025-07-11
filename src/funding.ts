@@ -2,9 +2,21 @@ import {
   getTokenAddress,
   getTokenBalanceSlot,
 } from "@rhinestone/sdk/orchestrator";
-import { Address, createTestClient, http, pad, toHex } from "viem";
+import { Address, Chain, createTestClient, http, pad, toHex } from "viem";
 import { getChain } from "./utils/chains.js";
-import { foundry } from "viem/chains";
+import { arbitrum, base, mainnet } from "viem/chains";
+
+const lookup = (chain: Chain): string => {
+  switch (chain) {
+    case mainnet:
+      return "http://localhost:30001";
+    case arbitrum:
+      return "http://localhost:30002";
+    case base:
+      return "http://localhost:30003";
+  }
+  throw new Error(`unsupported chain fork ${chain.name}`);
+};
 
 export const fundAccount = async ({
   account,
@@ -18,10 +30,13 @@ export const fundAccount = async ({
   if (process.env.LOCAL_TESTNET) {
     for (const sourceChain of sourceChains) {
       const chain = getChain(sourceChain);
+
+      console.log("Funding on %s", chain.name);
+
       const testClient = createTestClient({
-        chain: foundry,
+        chain,
         mode: "anvil",
-        transport: http(chain.rpcUrls.default.http[0]),
+        transport: http(lookup(chain)),
       });
       for (const sourceToken of sourceTokens) {
         const tokenAddress = getTokenAddress(sourceToken, chain.id);
