@@ -30,7 +30,7 @@ export const moduleAttester: Address =
   "0x6D0515e8E499468DCe9583626f0cA15b887f9d03";
 
 export const INTENT_EXECUTOR_ADDRESS: Address =
-  "0x24d0A453cE60c63208680cB5592d3D1d518a7fA2";
+  "0x0530Ff05cf0F7e44db6F33Fc2D10C2838e38ec79";
 
 export const getSmartAccount = async ({
   chain,
@@ -106,7 +106,7 @@ export const getSmartAccount = async ({
   });
 
   const salt = keccak256(
-    encodePacked(["bytes32", "uint256"], [keccak256(initializer), saltNonce])
+    encodePacked(["bytes32", "uint256"], [keccak256(initializer), saltNonce]),
   );
   const hash = keccak256(
     encodePacked(
@@ -116,8 +116,8 @@ export const getSmartAccount = async ({
         proxyFactory,
         salt,
         "0xe298282cefe913ab5d282047161268a8222e4bd4ed106300c547894bbefd31ee",
-      ]
-    )
+      ],
+    ),
   );
 
   const safeAccountAddress = getAddress(slice(hash, 12, 32));
@@ -150,7 +150,7 @@ export const deployAccount = async ({
   }
 
   const deploymentAccount: Account = privateKeyToAccount(
-    process.env.DEPLOYMENT_PRIVATE_KEY! as Hex
+    process.env.DEPLOYMENT_PRIVATE_KEY! as Hex,
   );
 
   const walletClient = createWalletClient({

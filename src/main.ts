@@ -289,7 +289,6 @@ export const processIntent = async (intent: Intent) => {
   );
 
   const intentOp = parseCompactResponse(orderResponse.intentOp);
-  console.log("intentOp", intentOp.elements[0].mandate.preClaimOps);
   // const orderPath = response.data.orderBundles.map((orderPath: any) => {
   //   return {
   //     orderBundle: parseCompactResponse(orderPath.orderBundle),
