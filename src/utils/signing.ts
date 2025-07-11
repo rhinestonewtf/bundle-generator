@@ -11,7 +11,7 @@ import {
   toHex,
   zeroAddress,
 } from "viem";
-import { DEFAULT_EMISSARY_CONFIG_ID } from "../compact";
+import { COMPACT_ADDRESS, DEFAULT_EMISSARY_CONFIG_ID } from "../compact";
 
 function toSignatureHash(intentOp: any) {
   const notarizedChainElement = intentOp.elements[0];
@@ -26,7 +26,7 @@ function toSignatureHash(intentOp: any) {
       name: "The Compact",
       version: "1",
       chainId: notarizedChainElement.chainId,
-      verifyingContract: "0xa2E6C7Ba8613E1534dCB990e7e4962216C0a5d58",
+      verifyingContract: COMPACT_ADDRESS,
     },
     types: {
       MultichainCompact: [
@@ -132,7 +132,7 @@ export const signOrderBundle = async ({
   });
   const emissarySignature = encodePacked(
     ["address", "uint8", "bytes"],
-    [ownableValidator.address, DEFAULT_EMISSARY_CONFIG_ID, ownableValidatorSig]
+    [ownableValidator.address, DEFAULT_EMISSARY_CONFIG_ID, ownableValidatorSig],
   );
 
   const signedIntentOp = {
