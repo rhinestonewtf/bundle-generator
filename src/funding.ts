@@ -39,18 +39,25 @@ export const fundAccount = async ({
         transport: http(lookup(chain)),
       });
       for (const sourceToken of sourceTokens) {
-        const tokenAddress = getTokenAddress(sourceToken, chain.id);
-        const tokenBalanceSlot = getTokenBalanceSlot(
-          sourceToken,
-          chain.id,
-          account,
-        );
+        if (sourceToken === "ETH") {
+          await testClient.setBalance({
+            address: account,
+            value: 100000000000000000000000000000000000000000n,
+          });
+        } else {
+          const tokenAddress = getTokenAddress(sourceToken, chain.id);
+          const tokenBalanceSlot = getTokenBalanceSlot(
+            sourceToken,
+            chain.id,
+            account,
+          );
 
-        await testClient.setStorageAt({
-          address: tokenAddress,
-          index: tokenBalanceSlot,
-          value: pad(toHex(100000000000000000000000000000000000000000n)),
-        });
+          await testClient.setStorageAt({
+            address: tokenAddress,
+            index: tokenBalanceSlot,
+            value: pad(toHex(100000000000000000000000000000000000000000n)),
+          });
+        }
       }
     }
   }
