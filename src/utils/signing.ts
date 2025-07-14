@@ -113,12 +113,15 @@ function toSignatureHash(intentOp: any) {
 export const signOrderBundle = async ({
   intentOp,
   owner,
+  usingEmissary = false,
 }: {
   intentOp: any;
   owner: LocalAccount;
+  usingEmissary?: boolean;
 }) => {
   const orderBundleHash = toSignatureHash(intentOp);
 
+  console.log("hash to sign", orderBundleHash);
   const ownableValidator = getOwnableValidator({
     owners: [owner.address],
     threshold: 1,
@@ -129,22 +132,24 @@ export const signOrderBundle = async ({
   const ownableValidatorSig = getOwnableValidatorSignature({
     signatures: [signature],
   });
-
-  const nonEmissarySignature = encodePacked(
-    ["address", "bytes"],
-    [ownableValidator.address, ownableValidatorSig],
-  );
-  const emissarySignature = encodePacked(
-    ["address", "uint8", "bytes"],
-    [ownableValidator.address, DEFAULT_EMISSARY_CONFIG_ID, ownableValidatorSig],
-  );
+  const encodedSignature = usingEmissary
+    ? encodePacked(
+        ["address", "uint8", "bytes"],
+        [
+          ownableValidator.address,
+          DEFAULT_EMISSARY_CONFIG_ID,
+          ownableValidatorSig,
+        ]
+      )
+    : encodePacked(
+        ["address", "bytes"],
+        [ownableValidator.address, ownableValidatorSig]
+      );
 
   const signedIntentOp = {
     ...intentOp,
-    originSignatures: Array(intentOp.elements.length).fill(
-      nonEmissarySignature,
-    ),
-    destinationSignature: nonEmissarySignature,
+    originSignatures: Array(intentOp.elements.length).fill(encodedSignature),
+    destinationSignature: encodedSignature,
   };
   return signedIntentOp;
 };
