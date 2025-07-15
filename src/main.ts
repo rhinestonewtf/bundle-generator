@@ -4,7 +4,6 @@ import {
   type Execution,
   type MetaIntent,
   type PostOrderBundleResult,
-  type TokenTransfer,
 } from "@rhinestone/sdk/orchestrator";
 import {
   Account,
@@ -21,13 +20,13 @@ import {
   keccak256,
   parseEther,
 } from "viem";
-import { deployAccount, getSmartAccount } from "./account.js";
+import { delegateFor, deployAccount, getSmartAccount } from "./account.js";
 import { signOrderBundle } from "./utils/signing.js";
 import { waitForBundleResult } from "./utils/bundleStatus.js";
 import { Intent, Token } from "./types.js";
 import { getChain } from "./utils/chains.js";
 import { convertTokenAmount } from "./utils/tokens.js";
-import { fundAccount } from "./funding.js";
+import { fundAccount, fundingSupportedChains, fundingSupportedTokens } from "./funding.js";
 import axios from "axios";
 import { setEmissary } from "./compact.js";
 
@@ -127,7 +126,7 @@ export const processIntent = async (intent: Intent) => {
 
     await fundAccount({
       account: sourceSmartAccount.account.address,
-      sourceChains: intent.sourceChains,
+      sourceChains: [sourceChain],
       sourceTokens: intent.sourceTokens,
     });
 
@@ -164,14 +163,6 @@ export const processIntent = async (intent: Intent) => {
           data: targetSmartAccount.factoryData,
         },
       ],
-      eip7702Delegation: {
-        chainId: 0,
-        nonce: 0n,
-        contractAddress: "0x0000000071727de22e5e9d8baf0edac6f37da032",
-        r: keccak256("0x"),
-        s: keccak256("0x"),
-        yParity: 0,
-      },
     },
     destinationExecutions: intent.targetTokens.map((token: Token) => {
       return {
@@ -184,10 +175,10 @@ export const processIntent = async (intent: Intent) => {
           token.symbol == "ETH"
             ? "0x"
             : encodeFunctionData({
-                abi: erc20Abi,
-                functionName: "transfer",
-                args: [target, convertTokenAmount({ token })],
-              }),
+              abi: erc20Abi,
+              functionName: "transfer",
+              args: [target, convertTokenAmount({ token })],
+            }),
       };
     }),
     destinationGasUnits,
@@ -219,15 +210,15 @@ export const processIntent = async (intent: Intent) => {
   const sourceAssetsLabel =
     intent.sourceChains.length > 0
       ? intent.sourceChains
-          .map((chain) => {
-            if (!intent.sourceTokens || intent.sourceTokens.length === 0) {
-              return `${chain.slice(0, 3).toLowerCase()}.*`;
-            }
-            return intent.sourceTokens
-              .map((token) => `${chain.slice(0, 3).toLowerCase()}.${token}`)
-              .join(", ");
-          })
-          .join(" | ")
+        .map((chain) => {
+          if (!intent.sourceTokens || intent.sourceTokens.length === 0) {
+            return `${chain.slice(0, 3).toLowerCase()}.*`;
+          }
+          return intent.sourceTokens
+            .map((token) => `${chain.slice(0, 3).toLowerCase()}.${token}`)
+            .join(", ");
+        })
+        .join(" | ")
       : (intent.sourceTokens || []).join(", ");
 
   const targetAssetsLabel = intent.targetTokens
@@ -302,8 +293,7 @@ export const processIntent = async (intent: Intent) => {
   // });
 
   console.log(
-    `${ts()} Bundle ${bundleLabel}: Generated ${intentOp.nonce} in ${
-      new Date().getTime() - startTime
+    `${ts()} Bundle ${bundleLabel}: Generated ${intentOp.nonce} in ${new Date().getTime() - startTime
     }ms`,
   );
 
@@ -323,8 +313,7 @@ export const processIntent = async (intent: Intent) => {
   // console.dir(signedIntentOp, { depth: null });
 
   console.log(
-    `${ts()} Bundle ${bundleLabel}: Signed in ${
-      new Date().getTime() - startTime
+    `${ts()} Bundle ${bundleLabel}: Signed in ${new Date().getTime() - startTime
     }ms`,
   );
 

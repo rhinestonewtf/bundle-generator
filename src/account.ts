@@ -11,7 +11,11 @@ import {
   http,
   keccak256,
   parseAbi,
+  RpcSchema,
+  SignedAuthorization,
   slice,
+  Transport,
+  WalletClient,
   zeroAddress,
 } from "viem";
 import { getPublicClient } from "./utils/clients.js";
@@ -25,6 +29,7 @@ import {
   getTargetModuleAddress,
 } from "@rhinestone/sdk/orchestrator";
 import { privateKeyToAccount } from "viem/accounts";
+import { mainnet } from "viem/chains";
 
 export const moduleAttester: Address =
   "0x6D0515e8E499468DCe9583626f0cA15b887f9d03";
@@ -169,6 +174,22 @@ export const deployAccount = async ({
     hash: deploymentTxHash,
   });
 };
+
+
+export const delegateFor = async (account: Account, chainId: number, nonce: number, contractAddress: Address): Promise<SignedAuthorization> => {
+
+  const client = createWalletClient({
+    chain: mainnet,
+    transport: http(),
+    account,
+  })
+
+  return await client.signAuthorization({
+    contractAddress,
+    chainId,
+    nonce,
+  })
+}
 
 // export const getSmartAccount = async ({
 //   chain,
