@@ -19,7 +19,7 @@ function toSignatureHash(intentOp: any) {
     notarizedChainElement.mandate.qualifier.settlementSystem;
   const claimProofer =
     settlementSystem == "ACROSS"
-      ? "0x1990c54b361C42e23E90d60Eb84071b50b04bE4a"
+      ? "0x487d6356E6469785b704EB33ed92d8296B918A28"
       : zeroAddress;
   return hashTypedData({
     domain: {
@@ -139,11 +139,11 @@ export const signOrderBundle = async ({
           ownableValidator.address,
           DEFAULT_EMISSARY_CONFIG_ID,
           ownableValidatorSig,
-        ]
+        ],
       )
     : encodePacked(
         ["address", "bytes"],
-        [ownableValidator.address, ownableValidatorSig]
+        [ownableValidator.address, ownableValidatorSig],
       );
 
   const signedIntentOp = {
