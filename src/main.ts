@@ -62,7 +62,6 @@ function convertBigIntFields(obj: any): any {
 }
 
 function parseCompactResponse(response: any): any {
-  console.dir(response, { depth: null });
   const parseOp = (op: any) => {
     return {
       to: op.to as Address,
@@ -361,14 +360,16 @@ export const processIntent = async (intent: Intent) => {
       id: BigInt(response.data.result.id),
     };
 
-    console.dir(response.data, { depth: null });
-
     console.log(
       `${ts()} Bundle ${bundleLabel}: Simulation result after ${new Date().getTime() - startTime} ms`,
       {
         ...bundleResult,
       },
     );
+
+    if (bundleResult.simulations?.length > 0) {
+      console.dir(bundleResult.simulations, { depth: null });
+    }
   } else {
     try {
       const response = await axios.post(
