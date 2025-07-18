@@ -164,14 +164,14 @@ export const processIntent = async (intent: Intent) => {
           data: targetSmartAccount.factoryData,
         },
       ],
-      eip7702Delegation: {
-        chainId: 0,
-        nonce: 0n,
-        contractAddress: "0x0000000071727de22e5e9d8baf0edac6f37da032",
-        r: keccak256("0x"),
-        s: keccak256("0x"),
-        yParity: 0,
-      },
+      // eip7702Delegation: {
+      //   chainId: 0,
+      //   nonce: 0n,
+      //   contractAddress: "0x0000000071727de22e5e9d8baf0edac6f37da032",
+      //   r: keccak256("0x"),
+      //   s: keccak256("0x"),
+      //   yParity: 0,
+      // },
     },
     destinationExecutions: intent.targetTokens.map((token: Token) => {
       return {

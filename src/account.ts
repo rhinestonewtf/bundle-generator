@@ -26,11 +26,8 @@ import {
 } from "@rhinestone/sdk/orchestrator";
 import { privateKeyToAccount } from "viem/accounts";
 
-export const moduleAttester: Address =
-  "0x6D0515e8E499468DCe9583626f0cA15b887f9d03";
-
 export const INTENT_EXECUTOR_ADDRESS: Address =
-  "0xc0587241787c183cd0b2C9DF5dd589c16fd4F6Fd";
+  "0x00000000005aD9ce1f5035FD62CA96CEf16AdAAF";
 
 export const getSmartAccount = async ({
   chain,
@@ -54,34 +51,30 @@ export const getSmartAccount = async ({
     args: [
       [owner.address],
       BigInt(1),
-      "0x7579011aB74c46090561ea277Ba79D510c6C00ff",
+      "0x75798463024Bda64D83c94A64Bc7D7eaB41300eF",
       encodeFunctionData({
         abi: parseAbi([
-          "struct ModuleInit {address module;bytes initData;}",
-          "function addSafe7579(address safe7579,ModuleInit[] calldata validators,ModuleInit[] calldata executors,ModuleInit[] calldata fallbacks, ModuleInit[] calldata hooks,address[] calldata attesters,uint8 threshold) external",
+          "struct ModuleInit {address module;bytes initData;uint256 moduleType}",
+          "function addSafe7579(address safe7579,ModuleInit[] calldata modules,address[] calldata attesters,uint8 threshold) external",
         ]),
         functionName: "addSafe7579",
         args: [
-          "0x7579EE8307284F293B1927136486880611F20002",
+          "0x7579f2AD53b01c3D8779Fe17928e0D48885B0003",
           [
             {
-              module: ownableValidator.address,
+              module: "0x0000000000E9E6E96Bcaa3c113187CdB7E38AED9",
               initData: ownableValidator.initData,
+              moduleType: 1,
             },
-          ],
-          [
             {
               module: INTENT_EXECUTOR_ADDRESS,
               initData: "0x",
+
+              moduleType: 2,
             },
           ],
           [],
-          [],
-          [
-            RHINESTONE_ATTESTER_ADDRESS, // Rhinestone Attester
-            moduleAttester, // Mock attester for omni account
-          ],
-          1,
+          0,
         ],
       }),
       "0x7579EE8307284F293B1927136486880611F20002",
