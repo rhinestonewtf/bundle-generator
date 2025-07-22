@@ -1,6 +1,8 @@
+import { config } from "dotenv";
+config();
+
 import { Account, Hex } from "viem";
 import { collectUserInput, showUserAccount } from "./cli.js";
-import { config } from "dotenv";
 import { privateKeyToAccount } from "viem/accounts";
 import { getChain } from "./utils/chains.js";
 import { getSmartAccount } from "./account.js";
@@ -8,10 +10,9 @@ import { processIntent } from "./main.js";
 import * as fs from "fs";
 import * as path from "path";
 
-config();
 
 export const main = async () => {
-  const {intent, saveAsFileName} = await collectUserInput();
+  const { intent, saveAsFileName } = await collectUserInput();
 
   const owner: Account = privateKeyToAccount(
     process.env.OWNER_PRIVATE_KEY! as Hex,

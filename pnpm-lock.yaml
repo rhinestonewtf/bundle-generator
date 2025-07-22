@@ -15,11 +15,20 @@ importers:
         specifier: ^0.2.8
         version: 0.2.8(viem@2.28.3(typescript@5.8.3))
       '@rhinestone/sdk':
-        specifier: ^0.11.1
-        version: 0.11.1(viem@2.28.3(typescript@5.8.3))
+        specifier: ^0.12.7
+        version: 0.12.7(viem@2.28.3(typescript@5.8.3))
+      abitype:
+        specifier: ^1.0.8
+        version: 1.0.8(typescript@5.8.3)
+      axios:
+        specifier: ^1.10.0
+        version: 1.10.0
       dotenv:
         specifier: ^16.5.0
         version: 16.5.0
+      permissionless:
+        specifier: ^0.2.47
+        version: 0.2.47(viem@2.28.3(typescript@5.8.3))
       tsx:
         specifier: ^4.19.4
         version: 4.19.4
@@ -323,8 +332,8 @@ packages:
     peerDependencies:
       viem: ^2.0.0
 
-  '@rhinestone/sdk@0.11.1':
-    resolution: {integrity: sha512-L6AFO4x5ywweXqSBBDQ2/krqAVzRI/BJabWxZ4WXT444PjpgElN5lcZs85LGYpl4QguQsloc696yw21eM601kw==}
+  '@rhinestone/sdk@0.12.7':
+    resolution: {integrity: sha512-V526X+xYCuAvu3j8tTmCRNJ7MaXO+bHbMiwnivOR8J0sPyBMse5Mg8WSvrjqtt9aqQBYP2acy734Bxno2pE+mw==}
     peerDependencies:
       viem: ^2.28.0
 
@@ -523,6 +532,15 @@ packages:
       typescript:
         optional: true
 
+  permissionless@0.2.47:
+    resolution: {integrity: sha512-/Y+2SK+OGrPJuVZ9RcDDBL+U3wGnw3PByc610zvk2G1h//rRez3YZ9CyuMiOf7MpTh53XxmQeKsqKPna0Ilciw==}
+    peerDependencies:
+      ox: 0.6.7
+      viem: ^2.28.1
+    peerDependenciesMeta:
+      ox:
+        optional: true
+
   proxy-from-env@1.1.0:
     resolution: {integrity: sha512-D+zkORCbA9f1tdWRK0RaCR3GPv50cMxcrz4X8k5LTSUD1Dkw47mKJEZQNunItRTkWwgtaUSo1RVFRIG9ZXiFYg==}
 
@@ -538,6 +556,9 @@ packages:
 
   solady@0.0.235:
     resolution: {integrity: sha512-JUEXLDG7ag3HmqUnrDG7ilhafH6R9bFPpwV63O2kH4UbnS2+gRGEOqqy4k01O7tHjo3MWkDD0cpG+UY9pjy/fQ==}
+
+  solady@0.1.23:
+    resolution: {integrity: sha512-9UEfad/GxaxY4CgnbPptnOTTjN92ytg8umZrKRRV/1ziQm5iaUoiftMUMt/5k4r626fCIZaxNywWrVhmIRryOQ==}
 
   string-width@4.2.3:
     resolution: {integrity: sha512-wKyQRQpjJ0sIp62ErSZdGsjMJWsap5oRNihHhu6G7JVO/9jIB6UyevL+tXuOqrng8j/cxKTWyWUwvSTriiZz/g==}
@@ -806,9 +827,10 @@ snapshots:
       tslib: 2.8.1
       viem: 2.28.3(typescript@5.8.3)
 
-  '@rhinestone/sdk@0.11.1(viem@2.28.3(typescript@5.8.3))':
+  '@rhinestone/sdk@0.12.7(viem@2.28.3(typescript@5.8.3))':
     dependencies:
       axios: 1.10.0
+      solady: 0.1.23
       viem: 2.28.3(typescript@5.8.3)
     transitivePeerDependencies:
       - debug
@@ -1021,6 +1043,10 @@ snapshots:
     transitivePeerDependencies:
       - zod
 
+  permissionless@0.2.47(viem@2.28.3(typescript@5.8.3)):
+    dependencies:
+      viem: 2.28.3(typescript@5.8.3)
+
   proxy-from-env@1.1.0: {}
 
   resolve-pkg-maps@1.0.0: {}
@@ -1030,6 +1056,8 @@ snapshots:
   signal-exit@4.1.0: {}
 
   solady@0.0.235: {}
+
+  solady@0.1.23: {}
 
   string-width@4.2.3:
     dependencies:
