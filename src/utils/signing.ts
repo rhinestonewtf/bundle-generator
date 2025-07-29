@@ -132,17 +132,17 @@ export const signOrderBundle = async ({
   });
   const encodedSignature = usingEmissary
     ? encodePacked(
-        ["address", "uint8", "bytes"],
-        [
-          OWNABLE_VALIDATOR_ADDRESS,
-          DEFAULT_EMISSARY_CONFIG_ID,
-          ownableValidatorSig,
-        ],
-      )
+      ["address", "uint8", "bytes"],
+      [
+        OWNABLE_VALIDATOR_ADDRESS,
+        DEFAULT_EMISSARY_CONFIG_ID,
+        ownableValidatorSig,
+      ],
+    )
     : encodePacked(
-        ["address", "bytes"],
-        [OWNABLE_VALIDATOR_ADDRESS, ownableValidatorSig],
-      );
+      ["address", "bytes"],
+      [OWNABLE_VALIDATOR_ADDRESS, ownableValidatorSig],
+    );
 
   const signedIntentOp = {
     ...intentOp,

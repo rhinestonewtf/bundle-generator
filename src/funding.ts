@@ -6,7 +6,7 @@ import { Address, Chain, createTestClient, http, pad, toHex } from "viem";
 import { getChain } from "./utils/chains.js";
 import { arbitrum, base, mainnet } from "viem/chains";
 
-const lookup = (chain: Chain): string => {
+export const lookup = (chain: Chain): string => {
   switch (chain) {
     case mainnet:
       return "http://localhost:30001";
@@ -31,7 +31,7 @@ export const fundAccount = async ({
     for (const sourceChain of sourceChains) {
       const chain = getChain(sourceChain);
 
-      console.log("Funding on %s", chain.name);
+      console.log("Funding on %s for %s", chain.name, account);
 
       const testClient = createTestClient({
         chain,
