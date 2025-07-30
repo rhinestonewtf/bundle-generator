@@ -8,6 +8,7 @@ import {
   optimismSepolia,
   polygon,
   sepolia,
+  soneium,
   zksync,
 } from "viem/chains";
 
@@ -25,6 +26,8 @@ export const getChain = (name: string) => {
       return optimism;
     case "ZkSync":
       return zksync;
+    case "Soneium":
+      return soneium;
     case "Sepolia":
       return sepolia;
     case "OpSepolia":
@@ -52,6 +55,8 @@ export const getChainById = (chainId: number) => {
       return optimism;
     case zksync.id:
       return zksync;
+    case soneium.id:
+      return soneium;
     case sepolia.id:
       return sepolia;
     case optimismSepolia.id:

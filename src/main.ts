@@ -20,9 +20,10 @@ import {
   Hex,
   keccak256,
   parseEther,
+  toHex,
 } from "viem";
 import { deployAccount, getSmartAccount } from "./account.js";
-import { signOrderBundle } from "./utils/signing.js";
+import { getElementTypeHash, signOrderBundle } from "./utils/signing.js";
 import { waitForBundleResult } from "./utils/bundleStatus.js";
 import { Intent, Token } from "./types.js";
 import { getChain } from "./utils/chains.js";
@@ -191,6 +192,14 @@ export const processIntent = async (intent: Intent) => {
       };
     }),
     destinationGasUnits,
+    options: {
+      // settlementLayers: ["ECO"],
+      sponsorSettings: {
+        gasSponsored: true,
+        bridgeFeesSponsored: true,
+        swapFeesSponsored: true,
+      },
+    },
   };
 
   if (intent.sourceChains.length > 0) {
@@ -273,6 +282,7 @@ export const processIntent = async (intent: Intent) => {
   //   metaIntent,
   //   targetSmartAccount.account.address,
   // );
+  //
 
   const { data: orderResponse } = await axios.post(
     `${process.env.ORCHESTRATOR_API_URL}/intents/route`,

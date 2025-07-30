@@ -77,7 +77,7 @@ export const getSmartAccount = async ({
           0,
         ],
       }),
-      "0x7579EE8307284F293B1927136486880611F20002",
+      "0x7579f2AD53b01c3D8779Fe17928e0D48885B0003",
       zeroAddress,
       BigInt(0),
       zeroAddress,

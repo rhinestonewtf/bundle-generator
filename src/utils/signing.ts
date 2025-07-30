@@ -3,7 +3,9 @@ import {
   getOwnableValidatorSignature,
 } from "@rhinestone/module-sdk";
 import {
+  Address,
   encodePacked,
+  hashStruct,
   hashTypedData,
   keccak256,
   LocalAccount,
@@ -13,14 +15,25 @@ import {
 } from "viem";
 import { COMPACT_ADDRESS, DEFAULT_EMISSARY_CONFIG_ID } from "../compact";
 
+function getClaimProofer(settlementLayer: string): Address {
+  switch (settlementLayer) {
+    case "SAME_CHAIN":
+      return zeroAddress;
+    case "ACROSS":
+      return "0x1636b30481Db91Bbc5818e65d3962838BdCd5569";
+    case "ECO":
+      return "0x0746dc2CdcbF6270c9C53D1C4923604448cf3e94";
+    default:
+      throw new Error(
+        `Unsupported settlement system: ${settlementLayer}. Supported systems are: SAME_CHAIN, ACROSS, ECO.`,
+      );
+  }
+}
+
 function toSignatureHash(intentOp: any) {
   const notarizedChainElement = intentOp.elements[0];
   const settlementSystem =
     notarizedChainElement.mandate.qualifier.settlementSystem;
-  const claimProofer =
-    settlementSystem == "ACROSS"
-      ? "0x1636b30481Db91Bbc5818e65d3962838BdCd5569"
-      : zeroAddress;
   return hashTypedData({
     domain: {
       name: "The Compact",
@@ -91,7 +104,7 @@ function toSignatureHash(intentOp: any) {
             })),
             targetChain: element.mandate.destinationChainId,
             fillExpiry: element.mandate.fillDeadline,
-            claimProofer: claimProofer,
+            claimProofer: getClaimProofer(settlementSystem),
           },
           originOps: element.mandate.preClaimOps.map((op: any) => ({
             to: op.to,
