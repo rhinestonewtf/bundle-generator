@@ -194,11 +194,11 @@ export const processIntent = async (intent: Intent) => {
     destinationGasUnits,
     options: {
       // settlementLayers: ["ECO"],
-      sponsorSettings: {
-        gasSponsored: true,
-        bridgeFeesSponsored: true,
-        swapFeesSponsored: true,
-      },
+      // sponsorSettings: {
+      //   gasSponsored: true,
+      //   bridgeFeesSponsored: true,
+      //   swapFeesSponsored: true,
+      // },
     },
   };
 
