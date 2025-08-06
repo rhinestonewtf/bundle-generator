@@ -15,30 +15,12 @@ import {
 } from "viem";
 import { COMPACT_ADDRESS, DEFAULT_EMISSARY_CONFIG_ID } from "../compact";
 
-function getClaimProofer(settlementLayer: string): Address {
-  switch (settlementLayer) {
-    case "SAME_CHAIN":
-      return zeroAddress;
-    case "ACROSS":
-      return "0x1636b30481Db91Bbc5818e65d3962838BdCd5569";
-    case "ECO":
-      return "0x0746dc2CdcbF6270c9C53D1C4923604448cf3e94";
-    default:
-      throw new Error(
-        `Unsupported settlement system: ${settlementLayer}. Supported systems are: SAME_CHAIN, ACROSS, ECO.`,
-      );
-  }
-}
-
 function toSignatureHash(intentOp: any) {
-  const notarizedChainElement = intentOp.elements[0];
-  const settlementSystem =
-    notarizedChainElement.mandate.qualifier.settlementSystem;
   return hashTypedData({
     domain: {
       name: "The Compact",
       version: "1",
-      chainId: notarizedChainElement.chainId,
+      chainId: intentOp.elements[0].chainId,
       verifyingContract: COMPACT_ADDRESS,
     },
     types: {
@@ -70,7 +52,6 @@ function toSignatureHash(intentOp: any) {
         { name: "tokenOut", type: "Token[]" },
         { name: "targetChain", type: "uint256" },
         { name: "fillExpiry", type: "uint256" },
-        { name: "claimProofer", type: "address" },
       ],
       Token: [
         { name: "token", type: "address" },
@@ -104,7 +85,6 @@ function toSignatureHash(intentOp: any) {
             })),
             targetChain: element.mandate.destinationChainId,
             fillExpiry: element.mandate.fillDeadline,
-            claimProofer: getClaimProofer(settlementSystem),
           },
           originOps: element.mandate.preClaimOps.map((op: any) => ({
             to: op.to,
@@ -145,17 +125,17 @@ export const signOrderBundle = async ({
   });
   const encodedSignature = usingEmissary
     ? encodePacked(
-      ["address", "uint8", "bytes"],
-      [
-        OWNABLE_VALIDATOR_ADDRESS,
-        DEFAULT_EMISSARY_CONFIG_ID,
-        ownableValidatorSig,
-      ],
-    )
+        ["address", "uint8", "bytes"],
+        [
+          OWNABLE_VALIDATOR_ADDRESS,
+          DEFAULT_EMISSARY_CONFIG_ID,
+          ownableValidatorSig,
+        ],
+      )
     : encodePacked(
-      ["address", "bytes"],
-      [OWNABLE_VALIDATOR_ADDRESS, ownableValidatorSig],
-    );
+        ["address", "bytes"],
+        [OWNABLE_VALIDATOR_ADDRESS, ownableValidatorSig],
+      );
 
   const signedIntentOp = {
     ...intentOp,
