@@ -1,7 +1,5 @@
-import { BundleResult, OrderPath } from "@rhinestone/sdk/orchestrator";
-import { createPublicClient, Hex, http } from "viem";
-import { OpStackTransactionReceipt } from "viem/chains";
-import { getChainById } from "./utils/chains";
+import { Hex } from "viem";
+import { BundleResult, OrderPath } from "./utils/sdk-registry";
 import { getPublicClientByChainId } from "./utils/clients";
 
 type GasComparison = {
@@ -31,7 +29,7 @@ export const handleFeeAnalysis = async ({
   let totalGasUsed = 0n;
   let totalCost = 0n;
   const targetChainId = Number(
-    orderPath[0].orderBundle.segments[0].witness.targetChain,
+    orderPath[0].orderBundle.segments[0].witness.targetChain
   );
 
   const fillCost = await getTxCost({
@@ -53,7 +51,7 @@ export const handleFeeAnalysis = async ({
     estimate: BigInt(gasPrices[targetChainId]) || 0n,
   });
 
-  for (const claim of result.claims) {
+  for (const claim of result.claims || []) {
     if (claim.chainId !== targetChainId) {
       const claimCost = await getTxCost({
         txHash: claim.claimTransactionHash as Hex,
@@ -93,7 +91,7 @@ const getClaimGasEstimate = ({
   segments: any;
 }) => {
   const numberOfSegments = segments.filter(
-    (segment: any) => segment.chainId !== targetChainId,
+    (segment: any) => segment.chainId !== targetChainId
   ).length;
   return BigInt(numberOfSegments) * 470_000n; // 470k gas per segment
 };

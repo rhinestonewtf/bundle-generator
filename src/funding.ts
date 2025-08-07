@@ -1,7 +1,4 @@
-import {
-  getTokenAddress,
-  getTokenBalanceSlot,
-} from "@rhinestone/sdk/orchestrator";
+import { getTokenAddress, getTokenBalanceSlot } from "./utils/sdk-registry.js";
 import { Address, Chain, createTestClient, http, pad, toHex } from "viem";
 import { getChain } from "./utils/chains.js";
 import { arbitrum, base, mainnet } from "viem/chains";
@@ -49,7 +46,7 @@ export const fundAccount = async ({
           const tokenBalanceSlot = getTokenBalanceSlot(
             sourceToken,
             chain.id,
-            account,
+            account
           );
 
           await testClient.setStorageAt({

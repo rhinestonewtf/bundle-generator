@@ -4,26 +4,27 @@ config();
 import { Account, Hex } from "viem";
 import { collectUserInput, showUserAccount } from "./cli.js";
 import { privateKeyToAccount } from "viem/accounts";
-import { getChain } from "./utils/chains.js";
-import { getSmartAccount } from "./account.js";
+import { createRhinestoneAccount } from "@rhinestone/sdk";
 import { processIntent } from "./main.js";
 import * as fs from "fs";
-import * as path from "path";
-
 
 export const main = async () => {
   const { intent, saveAsFileName } = await collectUserInput();
 
   const owner: Account = privateKeyToAccount(
-    process.env.OWNER_PRIVATE_KEY! as Hex,
+    process.env.OWNER_PRIVATE_KEY! as Hex
   );
-  const targetChain = getChain(intent.targetChain);
-  const targetSmartAccount = await getSmartAccount({
-    chain: targetChain,
-    owner,
+
+  const rhinestoneAccount = await createRhinestoneAccount({
+    owners: {
+      type: "ecdsa",
+      accounts: [owner],
+    },
+    rhinestoneApiKey: process.env.ORCHESTRATOR_API_KEY!,
   });
 
-  await showUserAccount(targetSmartAccount.account.address);
+  const address = await rhinestoneAccount.getAddress();
+  await showUserAccount(address);
 
   if (saveAsFileName && !saveAsFileName.match(/^(n|no)\.json$/)) {
     if (!fs.existsSync("intents")) {
@@ -36,7 +37,10 @@ export const main = async () => {
       existingData = JSON.parse(data).intentList || [];
     }
     existingData.push(intent);
-    fs.writeFileSync(filePath, JSON.stringify({ intentList: existingData }, null, 2));
+    fs.writeFileSync(
+      filePath,
+      JSON.stringify({ intentList: existingData }, null, 2)
+    );
   }
 
   await processIntent(intent);

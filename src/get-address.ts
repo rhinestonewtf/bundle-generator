@@ -1,22 +1,25 @@
 import { Account, Hex } from "viem";
 import { privateKeyToAccount } from "viem/accounts";
-import { getChain } from "./utils/chains.js";
-import { getSmartAccount } from "./account.js";
+import { createRhinestoneAccount } from "@rhinestone/sdk";
 import { config } from "dotenv";
 
 config();
 
 export const main = async () => {
   const owner: Account = privateKeyToAccount(
-    process.env.OWNER_PRIVATE_KEY! as Hex,
+    process.env.OWNER_PRIVATE_KEY! as Hex
   );
-  const targetChain = getChain("Base");
-  const targetSmartAccount = await getSmartAccount({
-    chain: targetChain,
-    owner,
+
+  const rhinestoneAccount = await createRhinestoneAccount({
+    owners: {
+      type: "ecdsa",
+      accounts: [owner],
+    },
+    rhinestoneApiKey: process.env.ORCHESTRATOR_API_KEY!,
   });
 
-  console.log(`Account address: ${targetSmartAccount.account.address}`);
+  const address = await rhinestoneAccount.getAddress();
+  console.log(`Account address: ${address}`);
 };
 
 main();
