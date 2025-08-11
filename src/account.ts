@@ -26,11 +26,6 @@ import {
 } from "@rhinestone/sdk/orchestrator";
 import { privateKeyToAccount } from "viem/accounts";
 
-export const INTENT_EXECUTOR_ADDRESS: Address =
-  process.env.DEV_CONTRACTS == "true"
-    ? "0xbf9b5b917a83f8adac17b0752846d41d8d7b7e17"
-    : "0x00000000005aD9ce1f5035FD62CA96CEf16AdAAF";
-
 export const getSmartAccount = async ({
   chain,
   owner,
@@ -38,6 +33,11 @@ export const getSmartAccount = async ({
   chain: Chain;
   owner: Account;
 }) => {
+  const INTENT_EXECUTOR_ADDRESS: Address =
+    process.env.DEV_CONTRACTS == "true"
+      ? "0xbf9b5b917a83f8adac17b0752846d41d8d7b7e17"
+      : "0x00000000005aD9ce1f5035FD62CA96CEf16AdAAF";
+
   const publicClient = getPublicClient(chain);
 
   const ownableValidator = getOwnableValidator({
