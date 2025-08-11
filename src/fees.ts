@@ -1,6 +1,6 @@
 import { Hex } from "viem";
-import { BundleResult, OrderPath } from "./utils/sdk-registry";
 import { getPublicClientByChainId } from "./utils/clients";
+import { BundleResult, OrderPath } from "./types";
 
 type GasComparison = {
   [chainId: number]: {

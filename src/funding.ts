@@ -1,5 +1,14 @@
-import { getTokenAddress, getTokenBalanceSlot } from "./utils/sdk-registry.js";
-import { Address, Chain, createTestClient, http, pad, toHex } from "viem";
+import { getTokenAddress } from "@rhinestone/sdk";
+import {
+  Address,
+  Chain,
+  createTestClient,
+  http,
+  pad,
+  toHex,
+  keccak256,
+  encodePacked,
+} from "viem";
 import { getChain } from "./utils/chains.js";
 import { arbitrum, base, mainnet } from "viem/chains";
 
@@ -14,6 +23,45 @@ export const lookup = (chain: Chain): string => {
   }
   throw new Error(`unsupported chain fork ${chain.name}`);
 };
+
+function getTokenBalanceSlot(
+  tokenSymbol: string,
+  chainId: number,
+  account: Address
+): `0x${string}` {
+  if (tokenSymbol === "ETH") {
+    throw new Error("ETH does not have a balance slot (native token)");
+  }
+  // common balance slots for popular tokens:
+  const balanceSlots: Record<string, Record<number, number>> = {
+    USDC: {
+      1: 9,
+      137: 0,
+      42161: 51,
+      8453: 0,
+    },
+    USDT: {
+      1: 2,
+      137: 0,
+      42161: 51,
+    },
+    WETH: {
+      1: 3,
+      137: 0,
+      42161: 51,
+      8453: 0,
+    },
+  };
+
+  const balanceSlot = balanceSlots[tokenSymbol]?.[chainId] ?? 0;
+
+  // calculate storage slot: keccak256(abi.encode(account, balanceSlot))
+  const slot = keccak256(
+    encodePacked(["address", "uint256"], [account, BigInt(balanceSlot)])
+  );
+
+  return slot;
+}
 
 export const fundAccount = async ({
   account,

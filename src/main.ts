@@ -1,9 +1,9 @@
-import { createRhinestoneAccount } from "@rhinestone/sdk";
+import { createRhinestoneAccount, getTokenAddress } from "@rhinestone/sdk";
 import { Account, privateKeyToAccount } from "viem/accounts";
 import { Address, encodeFunctionData, erc20Abi, Hex } from "viem";
 import { Intent, Token } from "./types.js";
 import { getChain } from "./utils/chains.js";
-import { convertTokenAmount, getTokenAddress } from "./utils/tokens.js";
+import { convertTokenAmount } from "./utils/tokens.js";
 import { fundAccount } from "./funding.js";
 
 export function ts() {
@@ -35,10 +35,8 @@ export const processIntent = async (intent: Intent) => {
   });
 
   const targetChain = getChain(intent.targetChain);
-  const sourceChain =
-    intent.sourceChains.length > 0
-      ? getChain(intent.sourceChains[0])
-      : targetChain;
+  const sourceChains =
+    intent.sourceChains.length > 0 ? intent.sourceChains.map(getChain) : [];
 
   // Handle funding for the account
   const accountAddress = await rhinestoneAccount.getAddress();
@@ -103,34 +101,48 @@ export const processIntent = async (intent: Intent) => {
 
   const bundleLabel = `${sourceAssetsLabel} > ${targetAssetsLabel} to ${recipientLabel}`;
 
-  console.log(`${ts()} Bundle ${bundleLabel}: Generating Intent`);
+  console.log(`${ts()} Bundle ${bundleLabel}: Starting transaction process`);
 
+  // Phase 1: Prepare transaction
+  const prepareStartTime = new Date().getTime();
+  console.log(`${ts()} Bundle ${bundleLabel}: [1/3] Preparing transaction...`);
+
+  // Transaction preparation happens internally in sendTransaction
+  // but we can time the overall prepare+sign+submit phase
   const transaction = await rhinestoneAccount.sendTransaction({
-    sourceChains: intent.sourceChains.length > 0 ? [sourceChain] : undefined,
+    sourceChains: sourceChains.length > 0 ? sourceChains : undefined,
     targetChain,
     calls,
     tokenRequests,
   });
 
+  const transactionSubmittedTime = new Date().getTime();
   console.log(
-    `${ts()} Bundle ${bundleLabel}: Generated ${
-      "hash" in transaction ? transaction.hash : "transaction"
-    } in ${new Date().getTime() - startTime}ms`
-  );
-
-  console.log(
-    `${ts()} Bundle ${bundleLabel}: Sent in ${
-      new Date().getTime() - startTime
+    `${ts()} Bundle ${bundleLabel}: [2/3] Transaction prepared and submitted in ${
+      transactionSubmittedTime - prepareStartTime
     }ms`
   );
 
-  // Wait for execution using the new SDK method
+  // Phase 3: Wait for execution
+  console.log(`${ts()} Bundle ${bundleLabel}: [3/3] Waiting for execution...`);
+  const executionStartTime = new Date().getTime();
+
   const result = await rhinestoneAccount.waitForExecution(transaction);
 
+  const executionEndTime = new Date().getTime();
   console.log(
-    `${ts()} Bundle ${bundleLabel}: Result after ${
-      new Date().getTime() - startTime
-    } ms`
+    `${ts()} Bundle ${bundleLabel}: Execution completed in ${
+      executionEndTime - executionStartTime
+    }ms`
+  );
+
+  console.log(
+    `${ts()} Bundle ${bundleLabel}: Total time: ${
+      executionEndTime - startTime
+    }ms ` +
+      `(Submit: ${transactionSubmittedTime - prepareStartTime}ms, Execute: ${
+        executionEndTime - executionStartTime
+      }ms)`
   );
 
   console.dir(result, { depth: null });
