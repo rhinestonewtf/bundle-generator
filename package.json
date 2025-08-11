@@ -15,7 +15,7 @@
   "dependencies": {
     "@inquirer/prompts": "^7.4.1",
     "@rhinestone/module-sdk": "^0.2.8",
-    "@rhinestone/sdk": "1.0.0-alpha.12",
+    "@rhinestone/sdk": "1.0.0-alpha.13",
     "abitype": "^1.0.8",
     "axios": "^1.10.0",
     "dotenv": "^16.5.0",
