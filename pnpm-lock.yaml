@@ -15,8 +15,8 @@ importers:
         specifier: ^0.2.8
         version: 0.2.8(viem@2.28.3(typescript@5.8.3))
       '@rhinestone/sdk':
-        specifier: 1.0.0-alpha.13
-        version: 1.0.0-alpha.13(viem@2.28.3(typescript@5.8.3))
+        specifier: 1.0.0-alpha.15
+        version: 1.0.0-alpha.15(viem@2.28.3(typescript@5.8.3))
       '@rhinestone/shared-configs':
         specifier: ^1.2.0
         version: 1.2.0(typescript@5.8.3)(viem@2.28.3(typescript@5.8.3))
@@ -335,8 +335,8 @@ packages:
     peerDependencies:
       viem: ^2.0.0
 
-  '@rhinestone/sdk@1.0.0-alpha.13':
-    resolution: {integrity: sha512-0fM17vLaZ9GaC3DxnE6HedYpUt9HgLklmMAQ8T6Uqv9Pymw2KDC7a4nAI8XaYL9s9ss5g7Xn0nbJhneFDWkCkQ==}
+  '@rhinestone/sdk@1.0.0-alpha.15':
+    resolution: {integrity: sha512-YSReV06nfW4xHr3EkxL+eYDonrhLZhCnGFGWOKp180DKvZGOJ13PUMCEBvETXyMfuqzxhwpC2Lxr5gOo6H5dCA==}
     peerDependencies:
       viem: ^2.28.0
 
@@ -836,7 +836,7 @@ snapshots:
       tslib: 2.8.1
       viem: 2.28.3(typescript@5.8.3)
 
-  '@rhinestone/sdk@1.0.0-alpha.13(viem@2.28.3(typescript@5.8.3))':
+  '@rhinestone/sdk@1.0.0-alpha.15(viem@2.28.3(typescript@5.8.3))':
     dependencies:
       axios: 1.10.0
       solady: 0.1.23
