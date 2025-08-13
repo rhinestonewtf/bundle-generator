@@ -9,7 +9,12 @@ import { processIntent } from "./main.js";
 import * as fs from "fs";
 
 export const main = async () => {
-  const { intent, saveAsFileName } = await collectUserInput();
+  const { intent, saveAsFileName, simulate } = await collectUserInput();
+  
+  // Set simulation environment variable if flag is provided
+  if (simulate) {
+    process.env.SIMULATE = "true";
+  }
 
   const owner: Account = privateKeyToAccount(
     process.env.OWNER_PRIVATE_KEY! as Hex

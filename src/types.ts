@@ -11,6 +11,8 @@ export type Intent = {
   tokenRecipient: string;
 };
 
+export type TokenSymbol = "ETH" | "WETH" | "USDC" | "USDT";
+
 export type BundleResult = {
   status: string;
   claims?: Array<{

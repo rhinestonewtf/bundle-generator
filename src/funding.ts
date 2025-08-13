@@ -9,8 +9,9 @@ import {
   keccak256,
   encodePacked,
 } from "viem";
-import { getChain } from "./utils/chains.js";
 import { arbitrum, base, mainnet } from "viem/chains";
+import { getChain } from "./utils/chains.js";
+import { TokenSymbol } from "./types.js";
 
 export const lookup = (chain: Chain): string => {
   switch (chain) {
@@ -25,7 +26,7 @@ export const lookup = (chain: Chain): string => {
 };
 
 function getTokenBalanceSlot(
-  tokenSymbol: string,
+  tokenSymbol: TokenSymbol,
   chainId: number,
   account: Address
 ): `0x${string}` {
@@ -90,9 +91,12 @@ export const fundAccount = async ({
             value: 100000000000000000000000000000000000000000n,
           });
         } else {
-          const tokenAddress = getTokenAddress(sourceToken, chain.id);
+          const tokenAddress = getTokenAddress(
+            sourceToken as TokenSymbol,
+            chain.id
+          );
           const tokenBalanceSlot = getTokenBalanceSlot(
-            sourceToken,
+            sourceToken as TokenSymbol,
             chain.id,
             account
           );

@@ -8,7 +8,10 @@ import path from "path";
 export const collectUserInput = async (): Promise<{
   intent: Intent;
   saveAsFileName?: string;
+  simulate?: boolean;
 }> => {
+  const simulate =
+    process.argv.includes("--simulate") || process.argv.includes("-s");
   const targetChain = await select({
     message: "Select a target chain",
     choices: [
@@ -137,6 +140,12 @@ export const collectUserInput = async (): Promise<{
   const sanitizedFilename = filename.replace(/\.json$/, "");
   const saveAsFileName = `${sanitizedFilename}.json`;
 
+  if (simulate) {
+    console.log(
+      "Simulation mode enabled - transaction will be simulated but not executed"
+    );
+  }
+
   return {
     intent: {
       targetChain,
@@ -146,6 +155,7 @@ export const collectUserInput = async (): Promise<{
       tokenRecipient,
     },
     saveAsFileName,
+    simulate,
   };
 };
 
