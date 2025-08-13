@@ -27,9 +27,10 @@ export const processIntent = async (intent: Intent) => {
   });
 
   // get the target chain and source chains
-  const targetChain = getChain(intent.targetChain);
+  const isDevMode = process.env.DEV_CONTRACTS === "true";
+  const targetChain = getChain(intent.targetChain, isDevMode);
   const sourceChains =
-    intent.sourceChains.length > 0 ? intent.sourceChains.map(getChain) : [];
+    intent.sourceChains.length > 0 ? intent.sourceChains.map(chain => getChain(chain, isDevMode)) : [];
 
   // fund the account
   const accountAddress = await rhinestoneAccount.getAddress();

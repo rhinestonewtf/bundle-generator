@@ -12,31 +12,33 @@ export const collectUserInput = async (): Promise<{
 }> => {
   const simulate =
     process.argv.includes("--simulate") || process.argv.includes("-s");
+  const isDevMode = process.env.DEV_CONTRACTS === "true";
+
   const targetChain = await select({
-    message: "Select a target chain",
+    message: `Select a target chain${isDevMode ? " (testnet mode)" : ""}`,
     choices: [
       {
-        name: "Ethereum",
+        name: isDevMode ? "Ethereum (Sepolia)" : "Ethereum",
         value: "Ethereum",
       },
       {
-        name: "Base",
+        name: isDevMode ? "Base (Base Sepolia)" : "Base",
         value: "Base",
       },
       {
-        name: "Arbitrum",
+        name: isDevMode ? "Arbitrum (Arbitrum Sepolia)" : "Arbitrum",
         value: "Arbitrum",
       },
       {
-        name: "Optimism",
+        name: isDevMode ? "Optimism (OP Sepolia)" : "Optimism",
         value: "Optimism",
       },
       {
-        name: "ZkSync",
+        name: isDevMode ? "ZkSync (Sepolia fallback)" : "ZkSync",
         value: "ZkSync",
       },
       {
-        name: "Polygon",
+        name: isDevMode ? "Polygon (Sepolia fallback)" : "Polygon",
         value: "Polygon",
       },
     ],
@@ -78,13 +80,27 @@ export const collectUserInput = async (): Promise<{
   }
 
   const sourceChains = await checkbox({
-    message: "Select source chains (optional)",
+    message: `Select source chains (optional)${
+      isDevMode ? " (testnet mode)" : ""
+    }`,
     choices: [
-      { name: "Ethereum", value: "Ethereum" },
-      { name: "Base", value: "Base" },
-      { name: "Arbitrum", value: "Arbitrum" },
-      { name: "Optimism", value: "Optimism" },
-      { name: "Polygon", value: "Polygon" },
+      {
+        name: isDevMode ? "Ethereum (Sepolia)" : "Ethereum",
+        value: "Ethereum",
+      },
+      { name: isDevMode ? "Base (Base Sepolia)" : "Base", value: "Base" },
+      {
+        name: isDevMode ? "Arbitrum (Arbitrum Sepolia)" : "Arbitrum",
+        value: "Arbitrum",
+      },
+      {
+        name: isDevMode ? "Optimism (OP Sepolia)" : "Optimism",
+        value: "Optimism",
+      },
+      {
+        name: isDevMode ? "Polygon (Sepolia fallback)" : "Polygon",
+        value: "Polygon",
+      },
     ],
   });
 

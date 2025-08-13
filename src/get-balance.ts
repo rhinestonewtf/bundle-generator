@@ -25,7 +25,8 @@ export const main = async () => {
   console.log(`Account: ${address}\n`);
 
   console.log("Portfolio (via Rhinestone SDK):");
-  const portfolio = await rhinestoneAccount.getPortfolio();
+  const isDevMode = process.env.DEV_CONTRACTS === "true";
+  const portfolio = await rhinestoneAccount.getPortfolio(isDevMode);
 
   if (portfolio.length === 0) {
     console.log("   No tokens found in portfolio");

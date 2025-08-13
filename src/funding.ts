@@ -74,8 +74,9 @@ export const fundAccount = async ({
   sourceTokens: string[];
 }) => {
   if (process.env.LOCAL_TESTNET) {
+    const isDevMode = process.env.DEV_CONTRACTS === "true";
     for (const sourceChain of sourceChains) {
-      const chain = getChain(sourceChain);
+      const chain = getChain(sourceChain, isDevMode);
 
       console.log("Funding on %s for %s", chain.name, account);
 
