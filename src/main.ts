@@ -1,13 +1,10 @@
-import axios from "axios";
-import { createRhinestoneAccount, getTokenAddress, IntentOp } from "@rhinestone/sdk";
+import { createRhinestoneAccount, getTokenAddress } from "@rhinestone/sdk";
 import { Account, privateKeyToAccount } from "viem/accounts";
 import { Address, encodeFunctionData, erc20Abi, Hex } from "viem";
 import { Intent, Token, TokenSymbol } from "./types.js";
 import { getChain } from "./utils/chains.js";
 import { convertTokenAmount } from "./utils/tokens.js";
 import { fundAccount } from "./funding.js";
-import { convertBigIntFields } from "./utils/7702.js";
-import { getOrchestratorUrl } from "./utils/config.js";
 
 export function ts() {
   return new Date().toISOString().replace(/T/, " ").replace(/\..+/, "");
@@ -131,21 +128,6 @@ export const processIntent = async (intent: Intent) => {
     }ms`
   );
 
-  // extract the signed intent operation for submission
-  let intentOp: IntentOp;
-  if (preparedTransaction.data.type === "intent") {
-    intentOp = preparedTransaction.data.intentRoute.intentOp;
-  } else {
-    throw new Error("Invalid transaction data");
-  }
-  const signedIntentOp = {
-    ...intentOp,
-    originSignatures: Array(intentOp.elements.length).fill(
-      signedTransaction.signature
-    ),
-    destinationSignature: signedTransaction.signature,
-  };
-
   // ----- Phase 3: Submit or Simulate
   if (process.env.SIMULATE === "true") {
     console.log(
@@ -155,37 +137,23 @@ export const processIntent = async (intent: Intent) => {
     try {
       const simulationStartTime = new Date().getTime();
       console.log(
-        `${ts()} Bundle ${bundleLabel}: [3/4] Submitting transaction...`
-      );
-      // simulate the transaction with the orchestrator
-      const response = await axios.post(
-        `${getOrchestratorUrl(targetChain.id)}/intent-operations/simulate`,
-        {
-          signedIntentOp: convertBigIntFields(signedIntentOp),
-        },
-        {
-          headers: {
-            "x-api-key": process.env.ORCHESTRATOR_API_KEY!,
-          },
-        }
+        `${ts()} Bundle ${bundleLabel}: [3/4] Simulating transaction...`
       );
 
-      // get the simulation result
-      const bundleResult = {
-        simulations: response.data.result.simulations,
-        result: response.data.result.result,
-        id: BigInt(response.data.result.id),
-      };
+      // Simulate the transaction using the SDK
+      // todo: release new version of SDK and remove this ignore
+      // @ts-ignore - simulateTransaction is available in local SDK build
+      const simulationResult = await rhinestoneAccount.simulateTransaction(
+        signedTransaction
+      );
 
       // log the simulation result
       console.log(
         `${ts()} Bundle ${bundleLabel}: Simulation result after ${
           new Date().getTime() - simulationStartTime
-        } ms`,
-        {
-          ...bundleResult,
-        }
+        } ms`
       );
+      console.dir(simulationResult, { depth: null });
 
       return;
     } catch (error: any) {
@@ -201,30 +169,17 @@ export const processIntent = async (intent: Intent) => {
       console.log(
         `${ts()} Bundle ${bundleLabel}: [3/4] Submitting transaction...`
       );
-      const response = await axios.post(
-        `${getOrchestratorUrl(targetChain.id)}/intent-operations`,
-        {
-          signedIntentOp: convertBigIntFields(signedIntentOp),
-        },
-        {
-          headers: {
-            "x-api-key": process.env.ORCHESTRATOR_API_KEY!,
-          },
-        }
+      // submit the transaction using the SDK
+      const transactionResult = await rhinestoneAccount.submitTransaction(
+        signedTransaction
       );
+
       const submitEndTime = new Date().getTime();
       console.log(
         `${ts()} Bundle ${bundleLabel}: [3/4] Submitted in ${
           submitEndTime - submitStartTime
         }ms`
       );
-
-      const transactionResult = {
-        type: "intent" as const,
-        id: BigInt(response.data.result.id),
-        sourceChains: sourceChains.map((c) => c.id),
-        targetChain: targetChain.id,
-      };
 
       console.log(
         `${ts()} Bundle ${bundleLabel}: [4/4] Waiting for execution...`
