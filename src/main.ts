@@ -23,6 +23,7 @@ export const processIntent = async (intent: Intent) => {
       accounts: [owner],
     },
     rhinestoneApiKey: process.env.ORCHESTRATOR_API_KEY!,
+    useDev: process.env.DEV_CONTRACTS == "true",
   });
 
   // get the target chain and source chains
