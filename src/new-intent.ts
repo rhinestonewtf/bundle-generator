@@ -10,7 +10,7 @@ import * as fs from "fs";
 
 export const main = async () => {
   const { intent, saveAsFileName, simulate } = await collectUserInput();
-  
+
   // Set simulation environment variable if flag is provided
   if (simulate) {
     process.env.SIMULATE = "true";
@@ -26,6 +26,7 @@ export const main = async () => {
       accounts: [owner],
     },
     rhinestoneApiKey: process.env.ORCHESTRATOR_API_KEY!,
+    useDev: process.env.DEV_CONTRACTS == "true",
   });
 
   const address = await rhinestoneAccount.getAddress();

@@ -18,6 +18,7 @@ export const main = async () => {
       accounts: [owner],
     },
     rhinestoneApiKey: process.env.ORCHESTRATOR_API_KEY!,
+    useDev: process.env.DEV_CONTRACTS == "true",
   });
 
   const address = rhinestoneAccount.getAddress();
