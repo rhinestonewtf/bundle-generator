@@ -6,7 +6,9 @@
   "scripts": {
     "new": "tsx src/new-intent.ts",
     "replay": "tsx src/existing-intent.ts",
-    "address": "tsx src/get-address.ts"
+    "address": "tsx src/get-address.ts",
+    "balance": "tsx src/get-balance.ts",
+    "simulate": "tsx src/new-intent.ts --simulate"
   },
   "keywords": [],
   "author": "",
@@ -14,7 +16,8 @@
   "dependencies": {
     "@inquirer/prompts": "^7.4.1",
     "@rhinestone/module-sdk": "^0.2.8",
-    "@rhinestone/sdk": "^0.12.7",
+    "@rhinestone/sdk": "1.0.0-alpha.18",
+    "@rhinestone/shared-configs": "^1.2.0",
     "abitype": "^1.0.8",
     "axios": "^1.10.0",
     "dotenv": "^16.5.0",

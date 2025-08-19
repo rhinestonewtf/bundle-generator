@@ -6,8 +6,6 @@ import { processIntent } from "./main.js";
 import * as fs from "fs";
 import * as path from "path";
 
-
-
 export const main = async () => {
   const replayParams = await getReplayParams();
 
@@ -28,10 +26,15 @@ export const main = async () => {
   });
 
   for (const intent of intents) {
-    if (!replayParams.asyncMode) { await processIntent(intent); }
-    else { processIntent(intent); }
+    if (!replayParams.asyncMode) {
+      await processIntent(intent);
+    } else {
+      processIntent(intent);
+    }
 
-    await new Promise(resolve => setTimeout(resolve, replayParams.msBetweenBundles));
+    await new Promise((resolve) =>
+      setTimeout(resolve, replayParams.msBetweenBundles)
+    );
   }
 };
 

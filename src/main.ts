@@ -1,230 +1,78 @@
-import {
-  getOrchestrator,
-  getTokenAddress,
-  type Execution,
-  type MetaIntent,
-  type PostOrderBundleResult,
-  type TokenTransfer,
-} from "@rhinestone/sdk/orchestrator";
-import {
-  Account,
-  generatePrivateKey,
-  privateKeyToAccount,
-} from "viem/accounts";
-import {
-  Address,
-  Chain,
-  encodeFunctionData,
-  encodePacked,
-  erc20Abi,
-  Hex,
-  keccak256,
-  parseEther,
-  toHex,
-} from "viem";
-import { deployAccount, getSmartAccount } from "./account.js";
-import { getElementTypeHash, signOrderBundle } from "./utils/signing.js";
-import { waitForBundleResult } from "./utils/bundleStatus.js";
-import { Intent, Token } from "./types.js";
+import { createRhinestoneAccount, getTokenAddress } from "@rhinestone/sdk";
+import { Account, privateKeyToAccount } from "viem/accounts";
+import { Address, encodeFunctionData, erc20Abi, Hex } from "viem";
+import { Intent, Token, TokenSymbol } from "./types.js";
 import { getChain } from "./utils/chains.js";
 import { convertTokenAmount } from "./utils/tokens.js";
 import { fundAccount } from "./funding.js";
-import axios from "axios";
-import { setEmissary } from "./compact.js";
 
 export function ts() {
   return new Date().toISOString().replace(/T/, " ").replace(/\..+/, "");
 }
 
-function convertBigIntFields(obj: any): any {
-  if (obj === null || obj === undefined) {
-    return obj;
-  }
-
-  if (typeof obj === "bigint") {
-    return obj.toString();
-  }
-
-  if (Array.isArray(obj)) {
-    return obj.map(convertBigIntFields);
-  }
-
-  if (typeof obj === "object") {
-    const result: any = {};
-    for (const key in obj) {
-      if (Object.hasOwn(obj, key)) {
-        result[key] = convertBigIntFields(obj[key]);
-      }
-    }
-    return result;
-  }
-
-  return obj;
-}
-
-function parseCompactResponse(response: any): any {
-  const parseOp = (op: any) => {
-    return {
-      to: op.to as Address,
-      value: BigInt(op.value),
-      data: op.data as Hex,
-    };
-  };
-
-  return {
-    sponsor: response.sponsor as Address,
-    nonce: BigInt(response.nonce),
-    expires: BigInt(response.expires),
-    elements: response.elements.map((element: any) => {
-      return {
-        arbiter: element.arbiter as Address,
-        chainId: BigInt(element.chainId),
-        idsAndAmounts: element.idsAndAmounts.map((idsAndAmount: any) => {
-          return [BigInt(idsAndAmount[0]), BigInt(idsAndAmount[1])];
-        }),
-        beforeFill: element.beforeFill,
-        smartAccountStatus: element.smartAccountStatus,
-        mandate: {
-          recipient: element.mandate.recipient as Address,
-          tokenOut: element.mandate.tokenOut.map((tokenOut: any) => {
-            return [BigInt(tokenOut[0]), BigInt(tokenOut[1])];
-          }),
-          destinationChainId: BigInt(element.mandate.destinationChainId),
-          fillDeadline: element.mandate.fillDeadline,
-          destinationOps: element.mandate.destinationOps.map(parseOp),
-          preClaimOps: element.mandate.preClaimOps.map(parseOp),
-          qualifier: element.mandate.qualifier,
-        },
-      };
-    }),
-    serverSignature: response.serverSignature,
-    signedMetadata: response.signedMetadata,
-  };
-}
-
 export const processIntent = async (intent: Intent) => {
-  const orchestrator = getOrchestrator(
-    process.env.ORCHESTRATOR_API_KEY!,
-    process.env.ORCHESTRATOR_API_URL,
-  );
-
+  // create the eoa account
   const owner: Account = privateKeyToAccount(
-    process.env.OWNER_PRIVATE_KEY! as Hex,
+    process.env.OWNER_PRIVATE_KEY! as Hex
   );
 
-  const targetChain = getChain(intent.targetChain);
+  // determine network mode
+  const isDevMode = process.env.DEV_CONTRACTS === "true";
+  const isTestnetMode = process.env.TESTNET_MODE === "true";
+  const useTestnetNetworks = isDevMode || isTestnetMode;
 
-  const targetSmartAccount = await getSmartAccount({
-    chain: targetChain,
-    owner,
+  // create the rhinestone account instance
+  const rhinestoneAccount = await createRhinestoneAccount({
+    owners: {
+      type: "ecdsa" as const,
+      accounts: [owner],
+    },
+    rhinestoneApiKey: process.env.ORCHESTRATOR_API_KEY!,
+    useDev: isDevMode, // only use dev contracts when DEV_CONTRACTS=true
   });
 
-  for (const sourceChain of intent.sourceChains) {
-    const chain = getChain(sourceChain);
-    const sourceSmartAccount = await getSmartAccount({
-      chain,
-      owner,
-    });
+  // get the target chain and source chains
+  const targetChain = getChain(intent.targetChain, useTestnetNetworks);
+  const sourceChains =
+    intent.sourceChains.length > 0 ? intent.sourceChains.map(chain => getChain(chain, useTestnetNetworks)) : [];
 
-    await fundAccount({
-      account: sourceSmartAccount.account.address,
-      sourceChains: intent.sourceChains,
-      sourceTokens: intent.sourceTokens,
-    });
+  // fund the account
+  const accountAddress = await rhinestoneAccount.getAddress();
+  await fundAccount({
+    account: accountAddress,
+    sourceChains: intent.sourceChains,
+    sourceTokens: intent.sourceTokens,
+  });
 
-    // await depositToCompact(sourceSmartAccount, chain.id, parseEther("0.0001"));
-    // await setEmissary(chain.id, sourceSmartAccount);
-
-    // await deployAccount({ smartAccount: sourceSmartAccount, chain });
-  }
-
-  // await setEmissary(targetChain.id, targetSmartAccount);
-
-  // await deployAccount({ smartAccount: targetSmartAccount, chain: targetChain });
-
+  // get the target address
   const target = intent.tokenRecipient as Address;
 
-  const startTime = new Date().getTime();
+  // prepare the calls for the target chain
+  const calls = intent.targetTokens.map((token: Token) => {
+    return {
+      to:
+        token.symbol == "ETH"
+          ? target
+          : getTokenAddress(token.symbol as TokenSymbol, targetChain.id),
+      value: token.symbol == "ETH" ? convertTokenAmount({ token }) : 0n,
+      data:
+        token.symbol == "ETH"
+          ? ("0x" as Hex)
+          : encodeFunctionData({
+              abi: erc20Abi,
+              functionName: "transfer",
+              args: [target, convertTokenAmount({ token })],
+            }),
+    };
+  });
 
-  const destinationGasUnits = 500_000n;
-  // create the meta intent
-  const metaIntent: any = {
-    destinationChainId: targetChain.id,
-    tokenTransfers: intent.targetTokens.map((token: Token) => {
-      return {
-        tokenAddress: getTokenAddress(token.symbol, targetChain.id),
-        amount: convertTokenAmount({ token }),
-      };
-    }),
-    account: {
-      address: targetSmartAccount.account.address,
-      accountType: "ERC7579",
-      setupOps: [
-        {
-          to: targetSmartAccount.factory,
-          data: targetSmartAccount.factoryData,
-        },
-      ],
-      // eip7702Delegation: {
-      //   chainId: 0,
-      //   nonce: 0n,
-      //   contractAddress: "0x0000000071727de22e5e9d8baf0edac6f37da032",
-      //   r: keccak256("0x"),
-      //   s: keccak256("0x"),
-      //   yParity: 0,
-      // },
-    },
-    destinationExecutions: intent.targetTokens.map((token: Token) => {
-      return {
-        to:
-          token.symbol == "ETH"
-            ? target
-            : getTokenAddress(token.symbol, targetChain.id),
-        value: token.symbol == "ETH" ? convertTokenAmount({ token }) : 0n,
-        data:
-          token.symbol == "ETH"
-            ? "0x"
-            : encodeFunctionData({
-                abi: erc20Abi,
-                functionName: "transfer",
-                args: [target, convertTokenAmount({ token })],
-              }),
-      };
-    }),
-    destinationGasUnits,
-    options: {
-      // settlementLayers: ["ECO"],
-      // sponsorSettings: {
-      //   gasSponsored: true,
-      //   bridgeFeesSponsored: true,
-      //   swapFeesSponsored: true,
-      // },
-    },
-  };
+  // prepare the token requests
+  const tokenRequests = intent.targetTokens.map((token: Token) => ({
+    address: getTokenAddress(token.symbol as TokenSymbol, targetChain.id),
+    amount: convertTokenAmount({ token }),
+  }));
 
-  if (intent.sourceChains.length > 0) {
-    if (intent.sourceTokens.length === 0) {
-      metaIntent.accountAccessList = {
-        chainIds: [],
-      };
-      for (const sourceChain of intent.sourceChains) {
-        const chain = getChain(sourceChain);
-        metaIntent.accountAccessList.chainIds.push(chain.id);
-      }
-    } else {
-      metaIntent.accountAccessList = [];
-      for (const sourceChain of intent.sourceChains) {
-        const chain = getChain(sourceChain);
-        for (const sourceToken of intent.sourceTokens) {
-          metaIntent.accountAccessList.push({
-            chainId: chain.id,
-            tokenAddress: getTokenAddress(sourceToken, chain.id),
-          });
-        }
-      }
-    }
-  }
-
+  // prepare the source assets label
   const sourceAssetsLabel =
     intent.sourceChains.length > 0
       ? intent.sourceChains
@@ -239,205 +87,136 @@ export const processIntent = async (intent: Intent) => {
           .join(" | ")
       : (intent.sourceTokens || []).join(", ");
 
+  // prepare the target assets label
   const targetAssetsLabel = intent.targetTokens
     .map(
       (token) =>
         `${token.amount} ${intent.targetChain
           .slice(0, 3)
-          .toLowerCase()}.${token.symbol.toLowerCase()}`,
+          .toLowerCase()}.${token.symbol.toLowerCase()}`
     )
     .join(", ");
 
+  // prepare the recipient label
   const recipientLabel = intent.tokenRecipient.slice(0, 6);
 
   const bundleLabel = `${sourceAssetsLabel} > ${targetAssetsLabel} to ${recipientLabel}`;
 
-  console.log(`${ts()} Bundle ${bundleLabel}: Generating Intent`);
+  console.log(`${ts()} Bundle ${bundleLabel}: Starting transaction process`);
 
-  const BEARER_TOKEN = process.env.ORCHESTRATOR_BEARER_TOKEN;
+  // ----- Phase 1: Prepare transaction
+  const prepareStartTime = new Date().getTime();
+  console.log(`${ts()} Bundle ${bundleLabel}: [1/4] Preparing transaction...`);
 
-  // const { data: orderCost } = await axios.post(
-  //   `${process.env.ORCHESTRATOR_API_URL}/intents/cost`,
-  //   {
-  //     ...convertBigIntFields({
-  //       ...metaIntent,
-  //       tokenTransfers: metaIntent.tokenTransfers.map(
-  //         (transfer: TokenTransfer) => ({
-  //           tokenAddress: transfer.tokenAddress,
-  //         }),
-  //       ),
-  //     }),
-  //   },
-  //   {
-  //     headers: {
-  //       "x-api-key": process.env.ORCHESTRATOR_API_KEY!,
-  //       Authorization: `Bearer ${BEARER_TOKEN}`,
-  //     },
-  //   },
-  // );
-
-  // console.dir(orderCost, { depth: null });
-
-  // const orderPath = await orchestrator.getOrderPath(
-  //   metaIntent,
-  //   targetSmartAccount.account.address,
-  // );
-  //
-
-  const { data: orderResponse } = await axios.post(
-    `${process.env.ORCHESTRATOR_API_URL}/intents/route`,
-    {
-      ...convertBigIntFields(metaIntent),
-    },
-    {
-      headers: {
-        "x-api-key": process.env.ORCHESTRATOR_API_KEY!,
-        Authorization: `Bearer ${BEARER_TOKEN}`,
-      },
-    },
-  );
-
-  const intentOp = parseCompactResponse(orderResponse.intentOp);
-  // const orderPath = response.data.orderBundles.map((orderPath: any) => {
-  //   return {
-  //     orderBundle: parseCompactResponse(orderPath.orderBundle),
-  //     injectedExecutions: orderPath.injectedExecutions.map((exec: any) => {
-  //       return {
-  //         ...exec,
-  //         value: BigInt(exec.value),
-  //       };
-  //     }),
-  //     intentCost: parseOrderCost(orderPath.intentCost),
-  //   };
-  // });
-
-  console.log(
-    `${ts()} Bundle ${bundleLabel}: Generated ${intentOp.nonce} in ${
-      new Date().getTime() - startTime
-    }ms`,
-  );
-
-  // orderPath[0].orderBundle.segments[0].witness.execs = [
-  //   ...orderPath[0].injectedExecutions.filter(
-  //     (e: any) => e.to !== getHookAddress(targetChain.id),
-  //   ),
-  //   ...metaIntent.targetExecutions,
-  // ];
-
-  const signedIntentOp = await signOrderBundle({
-    intentOp,
-    owner,
+  // prepare the transaction with prepareTransaction method
+  const preparedTransaction = await rhinestoneAccount.prepareTransaction({
+    sourceChains: sourceChains.length > 0 ? sourceChains : undefined,
+    targetChain,
+    calls,
+    tokenRequests,
   });
-
-  // console.dir(orderResponse, { depth: null });
-  // console.dir(signedIntentOp, { depth: null });
-
+  const prepareEndTime = new Date().getTime();
   console.log(
-    `${ts()} Bundle ${bundleLabel}: Signed in ${
-      new Date().getTime() - startTime
-    }ms`,
+    `${ts()} Bundle ${bundleLabel}: [1/4] Prepared in ${
+      prepareEndTime - prepareStartTime
+    }ms`
   );
 
-  // send the signed bundle
-  // const bundleResults: PostOrderBundleResult =
-  //   await orchestrator.postSignedOrderBundle([
-  //     {
-  //       signedOrderBundle,
-  //       // initCode: encodePacked(
-  //       //   ["address", "bytes"],
-  //       //   [targetSmartAccount.factory, targetSmartAccount.factoryData],
-  //       // ),
-  //     },
-  //   ]);
+  // sign the transaction with signTransaction method
+  console.log(`${ts()} Bundle ${bundleLabel}: [2/4] Signing transaction...`);
+  const signedTransaction = await rhinestoneAccount.signTransaction(
+    preparedTransaction
+  );
+  const signEndTime = new Date().getTime();
+  console.log(
+    `${ts()} Bundle ${bundleLabel}: [2/4] Signed in ${
+      signEndTime - prepareEndTime
+    }ms`
+  );
 
+  // ----- Phase 3: Submit or Simulate
   if (process.env.SIMULATE === "true") {
-    const response = await axios.post(
-      `${process.env.ORCHESTRATOR_API_URL}/intent-operations/simulate`,
-      {
-        signedIntentOp: convertBigIntFields(signedIntentOp),
-      },
-      {
-        headers: {
-          "x-api-key": process.env.ORCHESTRATOR_API_KEY!,
-          Authorization: `Bearer ${BEARER_TOKEN}`,
-        },
-      },
-    );
-
-    const bundleResult = {
-      simulations: response.data.result.simulations,
-      result: response.data.result.result,
-      id: BigInt(response.data.result.id),
-    };
-
     console.log(
-      `${ts()} Bundle ${bundleLabel}: Simulation result after ${new Date().getTime() - startTime} ms`,
-      {
-        ...bundleResult,
-      },
+      `${ts()} Bundle ${bundleLabel}: Running in simulation mode - will not execute`
     );
 
-    if (bundleResult.simulations?.length > 0) {
-      console.dir(bundleResult.simulations, { depth: null });
+    try {
+      const simulationStartTime = new Date().getTime();
+      console.log(
+        `${ts()} Bundle ${bundleLabel}: [3/4] Simulating transaction...`
+      );
+
+      // Simulate the transaction using the SDK
+      // todo: release new version of SDK and remove this ignore
+      // @ts-ignore - simulateTransaction is available in local SDK build
+      const simulationResult = await rhinestoneAccount.simulateTransaction(
+        signedTransaction
+      );
+
+      // log the simulation result
+      console.log(
+        `${ts()} Bundle ${bundleLabel}: Simulation result after ${
+          new Date().getTime() - simulationStartTime
+        } ms`
+      );
+      console.dir(simulationResult, { depth: null });
+
+      return;
+    } catch (error: any) {
+      console.error(
+        `${ts()} Bundle ${bundleLabel}: Simulation failed`,
+        error?.response?.data ?? error
+      );
+      return;
     }
   } else {
     try {
-      const response = await axios.post(
-        `${process.env.ORCHESTRATOR_API_URL}/intent-operations`,
-        {
-          signedIntentOp: convertBigIntFields(signedIntentOp),
-        },
-        {
-          headers: {
-            "x-api-key": process.env.ORCHESTRATOR_API_KEY!,
-            Authorization: `Bearer ${BEARER_TOKEN}`,
-          },
-        },
+      const submitStartTime = new Date().getTime();
+      console.log(
+        `${ts()} Bundle ${bundleLabel}: [3/4] Submitting transaction...`
+      );
+      // submit the transaction using the SDK
+      const transactionResult = await rhinestoneAccount.submitTransaction(
+        signedTransaction
       );
 
-      console.dir(response.data, { depth: null });
-
-      const bundleResult = {
-        ...response.data,
-        id: BigInt(response.data.result.id),
-      };
+      const submitEndTime = new Date().getTime();
+      console.log(
+        `${ts()} Bundle ${bundleLabel}: [3/4] Submitted in ${
+          submitEndTime - submitStartTime
+        }ms`
+      );
 
       console.log(
-        `${ts()} Bundle ${bundleLabel}: Sent in ${new Date().getTime() - startTime}ms`,
+        `${ts()} Bundle ${bundleLabel}: [4/4] Waiting for execution...`
       );
-
-      const result = await waitForBundleResult({
-        bundleResult,
-        orchestrator,
-        bundleLabel,
-        processStartTime: startTime,
-        bearerToken: BEARER_TOKEN,
-      });
+      const executionStartTime = new Date().getTime();
+      const result = await rhinestoneAccount.waitForExecution(
+        transactionResult
+      );
+      const executionEndTime = new Date().getTime();
 
       console.log(
-        `${ts()} Bundle ${bundleLabel}: Result after ${new Date().getTime() - startTime} ms`,
-        {
-          status: result.status,
-          claims: result.claims,
-          destinationChainId: result.destinationChainId,
-          fillTransactionHash: result.fillTransactionHash,
-          fillTimestamp: result.fillTimestamp,
-        },
+        `${ts()} Bundle ${bundleLabel}: Execution completed in ${
+          executionEndTime - executionStartTime
+        }ms`
       );
-
-      if (process.env.FEE_DEBUG === "true") {
-        // const fees = await handleFeeAnalysis({
-        //   result,
-        //   orderPath,
-        //   targetGasUnits,
-        // });
-        //
-        // console.log(`${ts()} Bundle ${bundleLabel}: Fees`, fees);
-      }
-    } catch (error) {
-      console.log(error);
-      // @ts-ignore
-      console.dir(error?.response?.data, { depth: null });
+      console.log(
+        `${ts()} Bundle ${bundleLabel}: Total time: ${
+          executionEndTime - prepareStartTime
+        }ms ` +
+          `(Prepare: ${prepareEndTime - prepareStartTime}ms, Sign: ${
+            signEndTime - prepareEndTime
+          }ms, Submit: ${submitEndTime - signEndTime}ms, Execute: ${
+            executionEndTime - executionStartTime
+          }ms)`
+      );
+      console.dir(result, { depth: null });
+    } catch (error: any) {
+      console.error(
+        `${ts()} Bundle ${bundleLabel}: Submission/Execution failed`,
+        error?.response?.data ?? error
+      );
     }
   }
 };
