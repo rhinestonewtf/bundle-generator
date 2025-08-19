@@ -6,6 +6,25 @@ A simple CLI tool to generate bundles on the Rhinestone Orchestrator for testing
 
 When using the bundle generator for the first time, run `pnpm i` to install the dependencies. You will also need to create a `.env` file based on `.env.example`. The owner private key is just used to sign so can be a random private key. The deployment private key needs to hold native tokens on all source chains you plan to use since it's used to deploy smart accounts on these source chains.
 
+## Network Modes
+
+The bundle generator supports three different network modes:
+
+### Mainnet Mode (Default)
+- `DEV_CONTRACTS=false` and `TESTNET_MODE=false`
+- Uses production contracts on mainnet networks
+- Requires a production orchestrator API key
+
+### Testnet Mode
+- `DEV_CONTRACTS=false` and `TESTNET_MODE=true`
+- Uses production contracts on testnet networks (Sepolia, Base Sepolia, etc.)
+- Can use production orchestrator API key or no API key for testnets
+
+### Dev Mode
+- `DEV_CONTRACTS=true`
+- Uses dev contracts and can work on both mainnet and testnet networks
+- Requires a dev orchestrator API key
+
 ## Modes
 
 ### Mode: `new`

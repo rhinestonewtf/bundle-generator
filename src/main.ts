@@ -16,6 +16,11 @@ export const processIntent = async (intent: Intent) => {
     process.env.OWNER_PRIVATE_KEY! as Hex
   );
 
+  // determine network mode
+  const isDevMode = process.env.DEV_CONTRACTS === "true";
+  const isTestnetMode = process.env.TESTNET_MODE === "true";
+  const useTestnetNetworks = isDevMode || isTestnetMode;
+
   // create the rhinestone account instance
   const rhinestoneAccount = await createRhinestoneAccount({
     owners: {
@@ -23,14 +28,13 @@ export const processIntent = async (intent: Intent) => {
       accounts: [owner],
     },
     rhinestoneApiKey: process.env.ORCHESTRATOR_API_KEY!,
-    useDev: process.env.DEV_CONTRACTS == "true",
+    useDev: isDevMode, // only use dev contracts when DEV_CONTRACTS=true
   });
 
   // get the target chain and source chains
-  const isDevMode = process.env.DEV_CONTRACTS === "true";
-  const targetChain = getChain(intent.targetChain, isDevMode);
+  const targetChain = getChain(intent.targetChain, useTestnetNetworks);
   const sourceChains =
-    intent.sourceChains.length > 0 ? intent.sourceChains.map(chain => getChain(chain, isDevMode)) : [];
+    intent.sourceChains.length > 0 ? intent.sourceChains.map(chain => getChain(chain, useTestnetNetworks)) : [];
 
   // fund the account
   const accountAddress = await rhinestoneAccount.getAddress();

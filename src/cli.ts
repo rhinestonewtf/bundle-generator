@@ -13,32 +13,40 @@ export const collectUserInput = async (): Promise<{
   const simulate =
     process.argv.includes("--simulate") || process.argv.includes("-s");
   const isDevMode = process.env.DEV_CONTRACTS === "true";
+  const isTestnetMode = process.env.TESTNET_MODE === "true";
+  const useTestnetNetworks = isDevMode || isTestnetMode;
+
+  const getModeLabel = () => {
+    if (isDevMode) return " (dev contracts + testnet)";
+    if (isTestnetMode) return " (testnet mode)";
+    return "";
+  };
 
   const targetChain = await select({
-    message: `Select a target chain${isDevMode ? " (testnet mode)" : ""}`,
+    message: `Select a target chain${getModeLabel()}`,
     choices: [
       {
-        name: isDevMode ? "Ethereum (Sepolia)" : "Ethereum",
+        name: useTestnetNetworks ? "Ethereum (Sepolia)" : "Ethereum",
         value: "Ethereum",
       },
       {
-        name: isDevMode ? "Base (Base Sepolia)" : "Base",
+        name: useTestnetNetworks ? "Base (Base Sepolia)" : "Base",
         value: "Base",
       },
       {
-        name: isDevMode ? "Arbitrum (Arbitrum Sepolia)" : "Arbitrum",
+        name: useTestnetNetworks ? "Arbitrum (Arbitrum Sepolia)" : "Arbitrum",
         value: "Arbitrum",
       },
       {
-        name: isDevMode ? "Optimism (OP Sepolia)" : "Optimism",
+        name: useTestnetNetworks ? "Optimism (OP Sepolia)" : "Optimism",
         value: "Optimism",
       },
       {
-        name: isDevMode ? "ZkSync (Sepolia fallback)" : "ZkSync",
+        name: useTestnetNetworks ? "ZkSync (Sepolia fallback)" : "ZkSync",
         value: "ZkSync",
       },
       {
-        name: isDevMode ? "Polygon (Sepolia fallback)" : "Polygon",
+        name: useTestnetNetworks ? "Polygon (Sepolia fallback)" : "Polygon",
         value: "Polygon",
       },
     ],
@@ -80,25 +88,23 @@ export const collectUserInput = async (): Promise<{
   }
 
   const sourceChains = await checkbox({
-    message: `Select source chains (optional)${
-      isDevMode ? " (testnet mode)" : ""
-    }`,
+    message: `Select source chains (optional)${getModeLabel()}`,
     choices: [
       {
-        name: isDevMode ? "Ethereum (Sepolia)" : "Ethereum",
+        name: useTestnetNetworks ? "Ethereum (Sepolia)" : "Ethereum",
         value: "Ethereum",
       },
-      { name: isDevMode ? "Base (Base Sepolia)" : "Base", value: "Base" },
+      { name: useTestnetNetworks ? "Base (Base Sepolia)" : "Base", value: "Base" },
       {
-        name: isDevMode ? "Arbitrum (Arbitrum Sepolia)" : "Arbitrum",
+        name: useTestnetNetworks ? "Arbitrum (Arbitrum Sepolia)" : "Arbitrum",
         value: "Arbitrum",
       },
       {
-        name: isDevMode ? "Optimism (OP Sepolia)" : "Optimism",
+        name: useTestnetNetworks ? "Optimism (OP Sepolia)" : "Optimism",
         value: "Optimism",
       },
       {
-        name: isDevMode ? "Polygon (Sepolia fallback)" : "Polygon",
+        name: useTestnetNetworks ? "Polygon (Sepolia fallback)" : "Polygon",
         value: "Polygon",
       },
     ],
