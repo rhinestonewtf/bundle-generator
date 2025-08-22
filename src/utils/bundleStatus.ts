@@ -54,8 +54,8 @@ export const waitForBundleResult = async ({
   while (
     bundleStatus.status === BundleStatus.PENDING ||
     bundleStatus.status === BundleStatus.PARTIALLY_COMPLETED ||
-    bundleStatus.status == "PRECONFIRMED" ||
-    bundleStatus.status == "FILLED"
+    bundleStatus.status === "PRECONFIRMED" ||
+    bundleStatus.status === "FILLED"
   ) {
     // Check if we've exceeded the maximum wait time
     if (Date.now() - startTime > maxWaitTime) {
@@ -85,7 +85,9 @@ export const waitForBundleResult = async ({
     }
 
     await new Promise((resolve) => setTimeout(resolve, iterationTime));
+    console.log('will reassign bundleStatus')
     bundleStatus = await getBundleStatus(bundleResult.id, bearerToken);
+    console.log('reassigned', bundleStatus)
   }
 
   return bundleStatus;

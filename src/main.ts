@@ -31,6 +31,7 @@ import { convertTokenAmount } from "./utils/tokens.js";
 import { fundAccount } from "./funding.js";
 import axios from "axios";
 import { setEmissary } from "./compact.js";
+import { TokenSymbol } from "@rhinestone/sdk/types.js";
 
 export function ts() {
   return new Date().toISOString().replace(/T/, " ").replace(/\..+/, "");
@@ -152,7 +153,7 @@ export const processIntent = async (intent: Intent) => {
     destinationChainId: targetChain.id,
     tokenTransfers: intent.targetTokens.map((token: Token) => {
       return {
-        tokenAddress: getTokenAddress(token.symbol, targetChain.id),
+        tokenAddress: getTokenAddress(token.symbol as TokenSymbol, targetChain.id),
         amount: convertTokenAmount({ token }),
       };
     }),
@@ -284,7 +285,7 @@ export const processIntent = async (intent: Intent) => {
   // );
   //
 
-  const { data: orderResponse } = await axios.post(
+  const { data: orderResponse, status } = await axios.post(
     `${process.env.ORCHESTRATOR_API_URL}/intents/route`,
     {
       ...convertBigIntFields(metaIntent),
@@ -294,8 +295,20 @@ export const processIntent = async (intent: Intent) => {
         "x-api-key": process.env.ORCHESTRATOR_API_KEY!,
         Authorization: `Bearer ${BEARER_TOKEN}`,
       },
+      validateStatus: () => true
     },
   );
+  console.dir(convertBigIntFields(metaIntent), { depth: null })
+
+  if (status !== 200) {
+    console.log('Intent route failed:')
+    console.dir(
+      orderResponse,
+      { depth: null }
+    )
+
+    return
+  }
 
   const intentOp = parseCompactResponse(orderResponse.intentOp);
   // const orderPath = response.data.orderBundles.map((orderPath: any) => {
@@ -361,9 +374,20 @@ export const processIntent = async (intent: Intent) => {
           "x-api-key": process.env.ORCHESTRATOR_API_KEY!,
           Authorization: `Bearer ${BEARER_TOKEN}`,
         },
+        validateStatus: () => true
       },
     );
 
+    if (response.status !== 200) {
+      console.log('Bundle simulation failed:')
+      console.dir(
+        response.data,
+        { depth: null }
+      )
+
+      return
+    }
+    
     const bundleResult = {
       simulations: response.data.result.simulations,
       result: response.data.result.result,
@@ -392,8 +416,19 @@ export const processIntent = async (intent: Intent) => {
             "x-api-key": process.env.ORCHESTRATOR_API_KEY!,
             Authorization: `Bearer ${BEARER_TOKEN}`,
           },
+          validateStatus: () => true
         },
       );
+
+      if (response.status !== 200) {
+        console.log('Posting intent operation failed:')
+        console.dir(
+          response.data,
+          { depth: null }
+        )
+
+        return
+      }
 
       console.dir(response.data, { depth: null });
 

@@ -36,6 +36,10 @@ export const collectUserInput = async (): Promise<{
         name: "Polygon",
         value: "Polygon",
       },
+      {
+        name: "Sonic",
+        value: "Sonic",
+      },
     ],
   });
 
@@ -53,6 +57,13 @@ export const collectUserInput = async (): Promise<{
         choices.some(({ value }) => value === "ETH")
       ) {
         return "ETH is not acceptable for Polygon target";
+      }
+
+      if (
+        targetChain === "Sonic" &&
+        choices.some(({ value }) => value !== "USDC")
+      ) {
+        return "Sonic just supports USDC for now";
       }
 
       return true;
@@ -82,6 +93,7 @@ export const collectUserInput = async (): Promise<{
       { name: "Arbitrum", value: "Arbitrum" },
       { name: "Optimism", value: "Optimism" },
       { name: "Polygon", value: "Polygon" },
+      { name: "Sonic", value: "Sonic" },
     ],
   });
 
@@ -102,6 +114,14 @@ export const collectUserInput = async (): Promise<{
         return "Polygon being the only sorce and having ETH as a token is not valid";
       }
 
+      if (
+        sourceChains.length === 1 &&
+        sourceChains[0] === "Sonic" &&
+        choices.some(({ value }) => value !== "USDC")
+      ) {
+        return "Sonic being the only sorce only allows for USDC";
+      }
+
       return true;
     },
   });
@@ -113,13 +133,21 @@ export const collectUserInput = async (): Promise<{
       privateKeyToAccount(process.env.DEPLOYMENT_PRIVATE_KEY! as Hex).address,
   });
 
+  const filterTokens = (chain: string, sourceTokens: string[]) => {
+    switch (chain) {
+      case 'Polygon':
+        return sourceTokens.filter((token) => token !== "ETH");
+      case 'Sonic':
+        return sourceTokens.filter((token) => token === "USDC");
+      default:
+        return sourceTokens;
+    }
+  };
+
   const sourceAssets = sourceChains
     .map((chain) => {
       const chainPrefix = chain.slice(0, 3).toLowerCase();
-      const filteredTokens =
-        chain === "Polygon"
-          ? sourceTokens.filter((token) => token !== "ETH")
-          : sourceTokens;
+      const filteredTokens = filterTokens(chain, sourceTokens);
       return `${chainPrefix}.${filteredTokens.join(`, ${chainPrefix}.`)}`;
     })
     .join(", ");
