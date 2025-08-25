@@ -85,9 +85,7 @@ export const waitForBundleResult = async ({
     }
 
     await new Promise((resolve) => setTimeout(resolve, iterationTime));
-    console.log('will reassign bundleStatus')
     bundleStatus = await getBundleStatus(bundleResult.id, bearerToken);
-    console.log('reassigned', bundleStatus)
   }
 
   return bundleStatus;
