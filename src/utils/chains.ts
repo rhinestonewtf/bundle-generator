@@ -10,6 +10,8 @@ import {
   sepolia,
   soneium,
   zksync,
+  sonic,
+  sonicTestnet
 } from "viem/chains";
 
 // Maps mainnet chains to their testnet equivalents
@@ -31,6 +33,8 @@ const getTestnetChain = (name: string) => {
       return arbitrumSepolia;
     case "BaseSepolia":
       return baseSepolia;
+    case "SonicTestnet":
+      return sonicTestnet;
     default:
       throw new Error(`Testnet chain for ${name} not supported`);
   }
@@ -56,6 +60,8 @@ export const getChain = (name: string, useTestnet: boolean = false) => {
       return zksync;
     case "Soneium":
       return soneium;
+    case "Sonic":
+      return sonic;
     case "Sepolia":
       return sepolia;
     case "OpSepolia":
@@ -85,6 +91,8 @@ export const getChainById = (chainId: number) => {
       return zksync;
     case soneium.id:
       return soneium;
+    case sonic.id:
+      return sonic;
     case sepolia.id:
       return sepolia;
     case optimismSepolia.id:
@@ -93,6 +101,8 @@ export const getChainById = (chainId: number) => {
       return arbitrumSepolia;
     case baseSepolia.id:
       return baseSepolia;
+    case sonicTestnet.id:
+      return sonicTestnet;
     default:
       throw new Error(`Chain ID ${chainId} not supported`);
   }
