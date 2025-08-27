@@ -19,7 +19,6 @@ export const processIntent = async (intent: Intent) => {
   // determine network mode
   const isDevMode = process.env.DEV_CONTRACTS === "true";
   const isTestnetMode = process.env.TESTNET_MODE === "true";
-  const useTestnetNetworks = isDevMode || isTestnetMode;
 
   // create the rhinestone account instance
   const rhinestoneAccount = await createRhinestoneAccount({
@@ -32,9 +31,9 @@ export const processIntent = async (intent: Intent) => {
   });
 
   // get the target chain and source chains
-  const targetChain = getChain(intent.targetChain, useTestnetNetworks);
+  const targetChain = getChain(intent.targetChain, isTestnetMode);
   const sourceChains =
-    intent.sourceChains.length > 0 ? intent.sourceChains.map(chain => getChain(chain, useTestnetNetworks)) : [];
+    intent.sourceChains.length > 0 ? intent.sourceChains.map(chain => getChain(chain, isTestnetMode)) : [];
 
   // fund the account
   const accountAddress = await rhinestoneAccount.getAddress();

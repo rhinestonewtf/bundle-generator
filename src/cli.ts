@@ -14,7 +14,6 @@ export const collectUserInput = async (): Promise<{
     process.argv.includes("--simulate") || process.argv.includes("-s");
   const isDevMode = process.env.DEV_CONTRACTS === "true";
   const isTestnetMode = process.env.TESTNET_MODE === "true";
-  const useTestnetNetworks = isDevMode || isTestnetMode;
 
   const getModeLabel = () => {
     if (isDevMode) return " (dev contracts + testnet)";
@@ -22,34 +21,55 @@ export const collectUserInput = async (): Promise<{
     return "";
   };
 
+  const choices = isTestnetMode
+    ? [
+        {
+          name: "Ethereum (Sepolia)",
+          value: "Ethereum",
+        },
+        {
+          name: "Base (Base Sepolia)",
+          value: "Base",
+        },
+        {
+          name: "Arbitrum (Arbitrum Sepolia)",
+          value: "Arbitrum",
+        },
+        {
+          name: "Optimism (OP Sepolia)",
+          value: "Optimism",
+        },
+      ]
+    : [
+        {
+          name: "Ethereum",
+          value: "Ethereum",
+        },
+        {
+          name: "Base",
+          value: "Base",
+        },
+        {
+          name: "Arbitrum",
+          value: "Arbitrum",
+        },
+        {
+          name: "Optimism",
+          value: "Optimism",
+        },
+        {
+          name: "Polygon",
+          value: "Polygon",
+        },
+        { 
+          name: "Sonic", 
+          value: "Sonic" 
+        },
+      ]
+
   const targetChain = await select({
     message: `Select a target chain${getModeLabel()}`,
-    choices: [
-      {
-        name: useTestnetNetworks ? "Ethereum (Sepolia)" : "Ethereum",
-        value: "Ethereum",
-      },
-      {
-        name: useTestnetNetworks ? "Base (Base Sepolia)" : "Base",
-        value: "Base",
-      },
-      {
-        name: useTestnetNetworks ? "Arbitrum (Arbitrum Sepolia)" : "Arbitrum",
-        value: "Arbitrum",
-      },
-      {
-        name: useTestnetNetworks ? "Optimism (OP Sepolia)" : "Optimism",
-        value: "Optimism",
-      },
-      {
-        name: useTestnetNetworks ? "ZkSync (Sepolia fallback)" : "ZkSync",
-        value: "ZkSync",
-      },
-      {
-        name: useTestnetNetworks ? "Polygon (Sepolia fallback)" : "Polygon",
-        value: "Polygon",
-      },
-    ],
+    choices,
   });
 
   const targetTokens = await checkbox({
@@ -66,6 +86,13 @@ export const collectUserInput = async (): Promise<{
         choices.some(({ value }) => value === "ETH")
       ) {
         return "ETH is not acceptable for Polygon target";
+      }
+
+      if (
+        targetChain === "Sonic" &&
+        choices.some(({ value }) => value !== "USDC")
+      ) {
+        return "Sonic just supports USDC for now";
       }
 
       return true;
@@ -89,25 +116,7 @@ export const collectUserInput = async (): Promise<{
 
   const sourceChains = await checkbox({
     message: `Select source chains (optional)${getModeLabel()}`,
-    choices: [
-      {
-        name: useTestnetNetworks ? "Ethereum (Sepolia)" : "Ethereum",
-        value: "Ethereum",
-      },
-      { name: useTestnetNetworks ? "Base (Base Sepolia)" : "Base", value: "Base" },
-      {
-        name: useTestnetNetworks ? "Arbitrum (Arbitrum Sepolia)" : "Arbitrum",
-        value: "Arbitrum",
-      },
-      {
-        name: useTestnetNetworks ? "Optimism (OP Sepolia)" : "Optimism",
-        value: "Optimism",
-      },
-      {
-        name: useTestnetNetworks ? "Polygon (Sepolia fallback)" : "Polygon",
-        value: "Polygon",
-      },
-    ],
+    choices,
   });
 
   const sourceTokens = await checkbox({
@@ -127,6 +136,14 @@ export const collectUserInput = async (): Promise<{
         return "Polygon being the only sorce and having ETH as a token is not valid";
       }
 
+      if (
+        sourceChains.length === 1 &&
+        sourceChains[0] === "Sonic" &&
+        choices.some(({ value }) => value !== "USDC")
+      ) {
+        return "Sonic being the only source only allows for USDC";
+      }
+
       return true;
     },
   });
@@ -138,13 +155,21 @@ export const collectUserInput = async (): Promise<{
       privateKeyToAccount(process.env.DEPLOYMENT_PRIVATE_KEY! as Hex).address,
   });
 
+  const filterTokens = (chain: string, sourceTokens: string[]) => {
+    switch (chain) {
+      case 'Polygon':
+        return sourceTokens.filter((token) => token !== "ETH");
+      case 'Sonic':
+        return sourceTokens.filter((token) => token === "USDC");
+      default:
+        return sourceTokens;
+    }
+  };
+
   const sourceAssets = sourceChains
     .map((chain) => {
       const chainPrefix = chain.slice(0, 3).toLowerCase();
-      const filteredTokens =
-        chain === "Polygon"
-          ? sourceTokens.filter((token) => token !== "ETH")
-          : sourceTokens;
+      const filteredTokens = filterTokens(chain, sourceTokens);
       return `${chainPrefix}.${filteredTokens.join(`, ${chainPrefix}.`)}`;
     })
     .join(", ");
