@@ -115,13 +115,18 @@ export const processIntent = async (
   console.log(`${ts()} Bundle ${bundleLabel}: [1/4] Preparing transaction...`);
 
   // prepare the transaction with prepareTransaction method
-  const preparedTransaction = await rhinestoneAccount.prepareTransaction({
+  const transactionDetails: any = {
     sourceChains: sourceChains.length > 0 ? sourceChains : undefined,
     targetChain,
     calls,
     tokenRequests,
     sponsored: intent.sponsored,
-  });
+  };
+  if (intent.settlementLayers.length > 0) {
+    transactionDetails.settlementLayers = intent.settlementLayers;
+  }
+  const preparedTransaction =
+    await rhinestoneAccount.prepareTransaction(transactionDetails);
   const prepareEndTime = new Date().getTime();
   console.log(
     `${ts()} Bundle ${bundleLabel}: [1/4] Prepared in ${
