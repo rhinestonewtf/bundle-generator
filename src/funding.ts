@@ -37,20 +37,21 @@ function getTokenBalanceSlot(
   const balanceSlots: Record<string, Record<number, number>> = {
     USDC: {
       1: 9,
-      137: 0,
-      42161: 51,
-      8453: 0,
+      137: 9,
+      42161: 9,
+      8453: 9,
     },
     USDT: {
       1: 2,
       137: 0,
       42161: 51,
+      8452: 51,
     },
     WETH: {
       1: 3,
-      137: 0,
+      137: 3,
       42161: 51,
-      8453: 0,
+      8453: 3,
     },
   };
 
