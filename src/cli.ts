@@ -135,6 +135,34 @@ export const collectUserInput = async (): Promise<{
     },
   });
 
+  const settlementLayers = await checkbox({
+    message: "Select settlement layers to use (optional)",
+    choices: [
+      {
+        name: "Across",
+        value: "Across",
+      },
+      {
+        name: "Eco",
+        value: "Eco",
+      },
+    ],
+  });
+
+  const sponsored = await select({
+    message: "Do you want to sponsor this intent",
+    choices: [
+      {
+        name: "Yes",
+        value: true,
+      },
+      {
+        name: "No",
+        value: false,
+      },
+    ],
+  });
+
   let tokenRecipient = await input({
     message: "Recipient address for tokens on the target chain",
     default:
@@ -210,6 +238,8 @@ export const collectUserInput = async (): Promise<{
       sourceChains,
       sourceTokens,
       tokenRecipient,
+      settlementLayers,
+      sponsored,
     },
     saveAsFileName,
     environment,

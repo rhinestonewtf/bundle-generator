@@ -9,6 +9,8 @@ export type Intent = {
   sourceChains: string[];
   sourceTokens: string[];
   tokenRecipient: string;
+  settlementLayers: string[];
+  sponsored: boolean;
 };
 
 export type TokenSymbol = "ETH" | "WETH" | "USDC" | "USDT";

@@ -120,6 +120,7 @@ export const processIntent = async (
     targetChain,
     calls,
     tokenRequests,
+    sponsored: intent.sponsored,
   });
   const prepareEndTime = new Date().getTime();
   console.log(
