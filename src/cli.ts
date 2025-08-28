@@ -269,7 +269,8 @@ export const getReplayParams = async () => {
     return { file, count: data.intentList ? data.intentList.length : 0 };
   });
 
-  const autoAll = process.argv.includes("--all");
+  const args = process.argv;
+  const autoAll = args.includes("--all");
 
   const isAll = autoAll
     ? true
@@ -312,9 +313,15 @@ export const getReplayParams = async () => {
 
   console.log(`Total intents selected: ${totalIntentsSelected}`);
 
-  let asyncMode = false;
-  let delay = "2500";
-  if (totalIntentsSelected > 1) {
+  const autoAsyncMode = args.includes("--async");
+  let autoAsyncDuration;
+  if (autoAsyncMode) {
+    autoAsyncDuration = args[args.findIndex((arg) => arg === "--async") + 1];
+  }
+
+  let asyncMode = autoAsyncMode;
+  let delay = autoAsyncDuration || "2500";
+  if (totalIntentsSelected > 1 && !asyncMode) {
     asyncMode = await select({
       message: "Do you want to replay intents in parallel / asynchronously?",
       choices: [
@@ -332,38 +339,46 @@ export const getReplayParams = async () => {
     }
   }
 
-  const environment = await select({
-    message: "Select the environments to use",
-    choices: [
-      {
-        name: "Prod",
-        value: "prod",
-      },
-      {
-        name: "Dev",
-        value: "dev",
-      },
-      {
-        name: "Local",
-        value: "local",
-      },
-    ],
-  });
+  const isEnvSet = args.includes("--env");
+  let environment: string;
+  if (isEnvSet) {
+    environment = args[args.findIndex((arg) => arg === "--env") + 1];
+  } else {
+    environment = await select({
+      message: "Select the environments to use",
+      choices: [
+        {
+          name: "Prod",
+          value: "prod",
+        },
+        {
+          name: "Dev",
+          value: "dev",
+        },
+        {
+          name: "Local",
+          value: "local",
+        },
+      ],
+    });
+  }
 
-  // todo
-  const simulate =
-    process.argv.includes("--simulate") || process.argv.includes("-s");
-
-  const executionMode = await select({
-    message: "Do you want to execute the intent or simulate it?",
-    choices: [
-      {
-        name: "Execute",
-        value: "execute",
-      },
-      { name: "Simulate", value: "simulate" },
-    ],
-  });
+  const isExecutionModeSet = args.includes("--mode");
+  let executionMode: string;
+  if (isExecutionModeSet) {
+    executionMode = args[args.findIndex((arg) => arg === "--mode") + 1];
+  } else {
+    executionMode = await select({
+      message: "Do you want to execute the intent or simulate it?",
+      choices: [
+        {
+          name: "Execute",
+          value: "execute",
+        },
+        { name: "Simulate", value: "simulate" },
+      ],
+    });
+  }
 
   return {
     isAll,
