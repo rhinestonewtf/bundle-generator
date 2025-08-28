@@ -27,13 +27,21 @@ export const main = async () => {
 
   for (const intent of intents) {
     if (!replayParams.asyncMode) {
-      await processIntent(intent);
+      await processIntent(
+        intent,
+        replayParams.environment,
+        replayParams.executionMode,
+      );
     } else {
-      processIntent(intent);
+      processIntent(
+        intent,
+        replayParams.environment,
+        replayParams.executionMode,
+      );
     }
 
     await new Promise((resolve) =>
-      setTimeout(resolve, replayParams.msBetweenBundles)
+      setTimeout(resolve, replayParams.msBetweenBundles),
     );
   }
 };

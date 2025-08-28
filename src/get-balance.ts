@@ -4,21 +4,46 @@ import { createRhinestoneAccount } from "@rhinestone/sdk";
 import { config } from "dotenv";
 import { getChainById } from "./utils/chains.js";
 import { formatUnits } from "viem";
+import { getEnvironment } from "./utils/environments.js";
+import { select } from "@inquirer/prompts";
 
 config();
 
 export const main = async () => {
   const owner: Account = privateKeyToAccount(
-    process.env.OWNER_PRIVATE_KEY! as Hex
+    process.env.OWNER_PRIVATE_KEY! as Hex,
   );
 
+  const environmentString = await select({
+    message: "Select the environments to use",
+    choices: [
+      {
+        name: "Prod",
+        value: "prod",
+      },
+      {
+        name: "Dev",
+        value: "dev",
+      },
+      {
+        name: "Local",
+        value: "local",
+      },
+    ],
+  });
+
+  const environment = getEnvironment(environmentString);
+  const orchestratorUrl = environment.url;
+  const rhinestoneApiKey = environment.apiKey;
+
+  // create the rhinestone account instance
   const rhinestoneAccount = await createRhinestoneAccount({
     owners: {
-      type: "ecdsa",
+      type: "ecdsa" as const,
       accounts: [owner],
     },
-    rhinestoneApiKey: process.env.ORCHESTRATOR_API_KEY!,
-    useDev: process.env.DEV_CONTRACTS == "true",
+    rhinestoneApiKey,
+    orchestratorUrl,
   });
 
   const address = rhinestoneAccount.getAddress();
@@ -35,7 +60,7 @@ export const main = async () => {
       const totalBalance = token.balances.locked + token.balances.unlocked;
       const formattedBalance = formatUnits(totalBalance, token.decimals);
       console.log(
-        `   ${token.symbol}: ${formattedBalance} (${token.chains.length} chains)`
+        `   ${token.symbol}: ${formattedBalance} (${token.chains.length} chains)`,
       );
 
       token.chains.forEach((chain) => {
