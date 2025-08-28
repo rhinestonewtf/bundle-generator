@@ -140,11 +140,11 @@ export const collectUserInput = async (): Promise<{
     choices: [
       {
         name: "Across",
-        value: "Across",
+        value: "ACROSS",
       },
       {
         name: "Eco",
-        value: "Eco",
+        value: "ECO",
       },
     ],
   });

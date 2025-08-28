@@ -142,10 +142,6 @@ export const processIntent = async (
 
   // ----- Phase 3: Submit or Simulate
   if (executionMode == "simulate") {
-    console.log(
-      `${ts()} Bundle ${bundleLabel}: Running in simulation mode - will not execute`,
-    );
-
     try {
       const simulationStartTime = new Date().getTime();
       console.log(
@@ -153,14 +149,12 @@ export const processIntent = async (
       );
 
       // Simulate the transaction using the SDK
-      // todo: release new version of SDK and remove this ignore
-      // @ts-ignore - simulateTransaction is available in local SDK build
       const simulationResult =
         await rhinestoneAccount.simulateTransaction(signedTransaction);
 
       // log the simulation result
       console.log(
-        `${ts()} Bundle ${bundleLabel}: Simulation result after ${
+        `${ts()} Bundle ${bundleLabel}: [4/4] Simulation result after ${
           new Date().getTime() - simulationStartTime
         } ms`,
       );
@@ -169,7 +163,7 @@ export const processIntent = async (
       return;
     } catch (error: any) {
       console.error(
-        `${ts()} Bundle ${bundleLabel}: Simulation failed`,
+        `${ts()} Bundle ${bundleLabel}: [4/4] Simulation failed`,
         error?.response?.data ?? error,
       );
       return;
@@ -200,7 +194,7 @@ export const processIntent = async (
       const executionEndTime = new Date().getTime();
 
       console.log(
-        `${ts()} Bundle ${bundleLabel}: Execution completed in ${
+        `${ts()} Bundle ${bundleLabel}: [4/4] Execution completed in ${
           executionEndTime - executionStartTime
         }ms`,
       );
