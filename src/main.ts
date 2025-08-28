@@ -122,11 +122,23 @@ export const processIntent = async (
     tokenRequests,
     sponsored: intent.sponsored,
   };
-  if (intent.settlementLayers.length > 0) {
+  if (intent.settlementLayers?.length > 0) {
     transactionDetails.settlementLayers = intent.settlementLayers;
   }
   const preparedTransaction =
     await rhinestoneAccount.prepareTransaction(transactionDetails);
+
+  // check that sponsorship is working correctly
+  if (intent.sponsored) {
+    // todo: adjust type in sdk
+    const sponsorFee =
+      // @ts-ignore
+      preparedTransaction.data.intentRoute.intentCost.sponsorFee;
+    if (sponsorFee == 0) {
+      throw new Error("Sponsorship is not supplied as expected");
+    }
+  }
+
   const prepareEndTime = new Date().getTime();
   console.log(
     `${ts()} Bundle ${bundleLabel}: [1/4] Prepared in ${
@@ -157,12 +169,23 @@ export const processIntent = async (
       const simulationResult =
         await rhinestoneAccount.simulateTransaction(signedTransaction);
 
+      const simulationEndTime = new Date().getTime();
+
       // log the simulation result
       console.log(
         `${ts()} Bundle ${bundleLabel}: [4/4] Simulation result after ${
-          new Date().getTime() - simulationStartTime
+          simulationEndTime - simulationStartTime
         } ms`,
       );
+      console.log(
+        `${ts()} Bundle ${bundleLabel}: Total time: ${
+          simulationEndTime - prepareStartTime
+        }ms ` +
+          `(Prepare: ${prepareEndTime - prepareStartTime}ms, Sign: ${
+            signEndTime - prepareEndTime
+          }ms, Simulation: ${simulationEndTime - signEndTime}ms`,
+      );
+
       console.dir(simulationResult, { depth: null });
 
       return;
