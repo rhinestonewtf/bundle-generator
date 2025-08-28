@@ -11,40 +11,10 @@ import {
   soneium,
   zksync,
   sonic,
-  sonicTestnet
+  sonicTestnet,
 } from "viem/chains";
 
-// Maps mainnet chains to their testnet equivalents
-const getTestnetChain = (name: string) => {
-  switch (name) {
-    case "Ethereum":
-      return sepolia;
-    case "Base":
-      return baseSepolia;
-    case "Arbitrum":
-      return arbitrumSepolia;
-    case "Optimism":
-      return optimismSepolia;
-    case "Sepolia":
-      return sepolia;
-    case "OpSepolia":
-      return optimismSepolia;
-    case "ArbSepolia":
-      return arbitrumSepolia;
-    case "BaseSepolia":
-      return baseSepolia;
-    case "SonicTestnet":
-      return sonicTestnet;
-    default:
-      throw new Error(`Testnet chain for ${name} not supported`);
-  }
-};
-
-export const getChain = (name: string, useTestnet: boolean = false) => {
-  if (useTestnet) {
-    return getTestnetChain(name);
-  }
-
+export const getChain = (name: string) => {
   switch (name) {
     case "Ethereum":
       return mainnet;
@@ -56,17 +26,15 @@ export const getChain = (name: string, useTestnet: boolean = false) => {
       return base;
     case "Optimism":
       return optimism;
-    case "ZkSync":
-      return zksync;
     case "Soneium":
       return soneium;
     case "Sonic":
       return sonic;
     case "Sepolia":
       return sepolia;
-    case "OpSepolia":
+    case "OptimismSepolia":
       return optimismSepolia;
-    case "ArbSepolia":
+    case "ArbitrumSepolia":
       return arbitrumSepolia;
     case "BaseSepolia":
       return baseSepolia;
@@ -87,8 +55,6 @@ export const getChainById = (chainId: number) => {
       return base;
     case optimism.id:
       return optimism;
-    case zksync.id:
-      return zksync;
     case soneium.id:
       return soneium;
     case sonic.id:

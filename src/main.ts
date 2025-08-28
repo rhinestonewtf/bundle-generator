@@ -5,20 +5,25 @@ import { Intent, Token, TokenSymbol } from "./types.js";
 import { getChain } from "./utils/chains.js";
 import { convertTokenAmount } from "./utils/tokens.js";
 import { fundAccount } from "./funding.js";
+import { getEnvironment } from "./utils/environments.js";
 
 export function ts() {
   return new Date().toISOString().replace(/T/, " ").replace(/\..+/, "");
 }
 
-export const processIntent = async (intent: Intent) => {
+export const processIntent = async (
+  intent: Intent,
+  environmentString: string,
+  executionMode: string,
+) => {
   // create the eoa account
   const owner: Account = privateKeyToAccount(
-    process.env.OWNER_PRIVATE_KEY! as Hex
+    process.env.OWNER_PRIVATE_KEY! as Hex,
   );
 
-  // determine network mode
-  const isDevMode = process.env.DEV_CONTRACTS === "true";
-  const isTestnetMode = process.env.TESTNET_MODE === "true";
+  const environment = getEnvironment(environmentString);
+  const orchestratorUrl = environment.url;
+  const rhinestoneApiKey = environment.apiKey;
 
   // create the rhinestone account instance
   const rhinestoneAccount = await createRhinestoneAccount({
@@ -26,17 +31,19 @@ export const processIntent = async (intent: Intent) => {
       type: "ecdsa" as const,
       accounts: [owner],
     },
-    rhinestoneApiKey: process.env.ORCHESTRATOR_API_KEY!,
-    useDev: isDevMode, // only use dev contracts when DEV_CONTRACTS=true
+    rhinestoneApiKey,
+    orchestratorUrl,
   });
 
   // get the target chain and source chains
-  const targetChain = getChain(intent.targetChain, isTestnetMode);
+  const targetChain = getChain(intent.targetChain);
   const sourceChains =
-    intent.sourceChains.length > 0 ? intent.sourceChains.map(chain => getChain(chain, isTestnetMode)) : [];
+    intent.sourceChains.length > 0
+      ? intent.sourceChains.map((chain) => getChain(chain))
+      : [];
 
   // fund the account
-  const accountAddress = await rhinestoneAccount.getAddress();
+  const accountAddress = rhinestoneAccount.getAddress();
   await fundAccount({
     account: accountAddress,
     sourceChains: intent.sourceChains,
@@ -92,7 +99,7 @@ export const processIntent = async (intent: Intent) => {
       (token) =>
         `${token.amount} ${intent.targetChain
           .slice(0, 3)
-          .toLowerCase()}.${token.symbol.toLowerCase()}`
+          .toLowerCase()}.${token.symbol.toLowerCase()}`,
     )
     .join(", ");
 
@@ -108,63 +115,84 @@ export const processIntent = async (intent: Intent) => {
   console.log(`${ts()} Bundle ${bundleLabel}: [1/4] Preparing transaction...`);
 
   // prepare the transaction with prepareTransaction method
-  const preparedTransaction = await rhinestoneAccount.prepareTransaction({
+  const transactionDetails: any = {
     sourceChains: sourceChains.length > 0 ? sourceChains : undefined,
     targetChain,
     calls,
     tokenRequests,
-  });
+    sponsored: intent.sponsored,
+  };
+  if (intent.settlementLayers?.length > 0) {
+    transactionDetails.settlementLayers = intent.settlementLayers;
+  }
+  const preparedTransaction =
+    await rhinestoneAccount.prepareTransaction(transactionDetails);
+
+  // check that sponsorship is working correctly
+  if (intent.sponsored) {
+    // todo: adjust type in sdk
+    const sponsorFee =
+      // @ts-ignore
+      preparedTransaction.data.intentRoute.intentCost.sponsorFee;
+    if (sponsorFee == 0) {
+      throw new Error("Sponsorship is not supplied as expected");
+    }
+  }
+
   const prepareEndTime = new Date().getTime();
   console.log(
     `${ts()} Bundle ${bundleLabel}: [1/4] Prepared in ${
       prepareEndTime - prepareStartTime
-    }ms`
+    }ms`,
   );
 
   // sign the transaction with signTransaction method
   console.log(`${ts()} Bundle ${bundleLabel}: [2/4] Signing transaction...`);
-  const signedTransaction = await rhinestoneAccount.signTransaction(
-    preparedTransaction
-  );
+  const signedTransaction =
+    await rhinestoneAccount.signTransaction(preparedTransaction);
   const signEndTime = new Date().getTime();
   console.log(
     `${ts()} Bundle ${bundleLabel}: [2/4] Signed in ${
       signEndTime - prepareEndTime
-    }ms`
+    }ms`,
   );
 
   // ----- Phase 3: Submit or Simulate
-  if (process.env.SIMULATE === "true") {
-    console.log(
-      `${ts()} Bundle ${bundleLabel}: Running in simulation mode - will not execute`
-    );
-
+  if (executionMode == "simulate") {
     try {
       const simulationStartTime = new Date().getTime();
       console.log(
-        `${ts()} Bundle ${bundleLabel}: [3/4] Simulating transaction...`
+        `${ts()} Bundle ${bundleLabel}: [3/4] Simulating transaction...`,
       );
 
       // Simulate the transaction using the SDK
-      // todo: release new version of SDK and remove this ignore
-      // @ts-ignore - simulateTransaction is available in local SDK build
-      const simulationResult = await rhinestoneAccount.simulateTransaction(
-        signedTransaction
-      );
+      const simulationResult =
+        await rhinestoneAccount.simulateTransaction(signedTransaction);
+
+      const simulationEndTime = new Date().getTime();
 
       // log the simulation result
       console.log(
-        `${ts()} Bundle ${bundleLabel}: Simulation result after ${
-          new Date().getTime() - simulationStartTime
-        } ms`
+        `${ts()} Bundle ${bundleLabel}: [4/4] Simulation result after ${
+          simulationEndTime - simulationStartTime
+        } ms`,
       );
+      console.log(
+        `${ts()} Bundle ${bundleLabel}: Total time: ${
+          simulationEndTime - prepareStartTime
+        }ms ` +
+          `(Prepare: ${prepareEndTime - prepareStartTime}ms, Sign: ${
+            signEndTime - prepareEndTime
+          }ms, Simulation: ${simulationEndTime - signEndTime}ms`,
+      );
+
       console.dir(simulationResult, { depth: null });
 
       return;
     } catch (error: any) {
       console.error(
-        `${ts()} Bundle ${bundleLabel}: Simulation failed`,
-        error?.response?.data ?? error
+        `${ts()} Bundle ${bundleLabel}: [4/4] Simulation failed`,
+        error?.response?.data ?? error,
       );
       return;
     }
@@ -172,33 +200,31 @@ export const processIntent = async (intent: Intent) => {
     try {
       const submitStartTime = new Date().getTime();
       console.log(
-        `${ts()} Bundle ${bundleLabel}: [3/4] Submitting transaction...`
+        `${ts()} Bundle ${bundleLabel}: [3/4] Submitting transaction...`,
       );
       // submit the transaction using the SDK
-      const transactionResult = await rhinestoneAccount.submitTransaction(
-        signedTransaction
-      );
+      const transactionResult =
+        await rhinestoneAccount.submitTransaction(signedTransaction);
 
       const submitEndTime = new Date().getTime();
       console.log(
         `${ts()} Bundle ${bundleLabel}: [3/4] Submitted in ${
           submitEndTime - submitStartTime
-        }ms`
+        }ms`,
       );
 
       console.log(
-        `${ts()} Bundle ${bundleLabel}: [4/4] Waiting for execution...`
+        `${ts()} Bundle ${bundleLabel}: [4/4] Waiting for execution...`,
       );
       const executionStartTime = new Date().getTime();
-      const result = await rhinestoneAccount.waitForExecution(
-        transactionResult
-      );
+      const result =
+        await rhinestoneAccount.waitForExecution(transactionResult);
       const executionEndTime = new Date().getTime();
 
       console.log(
-        `${ts()} Bundle ${bundleLabel}: Execution completed in ${
+        `${ts()} Bundle ${bundleLabel}: [4/4] Execution completed in ${
           executionEndTime - executionStartTime
-        }ms`
+        }ms`,
       );
       console.log(
         `${ts()} Bundle ${bundleLabel}: Total time: ${
@@ -208,13 +234,13 @@ export const processIntent = async (intent: Intent) => {
             signEndTime - prepareEndTime
           }ms, Submit: ${submitEndTime - signEndTime}ms, Execute: ${
             executionEndTime - executionStartTime
-          }ms)`
+          }ms)`,
       );
       console.dir(result, { depth: null });
     } catch (error: any) {
       console.error(
         `${ts()} Bundle ${bundleLabel}: Submission/Execution failed`,
-        error?.response?.data ?? error
+        error?.response?.data ?? error,
       );
     }
   }

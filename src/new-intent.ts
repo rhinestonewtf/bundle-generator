@@ -7,29 +7,35 @@ import { privateKeyToAccount } from "viem/accounts";
 import { createRhinestoneAccount } from "@rhinestone/sdk";
 import { processIntent } from "./main.js";
 import * as fs from "fs";
+import { getEnvironment } from "./utils/environments.js";
 
 export const main = async () => {
-  const { intent, saveAsFileName, simulate } = await collectUserInput();
-
-  // Set simulation environment variable if flag is provided
-  if (simulate) {
-    process.env.SIMULATE = "true";
-  }
+  const {
+    intent,
+    saveAsFileName,
+    environment: environmentString,
+    executionMode,
+  } = await collectUserInput();
 
   const owner: Account = privateKeyToAccount(
-    process.env.OWNER_PRIVATE_KEY! as Hex
+    process.env.OWNER_PRIVATE_KEY! as Hex,
   );
 
+  const environment = getEnvironment(environmentString);
+  const orchestratorUrl = environment.url;
+  const rhinestoneApiKey = environment.apiKey;
+
+  // create the rhinestone account instance
   const rhinestoneAccount = await createRhinestoneAccount({
     owners: {
-      type: "ecdsa",
+      type: "ecdsa" as const,
       accounts: [owner],
     },
-    rhinestoneApiKey: process.env.ORCHESTRATOR_API_KEY!,
-    useDev: process.env.DEV_CONTRACTS == "true",
+    rhinestoneApiKey,
+    orchestratorUrl,
   });
 
-  const address = await rhinestoneAccount.getAddress();
+  const address = rhinestoneAccount.getAddress();
   await showUserAccount(address);
 
   if (saveAsFileName && !saveAsFileName.match(/^(n|no)\.json$/)) {
@@ -45,11 +51,11 @@ export const main = async () => {
     existingData.push(intent);
     fs.writeFileSync(
       filePath,
-      JSON.stringify({ intentList: existingData }, null, 2)
+      JSON.stringify({ intentList: existingData }, null, 2),
     );
   }
 
-  await processIntent(intent);
+  await processIntent(intent, environmentString, executionMode);
 };
 
 main();

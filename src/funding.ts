@@ -28,7 +28,7 @@ export const lookup = (chain: Chain): string => {
 function getTokenBalanceSlot(
   tokenSymbol: TokenSymbol,
   chainId: number,
-  account: Address
+  account: Address,
 ): `0x${string}` {
   if (tokenSymbol === "ETH") {
     throw new Error("ETH does not have a balance slot (native token)");
@@ -37,20 +37,21 @@ function getTokenBalanceSlot(
   const balanceSlots: Record<string, Record<number, number>> = {
     USDC: {
       1: 9,
-      137: 0,
-      42161: 51,
-      8453: 0,
+      137: 9,
+      42161: 9,
+      8453: 9,
     },
     USDT: {
       1: 2,
       137: 0,
       42161: 51,
+      8452: 51,
     },
     WETH: {
       1: 3,
-      137: 0,
+      137: 3,
       42161: 51,
-      8453: 0,
+      8453: 3,
     },
   };
 
@@ -58,7 +59,7 @@ function getTokenBalanceSlot(
 
   // calculate storage slot: keccak256(abi.encode(account, balanceSlot))
   const slot = keccak256(
-    encodePacked(["address", "uint256"], [account, BigInt(balanceSlot)])
+    encodePacked(["address", "uint256"], [account, BigInt(balanceSlot)]),
   );
 
   return slot;
@@ -74,9 +75,8 @@ export const fundAccount = async ({
   sourceTokens: string[];
 }) => {
   if (process.env.LOCAL_TESTNET) {
-    const isDevMode = process.env.DEV_CONTRACTS === "true";
     for (const sourceChain of sourceChains) {
-      const chain = getChain(sourceChain, isDevMode);
+      const chain = getChain(sourceChain);
 
       console.log("Funding on %s for %s", chain.name, account);
 
@@ -94,12 +94,12 @@ export const fundAccount = async ({
         } else {
           const tokenAddress = getTokenAddress(
             sourceToken as TokenSymbol,
-            chain.id
+            chain.id,
           );
           const tokenBalanceSlot = getTokenBalanceSlot(
             sourceToken as TokenSymbol,
             chain.id,
-            account
+            account,
           );
 
           await testClient.setStorageAt({

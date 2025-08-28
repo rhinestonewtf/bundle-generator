@@ -8,67 +8,54 @@ import path from "path";
 export const collectUserInput = async (): Promise<{
   intent: Intent;
   saveAsFileName?: string;
-  simulate?: boolean;
+  environment: string;
+  executionMode: string;
 }> => {
-  const simulate =
-    process.argv.includes("--simulate") || process.argv.includes("-s");
-  const isDevMode = process.env.DEV_CONTRACTS === "true";
-  const isTestnetMode = process.env.TESTNET_MODE === "true";
-
-  const getModeLabel = () => {
-    if (isDevMode) return " (dev contracts + testnet)";
-    if (isTestnetMode) return " (testnet mode)";
-    return "";
-  };
-
-  const choices = isTestnetMode
-    ? [
-        {
-          name: "Ethereum (Sepolia)",
-          value: "Ethereum",
-        },
-        {
-          name: "Base (Base Sepolia)",
-          value: "Base",
-        },
-        {
-          name: "Arbitrum (Arbitrum Sepolia)",
-          value: "Arbitrum",
-        },
-        {
-          name: "Optimism (OP Sepolia)",
-          value: "Optimism",
-        },
-      ]
-    : [
-        {
-          name: "Ethereum",
-          value: "Ethereum",
-        },
-        {
-          name: "Base",
-          value: "Base",
-        },
-        {
-          name: "Arbitrum",
-          value: "Arbitrum",
-        },
-        {
-          name: "Optimism",
-          value: "Optimism",
-        },
-        {
-          name: "Polygon",
-          value: "Polygon",
-        },
-        { 
-          name: "Sonic", 
-          value: "Sonic" 
-        },
-      ]
+  const choices = [
+    {
+      name: "Ethereum",
+      value: "Ethereum",
+    },
+    {
+      name: "Base",
+      value: "Base",
+    },
+    {
+      name: "Arbitrum",
+      value: "Arbitrum",
+    },
+    {
+      name: "Optimism",
+      value: "Optimism",
+    },
+    {
+      name: "Polygon",
+      value: "Polygon",
+    },
+    {
+      name: "Sonic",
+      value: "Sonic",
+    },
+    {
+      name: "Sepolia",
+      value: "Sepolia",
+    },
+    {
+      name: "Base Sepolia",
+      value: "BaseSepolia",
+    },
+    {
+      name: "Arbitrum Sepolia",
+      value: "ArbitrumSepolia",
+    },
+    {
+      name: "Optimism Sepolia",
+      value: "OptimismSepolia",
+    },
+  ];
 
   const targetChain = await select({
-    message: `Select a target chain${getModeLabel()}`,
+    message: `Select a target chain`,
     choices,
   });
 
@@ -115,7 +102,7 @@ export const collectUserInput = async (): Promise<{
   }
 
   const sourceChains = await checkbox({
-    message: `Select source chains (optional)${getModeLabel()}`,
+    message: `Select source chains (optional)`,
     choices,
   });
 
@@ -148,6 +135,34 @@ export const collectUserInput = async (): Promise<{
     },
   });
 
+  const settlementLayers = await checkbox({
+    message: "Select settlement layers to use (optional)",
+    choices: [
+      {
+        name: "Across",
+        value: "ACROSS",
+      },
+      {
+        name: "Eco",
+        value: "ECO",
+      },
+    ],
+  });
+
+  const sponsored = await select({
+    message: "Do you want to sponsor this intent",
+    choices: [
+      {
+        name: "Yes",
+        value: true,
+      },
+      {
+        name: "No",
+        value: false,
+      },
+    ],
+  });
+
   let tokenRecipient = await input({
     message: "Recipient address for tokens on the target chain",
     default:
@@ -157,9 +172,9 @@ export const collectUserInput = async (): Promise<{
 
   const filterTokens = (chain: string, sourceTokens: string[]) => {
     switch (chain) {
-      case 'Polygon':
+      case "Polygon":
         return sourceTokens.filter((token) => token !== "ETH");
-      case 'Sonic':
+      case "Sonic":
         return sourceTokens.filter((token) => token === "USDC");
       default:
         return sourceTokens;
@@ -187,11 +202,34 @@ export const collectUserInput = async (): Promise<{
   const sanitizedFilename = filename.replace(/\.json$/, "");
   const saveAsFileName = `${sanitizedFilename}.json`;
 
-  if (simulate) {
-    console.log(
-      "Simulation mode enabled - transaction will be simulated but not executed"
-    );
-  }
+  const environment = await select({
+    message: "Select the environments to use",
+    choices: [
+      {
+        name: "Prod",
+        value: "prod",
+      },
+      {
+        name: "Dev",
+        value: "dev",
+      },
+      {
+        name: "Local",
+        value: "local",
+      },
+    ],
+  });
+
+  const executionMode = await select({
+    message: "Do you want to execute the intent or simulate it?",
+    choices: [
+      {
+        name: "Execute",
+        value: "execute",
+      },
+      { name: "Simulate", value: "simulate" },
+    ],
+  });
 
   return {
     intent: {
@@ -200,15 +238,18 @@ export const collectUserInput = async (): Promise<{
       sourceChains,
       sourceTokens,
       tokenRecipient,
+      settlementLayers,
+      sponsored,
     },
     saveAsFileName,
-    simulate,
+    environment,
+    executionMode,
   };
 };
 
 export const showUserAccount = async (address: string) => {
   console.log(
-    `To use your account, you'll need to fund it on the relevant source chain(s). Your account address is ${address}`
+    `To use your account, you'll need to fund it on the relevant source chain(s). Your account address is ${address}`,
   );
   await confirm({ message: "Continue?" });
 };
@@ -223,12 +264,13 @@ export const getReplayParams = async () => {
     .filter((file) => file.endsWith(".json"));
   const intentsList = files.map((file) => {
     const data = JSON.parse(
-      fs.readFileSync(path.join("intents", file), "utf-8")
+      fs.readFileSync(path.join("intents", file), "utf-8"),
     );
     return { file, count: data.intentList ? data.intentList.length : 0 };
   });
 
-  const autoAll = process.argv.includes("--all");
+  const args = process.argv;
+  const autoAll = args.includes("--all");
 
   const isAll = autoAll
     ? true
@@ -247,7 +289,7 @@ export const getReplayParams = async () => {
     intentsToReplay = files;
     totalIntentsSelected = files.reduce((total, file) => {
       const data = JSON.parse(
-        fs.readFileSync(path.join("intents", file), "utf-8")
+        fs.readFileSync(path.join("intents", file), "utf-8"),
       );
       return total + (data.intentList ? data.intentList.length : 0);
     }, 0);
@@ -262,7 +304,7 @@ export const getReplayParams = async () => {
     const uniqueFiles = new Set(selectedFiles);
     intentsToReplay = Array.from(uniqueFiles).flatMap((file) => {
       const data = JSON.parse(
-        fs.readFileSync(path.join("intents", file), "utf-8")
+        fs.readFileSync(path.join("intents", file), "utf-8"),
       );
       totalIntentsSelected += data.intentList ? data.intentList.length : 0;
       return data.intentList ? [file] : [];
@@ -271,9 +313,15 @@ export const getReplayParams = async () => {
 
   console.log(`Total intents selected: ${totalIntentsSelected}`);
 
-  let asyncMode = false;
-  let delay = "2500";
-  if (totalIntentsSelected > 1) {
+  const autoAsyncMode = args.includes("--async");
+  let autoAsyncDuration;
+  if (autoAsyncMode) {
+    autoAsyncDuration = args[args.findIndex((arg) => arg === "--async") + 1];
+  }
+
+  let asyncMode = autoAsyncMode;
+  let delay = autoAsyncDuration || "2500";
+  if (totalIntentsSelected > 1 && !asyncMode) {
     asyncMode = await select({
       message: "Do you want to replay intents in parallel / asynchronously?",
       choices: [
@@ -291,10 +339,53 @@ export const getReplayParams = async () => {
     }
   }
 
+  const isEnvSet = args.includes("--env");
+  let environment: string;
+  if (isEnvSet) {
+    environment = args[args.findIndex((arg) => arg === "--env") + 1];
+  } else {
+    environment = await select({
+      message: "Select the environments to use",
+      choices: [
+        {
+          name: "Prod",
+          value: "prod",
+        },
+        {
+          name: "Dev",
+          value: "dev",
+        },
+        {
+          name: "Local",
+          value: "local",
+        },
+      ],
+    });
+  }
+
+  const isExecutionModeSet = args.includes("--mode");
+  let executionMode: string;
+  if (isExecutionModeSet) {
+    executionMode = args[args.findIndex((arg) => arg === "--mode") + 1];
+  } else {
+    executionMode = await select({
+      message: "Do you want to execute the intent or simulate it?",
+      choices: [
+        {
+          name: "Execute",
+          value: "execute",
+        },
+        { name: "Simulate", value: "simulate" },
+      ],
+    });
+  }
+
   return {
     isAll,
     intentsToReplay,
     asyncMode,
     msBetweenBundles: parseInt(delay, 10),
+    environment,
+    executionMode,
   };
 };
