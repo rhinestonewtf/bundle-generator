@@ -146,6 +146,10 @@ export const collectUserInput = async (): Promise<{
         name: "Eco",
         value: "ECO",
       },
+      {
+        name: "Relay",
+        value: "RELAY",
+      },
     ],
   });
 

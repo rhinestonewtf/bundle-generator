@@ -18,8 +18,8 @@ importers:
         specifier: 1.0.0-alpha.23
         version: 1.0.0-alpha.23(typescript@5.8.3)(viem@2.28.3(typescript@5.8.3))
       '@rhinestone/shared-configs':
-        specifier: ^1.2.0
-        version: 1.2.0(typescript@5.8.3)(viem@2.28.3(typescript@5.8.3))
+        specifier: ^1.4.2
+        version: 1.4.2(typescript@5.8.3)(viem@2.28.3(typescript@5.8.3))
       abitype:
         specifier: ^1.0.8
         version: 1.0.8(typescript@5.8.3)
@@ -340,14 +340,14 @@ packages:
     peerDependencies:
       viem: ^2.28.0
 
-  '@rhinestone/shared-configs@1.2.0':
-    resolution: {integrity: sha512-QuTKZBgBHEU3dYR4WrUY0Hytc5BYBxD7/fJIRpmzrNNOVjUCy5nkygze9eOVjGPhpTJ0W4FgMJzO3dWuOvGpDw==}
+  '@rhinestone/shared-configs@1.4.1':
+    resolution: {integrity: sha512-AKzr9JocK+wsHvRdkoLwqDZ9TU781LiT6ACWk5kd6Y+aNV+HUUduTZpQa/ydd47M1byy2byAh8GUcY5K6f5nyw==}
     peerDependencies:
       typescript: ^5
       viem: ^2.33.3
 
-  '@rhinestone/shared-configs@1.4.1':
-    resolution: {integrity: sha512-AKzr9JocK+wsHvRdkoLwqDZ9TU781LiT6ACWk5kd6Y+aNV+HUUduTZpQa/ydd47M1byy2byAh8GUcY5K6f5nyw==}
+  '@rhinestone/shared-configs@1.4.2':
+    resolution: {integrity: sha512-psoaArH1GrrOpfw0mPUt64XA/QqLxrt/LzfVr0BQ1VY49VUDrBXYTmTxwEQftEVIFoDf5xSLVtwwqpLWBvDNhg==}
     peerDependencies:
       typescript: ^5
       viem: ^2.33.3
@@ -852,12 +852,12 @@ snapshots:
       - debug
       - typescript
 
-  '@rhinestone/shared-configs@1.2.0(typescript@5.8.3)(viem@2.28.3(typescript@5.8.3))':
+  '@rhinestone/shared-configs@1.4.1(typescript@5.8.3)(viem@2.28.3(typescript@5.8.3))':
     dependencies:
       typescript: 5.8.3
       viem: 2.28.3(typescript@5.8.3)
 
-  '@rhinestone/shared-configs@1.4.1(typescript@5.8.3)(viem@2.28.3(typescript@5.8.3))':
+  '@rhinestone/shared-configs@1.4.2(typescript@5.8.3)(viem@2.28.3(typescript@5.8.3))':
     dependencies:
       typescript: 5.8.3
       viem: 2.28.3(typescript@5.8.3)
