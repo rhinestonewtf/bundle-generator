@@ -69,12 +69,17 @@ export const fundAccount = async ({
   account,
   sourceChains,
   sourceTokens,
+  environment,
 }: {
   account: Address;
   sourceChains: string[];
   sourceTokens: string[];
+  environment?: string;
 }) => {
-  if (process.env.LOCAL_TESTNET) {
+  // Only fund accounts when using local testnet or when LOCAL_TESTNET is explicitly set to true
+  const shouldFund = process.env.LOCAL_TESTNET === 'true' || environment === 'local';
+  
+  if (shouldFund) {
     for (const sourceChain of sourceChains) {
       const chain = getChain(sourceChain);
 
