@@ -75,13 +75,6 @@ export const collectUserInput = async (): Promise<{
         return "ETH is not acceptable for Polygon target";
       }
 
-      if (
-        targetChain === "Sonic" &&
-        choices.some(({ value }) => value !== "USDC")
-      ) {
-        return "Sonic just supports USDC for now";
-      }
-
       return true;
     },
     required: true,
@@ -121,14 +114,6 @@ export const collectUserInput = async (): Promise<{
         choices.some(({ value }) => value === "ETH")
       ) {
         return "Polygon being the only sorce and having ETH as a token is not valid";
-      }
-
-      if (
-        sourceChains.length === 1 &&
-        sourceChains[0] === "Sonic" &&
-        choices.some(({ value }) => value !== "USDC")
-      ) {
-        return "Sonic being the only source only allows for USDC";
       }
 
       return true;

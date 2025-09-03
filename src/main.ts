@@ -106,7 +106,7 @@ export const processIntent = async (
   // prepare the recipient label
   const recipientLabel = intent.tokenRecipient.slice(0, 6);
 
-  const bundleLabel = `${sourceAssetsLabel} > ${targetAssetsLabel} to ${recipientLabel}`;
+  const bundleLabel = `${sourceAssetsLabel} > ${targetAssetsLabel}${intent.settlementLayers?.length ? " via " + intent.settlementLayers.join() : ""}${intent.sponsored ? " sponsored" : ""} to ${recipientLabel}`;
 
   console.log(`${ts()} Bundle ${bundleLabel}: Starting transaction process`);
 
@@ -186,6 +186,8 @@ export const processIntent = async (
           }ms, Simulation: ${simulationEndTime - signEndTime}ms`,
       );
 
+      (simulationResult as any).label = bundleLabel;
+
       console.dir(simulationResult, { depth: null });
 
       return;
@@ -236,6 +238,7 @@ export const processIntent = async (
             executionEndTime - executionStartTime
           }ms)`,
       );
+      (result as any).label = bundleLabel;
       console.dir(result, { depth: null });
     } catch (error: any) {
       console.error(
