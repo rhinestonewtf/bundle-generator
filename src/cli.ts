@@ -37,6 +37,10 @@ export const collectUserInput = async (): Promise<{
       value: "Sonic",
     },
     {
+      name: "Soneium",
+      value: "Soneium",
+    },
+    {
       name: "Sepolia",
       value: "Sepolia",
     },
