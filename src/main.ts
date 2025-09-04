@@ -48,6 +48,7 @@ export const processIntent = async (
     account: accountAddress,
     sourceChains: intent.sourceChains,
     sourceTokens: intent.sourceTokens,
+    environment: environmentString,
   });
 
   // get the target address
