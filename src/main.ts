@@ -137,7 +137,7 @@ export const processIntent = async (
   const transactionDetails: any = {
     sourceChains: sourceChains.length > 0 ? sourceChains : undefined,
     targetChain,
-    calls,
+    calls: intent.destinationOps == false ? [] : calls,
     tokenRequests,
     sponsored: intent.sponsored,
   };

@@ -7,8 +7,7 @@
     "new": "tsx src/new-intent.ts",
     "replay": "tsx src/existing-intent.ts",
     "address": "tsx src/get-address.ts",
-    "balance": "tsx src/get-balance.ts",
-    "simulate": "tsx src/new-intent.ts --simulate"
+    "balance": "tsx src/get-balance.ts"
   },
   "keywords": [],
   "author": "",
