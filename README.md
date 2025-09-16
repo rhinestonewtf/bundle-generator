@@ -55,7 +55,7 @@ In order to generate a large set of test cases, run `./generate.sh` or `./genera
 - [x] Sponsored: whether the intent is sponsored
 - [x] Destination ops: whether there are target executions
 - [x] Settlement layers: which settelment layers to use
-- [ ] Samechain no token transfers
+- [x] Samechain no token transfers
 - [ ] Account deployments
 - [ ] EIP-7702
 - [ ] EOAs

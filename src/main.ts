@@ -73,23 +73,36 @@ export const processIntent = async (
   const target = intent.tokenRecipient as Address;
 
   // prepare the calls for the target chain
-  const calls = intent.targetTokens.map((token: Token) => {
-    return {
-      to:
-        token.symbol == "ETH"
-          ? target
-          : getTokenAddress(token.symbol as TokenSymbol, targetChain.id),
-      value: token.symbol == "ETH" ? convertTokenAmount({ token }) : 0n,
-      data:
-        token.symbol == "ETH"
-          ? ("0x" as Hex)
-          : encodeFunctionData({
-              abi: erc20Abi,
-              functionName: "transfer",
-              args: [target, convertTokenAmount({ token })],
-            }),
-    };
-  });
+  const calls =
+    intent.destinationOps == false
+      ? []
+      : intent.targetTokens.length
+        ? intent.targetTokens.map((token: Token) => {
+            return {
+              to:
+                token.symbol == "ETH"
+                  ? target
+                  : getTokenAddress(
+                      token.symbol as TokenSymbol,
+                      targetChain.id,
+                    ),
+              value: token.symbol == "ETH" ? convertTokenAmount({ token }) : 0n,
+              data:
+                token.symbol == "ETH"
+                  ? ("0x" as Hex)
+                  : encodeFunctionData({
+                      abi: erc20Abi,
+                      functionName: "transfer",
+                      args: [target, convertTokenAmount({ token })],
+                    }),
+            };
+          })
+        : [
+            {
+              to: zeroAddress,
+              data: "0x69696969",
+            },
+          ];
 
   // prepare the token requests
   const tokenRequests = intent.targetTokens.map((token: Token) => ({
@@ -137,7 +150,7 @@ export const processIntent = async (
   const transactionDetails: any = {
     sourceChains: sourceChains.length > 0 ? sourceChains : undefined,
     targetChain,
-    calls: intent.destinationOps == false ? [] : calls,
+    calls,
     tokenRequests,
     sponsored: intent.sponsored,
   };

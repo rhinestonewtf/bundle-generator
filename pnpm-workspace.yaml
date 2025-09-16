@@ -1,0 +1,3 @@
+overrides:
+  '@rhinestone/sdk': link:../sdk/src
+  sdk: link:../sdk
