@@ -39,9 +39,6 @@ importers:
       permissionless:
         specifier: ^0.2.47
         version: 0.2.57(viem@2.37.5(typescript@5.9.2))
-      sdk:
-        specifier: link:../sdk
-        version: link:../sdk
       tsx:
         specifier: ^4.19.4
         version: 4.20.5
