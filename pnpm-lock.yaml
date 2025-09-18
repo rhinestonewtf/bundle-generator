@@ -15,8 +15,8 @@ importers:
         specifier: ^0.2.8
         version: 0.2.8(viem@2.28.3(typescript@5.8.3))
       '@rhinestone/sdk':
-        specifier: 1.0.0-alpha.26
-        version: 1.0.0-alpha.26(typescript@5.8.3)(viem@2.28.3(typescript@5.8.3))
+        specifier: link:/Users/aman/Desktop/rhinestone/rn/sdk/src
+        version: link:../../rn/sdk/src
       '@rhinestone/shared-configs':
         specifier: ^1.4.2
         version: 1.4.2(typescript@5.8.3)(viem@2.28.3(typescript@5.8.3))
@@ -335,17 +335,6 @@ packages:
     peerDependencies:
       viem: ^2.0.0
 
-  '@rhinestone/sdk@1.0.0-alpha.26':
-    resolution: {integrity: sha512-w1V4kVmY45SvYpWgZd/sz7OfsoYeKDfTVL0++R1UkLk08xZWd3EY2YG6T1UZBhWds1Hhy37zdoj+2Zs35wHrYg==}
-    peerDependencies:
-      viem: ^2.28.0
-
-  '@rhinestone/shared-configs@1.4.1':
-    resolution: {integrity: sha512-AKzr9JocK+wsHvRdkoLwqDZ9TU781LiT6ACWk5kd6Y+aNV+HUUduTZpQa/ydd47M1byy2byAh8GUcY5K6f5nyw==}
-    peerDependencies:
-      typescript: ^5
-      viem: ^2.33.3
-
   '@rhinestone/shared-configs@1.4.2':
     resolution: {integrity: sha512-psoaArH1GrrOpfw0mPUt64XA/QqLxrt/LzfVr0BQ1VY49VUDrBXYTmTxwEQftEVIFoDf5xSLVtwwqpLWBvDNhg==}
     peerDependencies:
@@ -571,9 +560,6 @@ packages:
 
   solady@0.0.235:
     resolution: {integrity: sha512-JUEXLDG7ag3HmqUnrDG7ilhafH6R9bFPpwV63O2kH4UbnS2+gRGEOqqy4k01O7tHjo3MWkDD0cpG+UY9pjy/fQ==}
-
-  solady@0.1.23:
-    resolution: {integrity: sha512-9UEfad/GxaxY4CgnbPptnOTTjN92ytg8umZrKRRV/1ziQm5iaUoiftMUMt/5k4r626fCIZaxNywWrVhmIRryOQ==}
 
   string-width@4.2.3:
     resolution: {integrity: sha512-wKyQRQpjJ0sIp62ErSZdGsjMJWsap5oRNihHhu6G7JVO/9jIB6UyevL+tXuOqrng8j/cxKTWyWUwvSTriiZz/g==}
@@ -842,21 +828,6 @@ snapshots:
       tslib: 2.8.1
       viem: 2.28.3(typescript@5.8.3)
 
-  '@rhinestone/sdk@1.0.0-alpha.26(typescript@5.8.3)(viem@2.28.3(typescript@5.8.3))':
-    dependencies:
-      '@rhinestone/shared-configs': 1.4.1(typescript@5.8.3)(viem@2.28.3(typescript@5.8.3))
-      axios: 1.10.0
-      solady: 0.1.23
-      viem: 2.28.3(typescript@5.8.3)
-    transitivePeerDependencies:
-      - debug
-      - typescript
-
-  '@rhinestone/shared-configs@1.4.1(typescript@5.8.3)(viem@2.28.3(typescript@5.8.3))':
-    dependencies:
-      typescript: 5.8.3
-      viem: 2.28.3(typescript@5.8.3)
-
   '@rhinestone/shared-configs@1.4.2(typescript@5.8.3)(viem@2.28.3(typescript@5.8.3))':
     dependencies:
       typescript: 5.8.3
@@ -1083,8 +1054,6 @@ snapshots:
   signal-exit@4.1.0: {}
 
   solady@0.0.235: {}
-
-  solady@0.1.23: {}
 
   string-width@4.2.3:
     dependencies:

@@ -8,7 +8,8 @@
     "replay": "tsx src/existing-intent.ts",
     "address": "tsx src/get-address.ts",
     "balance": "tsx src/get-balance.ts",
-    "simulate": "tsx src/new-intent.ts --simulate"
+    "simulate": "tsx src/new-intent.ts --simulate",
+    "test:eoa-permit2": "tsx src/eoa-permit2-test.ts dev"
   },
   "keywords": [],
   "author": "",
@@ -16,7 +17,7 @@
   "dependencies": {
     "@inquirer/prompts": "^7.4.1",
     "@rhinestone/module-sdk": "^0.2.8",
-    "@rhinestone/sdk": "1.0.0-alpha.26",
+    "@rhinestone/sdk": "link:/Users/aman/Desktop/rhinestone/rn/sdk/src",
     "@rhinestone/shared-configs": "^1.4.2",
     "abitype": "^1.0.8",
     "axios": "^1.10.0",
