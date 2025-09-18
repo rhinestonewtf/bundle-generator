@@ -60,8 +60,9 @@ In order to generate a large set of test cases, run `./generate.sh` or `./genera
 - [ ] EIP-7702
 - [ ] EOAs
 - [ ] Non-7579 accounts
+- [x] Multi token output
 - [ ] Multi token input
 - [ ] Multi origin chain
 - [ ] Locked funds
+- [ ] Unlocked funds
 - [ ] Preclaim ops
-- [ ] Emissary
