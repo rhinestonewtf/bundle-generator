@@ -1,5 +1,5 @@
 import {
-  createRhinestoneAccount,
+  RhinestoneSDK,
   getTokenAddress,
   IntentData,
 } from "@rhinestone/sdk";
@@ -45,13 +45,15 @@ export const processIntent = async (
   const rhinestoneApiKey = environment.apiKey;
 
   // create the rhinestone account instance
-  const rhinestoneAccount = await createRhinestoneAccount({
+  const rhinestone = new RhinestoneSDK({
+    apiKey: rhinestoneApiKey,
+    endpointUrl: orchestratorUrl,
+  })
+  const rhinestoneAccount = await rhinestone.createAccount({
     owners: {
       type: "ecdsa" as const,
       accounts: [owner],
     },
-    rhinestoneApiKey,
-    orchestratorUrl,
   });
 
   // get the target chain and source chains
