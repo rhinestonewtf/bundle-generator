@@ -1,4 +1,4 @@
-import { createRhinestoneAccount, getTokenAddress } from "@rhinestone/sdk";
+import { getTokenAddress, RhinestoneSDK } from "@rhinestone/sdk";
 import { Account, privateKeyToAccount } from "viem/accounts";
 import { Address, encodeFunctionData, erc20Abi, Hex } from "viem";
 import { Intent, Token, TokenSymbol } from "./types.js";
@@ -26,13 +26,15 @@ export const processIntent = async (
   const rhinestoneApiKey = environment.apiKey;
 
   // create the rhinestone account instance
-  const rhinestoneAccount = await createRhinestoneAccount({
+  const rhinestone = new RhinestoneSDK({
+    apiKey: rhinestoneApiKey,
+    endpointUrl: orchestratorUrl,
+  })
+  const rhinestoneAccount = await rhinestone.createAccount({
     owners: {
       type: "ecdsa" as const,
       accounts: [owner],
     },
-    rhinestoneApiKey,
-    orchestratorUrl,
   });
 
   // get the target chain and source chains

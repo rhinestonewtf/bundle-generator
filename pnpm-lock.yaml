@@ -15,11 +15,11 @@ importers:
         specifier: ^0.2.8
         version: 0.2.8(viem@2.28.3(typescript@5.8.3))
       '@rhinestone/sdk':
-        specifier: 1.0.0-alpha.26
-        version: 1.0.0-alpha.26(typescript@5.8.3)(viem@2.28.3(typescript@5.8.3))
+        specifier: 1.0.0-alpha.34
+        version: 1.0.0-alpha.34(typescript@5.8.3)(viem@2.28.3(typescript@5.8.3))
       '@rhinestone/shared-configs':
-        specifier: ^1.4.2
-        version: 1.4.2(typescript@5.8.3)(viem@2.28.3(typescript@5.8.3))
+        specifier: ^1.4.4
+        version: 1.4.4(typescript@5.8.3)(viem@2.28.3(typescript@5.8.3))
       abitype:
         specifier: ^1.0.8
         version: 1.0.8(typescript@5.8.3)
@@ -335,22 +335,16 @@ packages:
     peerDependencies:
       viem: ^2.0.0
 
-  '@rhinestone/sdk@1.0.0-alpha.26':
-    resolution: {integrity: sha512-w1V4kVmY45SvYpWgZd/sz7OfsoYeKDfTVL0++R1UkLk08xZWd3EY2YG6T1UZBhWds1Hhy37zdoj+2Zs35wHrYg==}
+  '@rhinestone/sdk@1.0.0-alpha.34':
+    resolution: {integrity: sha512-qm136+JporjBEVOte/66BDF3I2r06ygr7wL+VwUeXniOZAmxQPeGlxtEitdPRqOdoGYTrbQ2M4yf5bEilR9Cdw==}
     peerDependencies:
       viem: ^2.28.0
 
-  '@rhinestone/shared-configs@1.4.1':
-    resolution: {integrity: sha512-AKzr9JocK+wsHvRdkoLwqDZ9TU781LiT6ACWk5kd6Y+aNV+HUUduTZpQa/ydd47M1byy2byAh8GUcY5K6f5nyw==}
+  '@rhinestone/shared-configs@1.4.4':
+    resolution: {integrity: sha512-DdXdFoRuwCz9px38tDXWDGucMNmS4aSqzVOd4Uwhs0Od8Qb05xUuAHn2u7BdThttxDN/GrRzkod1bsnw0KhFHw==}
     peerDependencies:
       typescript: ^5
-      viem: ^2.33.3
-
-  '@rhinestone/shared-configs@1.4.2':
-    resolution: {integrity: sha512-psoaArH1GrrOpfw0mPUt64XA/QqLxrt/LzfVr0BQ1VY49VUDrBXYTmTxwEQftEVIFoDf5xSLVtwwqpLWBvDNhg==}
-    peerDependencies:
-      typescript: ^5
-      viem: ^2.33.3
+      viem: ^2.28.0
 
   '@scure/base@1.2.4':
     resolution: {integrity: sha512-5Yy9czTO47mqz+/J8GM6GIId4umdCk1wc1q8rKERQulIoc8VP9pzDcghv10Tl2E7R96ZUx/PhND3ESYUQX8NuQ==}
@@ -842,9 +836,9 @@ snapshots:
       tslib: 2.8.1
       viem: 2.28.3(typescript@5.8.3)
 
-  '@rhinestone/sdk@1.0.0-alpha.26(typescript@5.8.3)(viem@2.28.3(typescript@5.8.3))':
+  '@rhinestone/sdk@1.0.0-alpha.34(typescript@5.8.3)(viem@2.28.3(typescript@5.8.3))':
     dependencies:
-      '@rhinestone/shared-configs': 1.4.1(typescript@5.8.3)(viem@2.28.3(typescript@5.8.3))
+      '@rhinestone/shared-configs': 1.4.4(typescript@5.8.3)(viem@2.28.3(typescript@5.8.3))
       axios: 1.10.0
       solady: 0.1.23
       viem: 2.28.3(typescript@5.8.3)
@@ -852,12 +846,7 @@ snapshots:
       - debug
       - typescript
 
-  '@rhinestone/shared-configs@1.4.1(typescript@5.8.3)(viem@2.28.3(typescript@5.8.3))':
-    dependencies:
-      typescript: 5.8.3
-      viem: 2.28.3(typescript@5.8.3)
-
-  '@rhinestone/shared-configs@1.4.2(typescript@5.8.3)(viem@2.28.3(typescript@5.8.3))':
+  '@rhinestone/shared-configs@1.4.4(typescript@5.8.3)(viem@2.28.3(typescript@5.8.3))':
     dependencies:
       typescript: 5.8.3
       viem: 2.28.3(typescript@5.8.3)

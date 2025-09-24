@@ -1,6 +1,6 @@
 import { Account, Hex } from "viem";
 import { privateKeyToAccount } from "viem/accounts";
-import { createRhinestoneAccount } from "@rhinestone/sdk";
+import { RhinestoneSDK } from "@rhinestone/sdk";
 import { config } from "dotenv";
 import { select } from "@inquirer/prompts";
 import { getEnvironment } from "./utils/environments";
@@ -35,13 +35,15 @@ export const main = async () => {
   const rhinestoneApiKey = environment.apiKey;
 
   // create the rhinestone account instance
-  const rhinestoneAccount = await createRhinestoneAccount({
+  const rhinestone = new RhinestoneSDK({
+    apiKey: rhinestoneApiKey,
+    endpointUrl: orchestratorUrl,
+  });
+  const rhinestoneAccount = await rhinestone.createAccount({
     owners: {
       type: "ecdsa" as const,
       accounts: [owner],
     },
-    rhinestoneApiKey,
-    orchestratorUrl,
   });
 
   const address = await rhinestoneAccount.getAddress();
