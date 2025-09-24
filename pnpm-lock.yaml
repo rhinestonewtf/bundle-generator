@@ -4,10 +4,6 @@ settings:
   autoInstallPeers: true
   excludeLinksFromLockfile: false
 
-overrides:
-  sdk: link:../sdk
-  '@rhinestone/sdk': link:../sdk/src
-
 importers:
 
   .:
@@ -22,11 +18,11 @@ importers:
         specifier: ^0.2.8
         version: 0.2.11(viem@2.37.5(typescript@5.9.2))
       '@rhinestone/sdk':
-        specifier: link:../sdk/src
-        version: link:../sdk/src
+        specifier: 1.0.0-alpha.35
+        version: 1.0.0-alpha.35(typescript@5.9.2)(viem@2.37.5(typescript@5.9.2))
       '@rhinestone/shared-configs':
-        specifier: ^1.4.2
-        version: 1.4.3(typescript@5.9.2)(viem@2.37.5(typescript@5.9.2))
+        specifier: ^1.4.4
+        version: 1.4.4(typescript@5.9.2)(viem@2.37.5(typescript@5.9.2))
       abitype:
         specifier: ^1.0.8
         version: 1.1.0(typescript@5.9.2)
@@ -365,11 +361,16 @@ packages:
     peerDependencies:
       viem: ^2.0.0
 
-  '@rhinestone/shared-configs@1.4.3':
-    resolution: {integrity: sha512-4ehbVv146Uk+yOtI0OK/TRjdHnFZgomyTS9nfIfkXiHOBBkIPXdtchwdOA+b2BSeL77//gdxenVTeY6VU1Lieg==}
+  '@rhinestone/sdk@1.0.0-alpha.35':
+    resolution: {integrity: sha512-OsN0f9fdtQeBPeAABNJ98IZfPqIx+bDTYo/1lztBtcAbmFUXRf6M6zMHg85D9BtGYpMGlC+9mwrAgxzkLNmepg==}
+    peerDependencies:
+      viem: ^2.28.0
+
+  '@rhinestone/shared-configs@1.4.4':
+    resolution: {integrity: sha512-DdXdFoRuwCz9px38tDXWDGucMNmS4aSqzVOd4Uwhs0Od8Qb05xUuAHn2u7BdThttxDN/GrRzkod1bsnw0KhFHw==}
     peerDependencies:
       typescript: ^5
-      viem: ^2.33.3
+      viem: ^2.28.0
 
   '@scure/base@1.2.6':
     resolution: {integrity: sha512-g/nm5FgUa//MCj1gV09zTJTaM6KBAHqLN907YVQqf7zC49+DcO4B1so4ZX07Ef10Twr6nuqYEH9GEggFXA4Fmg==}
@@ -582,6 +583,9 @@ packages:
 
   solady@0.0.235:
     resolution: {integrity: sha512-JUEXLDG7ag3HmqUnrDG7ilhafH6R9bFPpwV63O2kH4UbnS2+gRGEOqqy4k01O7tHjo3MWkDD0cpG+UY9pjy/fQ==}
+
+  solady@0.1.26:
+    resolution: {integrity: sha512-dhGr/ptJFdea/1KE6xgqgwEdbMhUiSfRc6A+jLeltPe16zyt9qtED3PElIBVRnzEmUO5aZTjKVAr6SlqXBBcIw==}
 
   string-width@4.2.3:
     resolution: {integrity: sha512-wKyQRQpjJ0sIp62ErSZdGsjMJWsap5oRNihHhu6G7JVO/9jIB6UyevL+tXuOqrng8j/cxKTWyWUwvSTriiZz/g==}
@@ -862,7 +866,17 @@ snapshots:
       tslib: 2.8.1
       viem: 2.37.5(typescript@5.9.2)
 
-  '@rhinestone/shared-configs@1.4.3(typescript@5.9.2)(viem@2.37.5(typescript@5.9.2))':
+  '@rhinestone/sdk@1.0.0-alpha.35(typescript@5.9.2)(viem@2.37.5(typescript@5.9.2))':
+    dependencies:
+      '@rhinestone/shared-configs': 1.4.4(typescript@5.9.2)(viem@2.37.5(typescript@5.9.2))
+      axios: 1.12.1
+      solady: 0.1.26
+      viem: 2.37.5(typescript@5.9.2)
+    transitivePeerDependencies:
+      - debug
+      - typescript
+
+  '@rhinestone/shared-configs@1.4.4(typescript@5.9.2)(viem@2.37.5(typescript@5.9.2))':
     dependencies:
       typescript: 5.9.2
       viem: 2.37.5(typescript@5.9.2)
@@ -1082,6 +1096,8 @@ snapshots:
   signal-exit@4.1.0: {}
 
   solady@0.0.235: {}
+
+  solady@0.1.26: {}
 
   string-width@4.2.3:
     dependencies:
