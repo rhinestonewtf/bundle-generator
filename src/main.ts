@@ -1,26 +1,11 @@
-import { RhinestoneSDK, getTokenAddress, IntentData } from "@rhinestone/sdk";
+import { RhinestoneSDK, getTokenAddress } from "@rhinestone/sdk";
 import { Account, privateKeyToAccount } from "viem/accounts";
-import {
-  Address,
-  encodeAbiParameters,
-  encodeFunctionData,
-  encodePacked,
-  erc20Abi,
-  hashStruct,
-  Hex,
-  keccak256,
-  numberToHex,
-  serializeSignature,
-  slice,
-  toBytes,
-  zeroAddress,
-} from "viem";
+import { Address, encodeFunctionData, erc20Abi, Hex, zeroAddress } from "viem";
 import { Intent, Token, TokenSymbol } from "./types.js";
 import { getChain } from "./utils/chains.js";
 import { convertTokenAmount } from "./utils/tokens.js";
 import { fundAccount } from "./funding.js";
 import { getEnvironment } from "./utils/environments.js";
-import { secp256k1 } from "@noble/curves/secp256k1";
 
 export function ts() {
   return new Date().toISOString().replace(/T/, " ").replace(/\..+/, "");
@@ -176,8 +161,6 @@ export const processIntent = async (
       prepareEndTime - prepareStartTime
     }ms`,
   );
-
-  // console.dir(preparedTransaction.data as IntentData, { depth: null });
 
   // sign the transaction with signTransaction method
   console.log(`${ts()} Bundle ${bundleLabel}: [2/4] Signing transaction...`);
