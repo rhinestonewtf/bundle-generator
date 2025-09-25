@@ -74,7 +74,7 @@ export const fundAccount = async ({
   sourceChains: string[];
   sourceTokens: string[];
 }) => {
-  if (process.env.LOCAL_TESTNET) {
+  if (process.env.LOCAL_TESTNET?.toString()==="true") {
     for (const sourceChain of sourceChains) {
       const chain = getChain(sourceChain);
 

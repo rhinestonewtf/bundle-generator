@@ -11,6 +11,7 @@ export type Intent = {
   tokenRecipient: string;
   settlementLayers: string[];
   sponsored: boolean;
+  destinationOps?: boolean;
 };
 
 export type TokenSymbol = "ETH" | "WETH" | "USDC" | "USDT";

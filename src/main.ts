@@ -1,6 +1,6 @@
-import { createRhinestoneAccount, getTokenAddress } from "@rhinestone/sdk";
+import { RhinestoneSDK, getTokenAddress } from "@rhinestone/sdk";
 import { Account, privateKeyToAccount } from "viem/accounts";
-import { Address, encodeFunctionData, erc20Abi, Hex } from "viem";
+import { Address, encodeFunctionData, erc20Abi, Hex, zeroAddress } from "viem";
 import { Intent, Token, TokenSymbol } from "./types.js";
 import { getChain } from "./utils/chains.js";
 import { convertTokenAmount } from "./utils/tokens.js";
@@ -26,13 +26,15 @@ export const processIntent = async (
   const rhinestoneApiKey = environment.apiKey;
 
   // create the rhinestone account instance
-  const rhinestoneAccount = await createRhinestoneAccount({
+  const rhinestone = new RhinestoneSDK({
+    apiKey: rhinestoneApiKey,
+    endpointUrl: orchestratorUrl,
+  });
+  const rhinestoneAccount = await rhinestone.createAccount({
     owners: {
       type: "ecdsa" as const,
       accounts: [owner],
     },
-    rhinestoneApiKey,
-    orchestratorUrl,
   });
 
   // get the target chain and source chains
@@ -54,23 +56,36 @@ export const processIntent = async (
   const target = intent.tokenRecipient as Address;
 
   // prepare the calls for the target chain
-  const calls = intent.targetTokens.map((token: Token) => {
-    return {
-      to:
-        token.symbol == "ETH"
-          ? target
-          : getTokenAddress(token.symbol as TokenSymbol, targetChain.id),
-      value: token.symbol == "ETH" ? convertTokenAmount({ token }) : 0n,
-      data:
-        token.symbol == "ETH"
-          ? ("0x" as Hex)
-          : encodeFunctionData({
-              abi: erc20Abi,
-              functionName: "transfer",
-              args: [target, convertTokenAmount({ token })],
-            }),
-    };
-  });
+  const calls =
+    intent.destinationOps == false
+      ? []
+      : intent.targetTokens.length
+        ? intent.targetTokens.map((token: Token) => {
+            return {
+              to:
+                token.symbol == "ETH"
+                  ? target
+                  : getTokenAddress(
+                      token.symbol as TokenSymbol,
+                      targetChain.id,
+                    ),
+              value: token.symbol == "ETH" ? convertTokenAmount({ token }) : 0n,
+              data:
+                token.symbol == "ETH"
+                  ? ("0x" as Hex)
+                  : encodeFunctionData({
+                      abi: erc20Abi,
+                      functionName: "transfer",
+                      args: [target, convertTokenAmount({ token })],
+                    }),
+            };
+          })
+        : [
+            {
+              to: zeroAddress,
+              data: "0x69696969",
+            },
+          ];
 
   // prepare the token requests
   const tokenRequests = intent.targetTokens.map((token: Token) => ({
@@ -121,6 +136,7 @@ export const processIntent = async (
     calls,
     tokenRequests,
     sponsored: intent.sponsored,
+    // sourceAssets: ["USDC"],
   };
   if (intent.settlementLayers?.length > 0) {
     transactionDetails.settlementLayers = intent.settlementLayers;
@@ -133,7 +149,7 @@ export const processIntent = async (
     // todo: adjust type in sdk
     const sponsorFee =
       // @ts-ignore
-      preparedTransaction.data.intentRoute.intentCost.sponsorFee;
+      preparedTransaction.intentRoute.intentCost.sponsorFee;
     if (sponsorFee == 0) {
       throw new Error("Sponsorship is not supplied as expected");
     }
@@ -150,6 +166,7 @@ export const processIntent = async (
   console.log(`${ts()} Bundle ${bundleLabel}: [2/4] Signing transaction...`);
   const signedTransaction =
     await rhinestoneAccount.signTransaction(preparedTransaction);
+
   const signEndTime = new Date().getTime();
   console.log(
     `${ts()} Bundle ${bundleLabel}: [2/4] Signed in ${

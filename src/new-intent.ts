@@ -4,7 +4,7 @@ config();
 import { Account, Hex } from "viem";
 import { collectUserInput, showUserAccount } from "./cli.js";
 import { privateKeyToAccount } from "viem/accounts";
-import { createRhinestoneAccount } from "@rhinestone/sdk";
+import { RhinestoneSDK } from "@rhinestone/sdk";
 import { processIntent } from "./main.js";
 import * as fs from "fs";
 import { getEnvironment } from "./utils/environments.js";
@@ -26,13 +26,15 @@ export const main = async () => {
   const rhinestoneApiKey = environment.apiKey;
 
   // create the rhinestone account instance
-  const rhinestoneAccount = await createRhinestoneAccount({
+  const rhinestone = new RhinestoneSDK({
+    apiKey: rhinestoneApiKey,
+    endpointUrl: orchestratorUrl,
+  });
+  const rhinestoneAccount = await rhinestone.createAccount({
     owners: {
       type: "ecdsa" as const,
       accounts: [owner],
     },
-    rhinestoneApiKey,
-    orchestratorUrl,
   });
 
   const address = rhinestoneAccount.getAddress();
