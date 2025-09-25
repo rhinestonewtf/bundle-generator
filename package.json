@@ -16,7 +16,7 @@
     "@inquirer/prompts": "^7.4.1",
     "@noble/curves": "^1.9.2",
     "@rhinestone/module-sdk": "^0.2.8",
-    "@rhinestone/sdk": "1.0.0-alpha.35",
+    "@rhinestone/sdk": "1.0.0-alpha.36",
     "@rhinestone/shared-configs": "^1.4.4",
     "abitype": "^1.0.8",
     "axios": "^1.10.0",
