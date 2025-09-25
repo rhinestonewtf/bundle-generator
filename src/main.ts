@@ -1,8 +1,4 @@
-import {
-  RhinestoneSDK,
-  getTokenAddress,
-  IntentData,
-} from "@rhinestone/sdk";
+import { RhinestoneSDK, getTokenAddress, IntentData } from "@rhinestone/sdk";
 import { Account, privateKeyToAccount } from "viem/accounts";
 import {
   Address,
@@ -48,7 +44,7 @@ export const processIntent = async (
   const rhinestone = new RhinestoneSDK({
     apiKey: rhinestoneApiKey,
     endpointUrl: orchestratorUrl,
-  })
+  });
   const rhinestoneAccount = await rhinestone.createAccount({
     owners: {
       type: "ecdsa" as const,
@@ -168,7 +164,7 @@ export const processIntent = async (
     // todo: adjust type in sdk
     const sponsorFee =
       // @ts-ignore
-      preparedTransaction.data.intentRoute.intentCost.sponsorFee;
+      preparedTransaction.intentRoute.intentCost.sponsorFee;
     if (sponsorFee == 0) {
       throw new Error("Sponsorship is not supplied as expected");
     }
