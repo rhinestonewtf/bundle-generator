@@ -1,6 +1,6 @@
 import { RhinestoneSDK, getTokenAddress } from "@rhinestone/sdk";
 import { Account, privateKeyToAccount } from "viem/accounts";
-import { Address, encodeFunctionData, erc20Abi, Hex, zeroAddress } from "viem";
+import { Address, encodeFunctionData, erc20Abi, Hex, isAddress, zeroAddress } from "viem";
 import { Intent, Token, TokenSymbol } from "./types.js";
 import { getChain } from "./utils/chains.js";
 import { convertTokenAmount } from "./utils/tokens.js";
@@ -65,7 +65,7 @@ export const processIntent = async (
               to:
                 token.symbol == "ETH"
                   ? target
-                  : getTokenAddress(
+                  : isAddress(token.symbol) ? token.symbol : getTokenAddress(
                       token.symbol as TokenSymbol,
                       targetChain.id,
                     ),
@@ -89,7 +89,7 @@ export const processIntent = async (
 
   // prepare the token requests
   const tokenRequests = intent.targetTokens.map((token: Token) => ({
-    address: getTokenAddress(token.symbol as TokenSymbol, targetChain.id),
+    address: isAddress(token.symbol) ? token.symbol : getTokenAddress(token.symbol as TokenSymbol, targetChain.id),
     amount: convertTokenAmount({ token }),
   }));
 

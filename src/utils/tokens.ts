@@ -7,6 +7,6 @@ export const convertTokenAmount = ({ token }: { token: Token }) => {
   } else if (token.symbol == "USDC" || token.symbol == "USDT") {
     return parseUnits(token.amount, 6);
   } else {
-    throw new Error("Unsupported token");
+    return BigInt(token.amount);
   }
 };
