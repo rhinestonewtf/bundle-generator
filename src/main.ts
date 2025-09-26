@@ -174,94 +174,53 @@ export const processIntent = async (
     }ms`,
   );
 
-  // ----- Phase 3: Submit or Simulate
-  if (executionMode == "simulate") {
-    try {
-      const simulationStartTime = new Date().getTime();
-      console.log(
-        `${ts()} Bundle ${bundleLabel}: [3/4] Simulating transaction...`,
-      );
+  try {
+    const submitStartTime = new Date().getTime();
+    console.log(
+      `${ts()} Bundle ${bundleLabel}: [3/4] Submitting transaction...`,
+    );
+    // submit the transaction using the SDK
+    const transactionResult = await rhinestoneAccount.submitTransaction(
+      signedTransaction,
+      undefined,
+      executionMode == "simulate",
+    );
 
-      // Simulate the transaction using the SDK
-      const simulationResult =
-        await rhinestoneAccount.simulateTransaction(signedTransaction);
+    const submitEndTime = new Date().getTime();
+    console.log(
+      `${ts()} Bundle ${bundleLabel}: [3/4] Submitted in ${
+        submitEndTime - submitStartTime
+      }ms`,
+    );
 
-      const simulationEndTime = new Date().getTime();
+    console.log(
+      `${ts()} Bundle ${bundleLabel}: [4/4] Waiting for execution...`,
+    );
+    const executionStartTime = new Date().getTime();
+    const result = await rhinestoneAccount.waitForExecution(transactionResult);
+    const executionEndTime = new Date().getTime();
 
-      // log the simulation result
-      console.log(
-        `${ts()} Bundle ${bundleLabel}: [4/4] Simulation result after ${
-          simulationEndTime - simulationStartTime
-        } ms`,
-      );
-      console.log(
-        `${ts()} Bundle ${bundleLabel}: Total time: ${
-          simulationEndTime - prepareStartTime
-        }ms ` +
-          `(Prepare: ${prepareEndTime - prepareStartTime}ms, Sign: ${
-            signEndTime - prepareEndTime
-          }ms, Simulation: ${simulationEndTime - signEndTime}ms`,
-      );
-
-      (simulationResult as any).label = bundleLabel;
-
-      console.dir(simulationResult, { depth: null });
-
-      return;
-    } catch (error: any) {
-      console.error(
-        `${ts()} Bundle ${bundleLabel}: [4/4] Simulation failed`,
-        error?.response?.data ?? error,
-      );
-      return;
-    }
-  } else {
-    try {
-      const submitStartTime = new Date().getTime();
-      console.log(
-        `${ts()} Bundle ${bundleLabel}: [3/4] Submitting transaction...`,
-      );
-      // submit the transaction using the SDK
-      const transactionResult =
-        await rhinestoneAccount.submitTransaction(signedTransaction);
-
-      const submitEndTime = new Date().getTime();
-      console.log(
-        `${ts()} Bundle ${bundleLabel}: [3/4] Submitted in ${
-          submitEndTime - submitStartTime
-        }ms`,
-      );
-
-      console.log(
-        `${ts()} Bundle ${bundleLabel}: [4/4] Waiting for execution...`,
-      );
-      const executionStartTime = new Date().getTime();
-      const result =
-        await rhinestoneAccount.waitForExecution(transactionResult);
-      const executionEndTime = new Date().getTime();
-
-      console.log(
-        `${ts()} Bundle ${bundleLabel}: [4/4] Execution completed in ${
+    console.log(
+      `${ts()} Bundle ${bundleLabel}: [4/4] Execution completed in ${
+        executionEndTime - executionStartTime
+      }ms`,
+    );
+    console.log(
+      `${ts()} Bundle ${bundleLabel}: Total time: ${
+        executionEndTime - prepareStartTime
+      }ms ` +
+        `(Prepare: ${prepareEndTime - prepareStartTime}ms, Sign: ${
+          signEndTime - prepareEndTime
+        }ms, Submit: ${submitEndTime - signEndTime}ms, Execute: ${
           executionEndTime - executionStartTime
-        }ms`,
-      );
-      console.log(
-        `${ts()} Bundle ${bundleLabel}: Total time: ${
-          executionEndTime - prepareStartTime
-        }ms ` +
-          `(Prepare: ${prepareEndTime - prepareStartTime}ms, Sign: ${
-            signEndTime - prepareEndTime
-          }ms, Submit: ${submitEndTime - signEndTime}ms, Execute: ${
-            executionEndTime - executionStartTime
-          }ms)`,
-      );
-      (result as any).label = bundleLabel;
-      console.dir(result, { depth: null });
-    } catch (error: any) {
-      console.error(
-        `${ts()} Bundle ${bundleLabel}: Submission/Execution failed`,
-        error?.response?.data ?? error,
-      );
-    }
+        }ms)`,
+    );
+    (result as any).label = bundleLabel;
+    console.dir(result, { depth: null });
+  } catch (error: any) {
+    console.error(
+      `${ts()} Bundle ${bundleLabel}: Submission/Execution failed`,
+      error?.response?.data ?? error,
+    );
   }
 };
