@@ -149,7 +149,7 @@ export const processIntent = async (
     const sponsorFee =
       // @ts-ignore
       preparedTransaction.intentRoute.intentCost.sponsorFee;
-    if (sponsorFee == 0) {
+    if (sponsorFee.relayer == 0) {
       throw new Error("Sponsorship is not supplied as expected");
     }
   }
