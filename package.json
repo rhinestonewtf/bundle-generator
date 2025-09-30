@@ -15,10 +15,11 @@
   "dependencies": {
     "@inquirer/prompts": "^7.4.1",
     "@rhinestone/module-sdk": "^0.2.8",
-    "@rhinestone/sdk": "1.0.0-alpha.36",
+    "@rhinestone/sdk": "1.0.0-beta.38",
     "@rhinestone/shared-configs": "^1.4.4",
     "abitype": "^1.0.8",
     "axios": "^1.10.0",
+    "chalk": "^5.6.2",
     "dotenv": "^16.5.0",
     "permissionless": "^0.2.47",
     "tsx": "^4.19.4",

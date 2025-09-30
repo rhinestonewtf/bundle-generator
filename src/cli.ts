@@ -2,6 +2,7 @@ import { checkbox, input, confirm, select } from "@inquirer/prompts";
 import { Hex } from "viem";
 import { privateKeyToAccount } from "viem/accounts";
 import { Intent } from "./types.js";
+import chalk from "chalk";
 import * as fs from "fs";
 import path from "path";
 
@@ -242,7 +243,7 @@ export const collectUserInput = async (): Promise<{
 
 export const showUserAccount = async (address: string) => {
   console.log(
-    `To use your account, you'll need to fund it on the relevant source chain(s). Your account address is ${address}`,
+    `To use your account, you'll need to fund it on the relevant source chain(s). Your account address is ${chalk.blue(address)}`,
   );
   await confirm({ message: "Continue?" });
 };
@@ -304,7 +305,7 @@ export const getReplayParams = async () => {
     });
   }
 
-  console.log(`Total intents selected: ${totalIntentsSelected}`);
+  console.log(`Total intents selected: ${chalk.yellow(totalIntentsSelected)}`);
 
   const autoAsyncMode = args.includes("--async");
   let autoAsyncDuration;
