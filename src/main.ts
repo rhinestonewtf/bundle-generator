@@ -136,7 +136,6 @@ export const processIntent = async (
     calls,
     tokenRequests,
     sponsored: intent.sponsored,
-    // sourceAssets: ["USDC"],
   };
   if (intent.settlementLayers?.length > 0) {
     transactionDetails.settlementLayers = intent.settlementLayers;
