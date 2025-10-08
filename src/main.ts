@@ -1,6 +1,20 @@
-import { RhinestoneSDK, getTokenAddress } from "@rhinestone/sdk";
+import {
+  RhinestoneSDK,
+  getPermit2Address,
+  getTokenAddress,
+} from "@rhinestone/sdk";
 import { Account, privateKeyToAccount } from "viem/accounts";
-import { Address, encodeFunctionData, erc20Abi, Hex, zeroAddress } from "viem";
+import {
+  Address,
+  createPublicClient,
+  createWalletClient,
+  encodeFunctionData,
+  erc20Abi,
+  Hex,
+  http,
+  maxUint256,
+  zeroAddress,
+} from "viem";
 import { Intent, Token, TokenSymbol } from "./types.js";
 import { getChain } from "./utils/chains.js";
 import { convertTokenAmount } from "./utils/tokens.js";
@@ -29,12 +43,18 @@ export const processIntent = async (
   const rhinestone = new RhinestoneSDK({
     apiKey: rhinestoneApiKey,
     endpointUrl: orchestratorUrl,
+    provider: {
+      type: "alchemy",
+      apiKey: process.env.ALCHEMY_API_KEY!,
+    },
   });
   const rhinestoneAccount = await rhinestone.createAccount({
-    owners: {
-      type: "ecdsa" as const,
-      accounts: [owner],
-    },
+    eoa: owner,
+    account: { type: "eoa" },
+    // owners: {
+    //   type: "ecdsa" as const,
+    //   accounts: [owner],
+    // },
   });
 
   // get the target chain and source chains
@@ -129,11 +149,43 @@ export const processIntent = async (
   const prepareStartTime = new Date().getTime();
   console.log(`${ts()} Bundle ${bundleLabel}: [1/4] Preparing transaction...`);
 
+  const usdcAddress = getTokenAddress(
+    "USDC" as TokenSymbol,
+    sourceChains[0].id,
+  );
+  const allowance = await rhinestoneAccount.checkERC20Allowance(
+    usdcAddress,
+    sourceChains[0],
+  );
+  console.log("allowance", allowance);
+  if (allowance == 0n) {
+    const walletClient = createWalletClient({
+      account: owner,
+      chain: sourceChains[0],
+      transport: http(),
+    });
+    const approveTxHash = await walletClient.writeContract({
+      address: usdcAddress,
+      abi: erc20Abi,
+      functionName: "approve",
+      args: [getPermit2Address(), maxUint256],
+    });
+
+    const publicClient = createPublicClient({
+      chain: sourceChains[0],
+      transport: http(),
+    });
+    const receipt = await publicClient.waitForTransactionReceipt({
+      hash: approveTxHash,
+    });
+    console.log(receipt);
+  }
+
   // prepare the transaction with prepareTransaction method
   const transactionDetails: any = {
     sourceChains: sourceChains.length > 0 ? sourceChains : undefined,
     targetChain,
-    calls,
+    calls: [],
     tokenRequests,
     sponsored: intent.sponsored,
   };
@@ -142,6 +194,9 @@ export const processIntent = async (
   }
   const preparedTransaction =
     await rhinestoneAccount.prepareTransaction(transactionDetails);
+  // console.dir(preparedTransaction.intentRoute.intentOp, {
+  //   depth: null,
+  // });
 
   // check that sponsorship is working correctly
   if (intent.sponsored) {
