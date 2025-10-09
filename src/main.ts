@@ -178,11 +178,12 @@ export const processIntent = async (
     console.log(
       `${ts()} Bundle ${bundleLabel}: [3/4] Submitting transaction...`,
     );
+    const isSimulate = executionMode == "simulate";
     // submit the transaction using the SDK
     const transactionResult = await rhinestoneAccount.submitTransaction(
       signedTransaction,
       undefined,
-      executionMode == "simulate",
+      isSimulate,
     );
 
     const submitEndTime = new Date().getTime();
@@ -196,7 +197,10 @@ export const processIntent = async (
       `${ts()} Bundle ${bundleLabel}: [4/4] Waiting for execution...`,
     );
     const executionStartTime = new Date().getTime();
-    const result = await rhinestoneAccount.waitForExecution(transactionResult);
+    const result = await rhinestoneAccount.waitForExecution(
+      transactionResult,
+      isSimulate,
+    );
     const executionEndTime = new Date().getTime();
 
     console.log(
