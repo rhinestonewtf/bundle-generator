@@ -1,8 +1,16 @@
 import { RhinestoneSDK, getTokenAddress } from "@rhinestone/sdk";
 import { Account, privateKeyToAccount } from "viem/accounts";
-import { Address, encodeFunctionData, erc20Abi, Hex, zeroAddress } from "viem";
+import {
+  Address,
+  createPublicClient,
+  encodeFunctionData,
+  erc20Abi,
+  Hex,
+  http,
+  zeroAddress,
+} from "viem";
 import { Intent, Token, TokenSymbol } from "./types.js";
-import { getChain } from "./utils/chains.js";
+import { getChain, getChainById } from "./utils/chains.js";
 import { convertTokenAmount } from "./utils/tokens.js";
 import { fundAccount } from "./funding.js";
 import { getEnvironment } from "./utils/environments.js";
@@ -143,6 +151,7 @@ export const processIntent = async (
   const preparedTransaction =
     await rhinestoneAccount.prepareTransaction(transactionDetails);
 
+  // console.dir(preparedTransaction.intentRoute.intentOp, { depth: null });
   // check that sponsorship is working correctly
   if (intent.sponsored) {
     // todo: adjust type in sdk
@@ -197,28 +206,57 @@ export const processIntent = async (
       `${ts()} Bundle ${bundleLabel}: [4/4] Waiting for execution...`,
     );
     const executionStartTime = new Date().getTime();
-    const result = await rhinestoneAccount.waitForExecution(
+    const result = (await rhinestoneAccount.waitForExecution(
       transactionResult,
       isSimulate,
-    );
+    )) as any;
     const executionEndTime = new Date().getTime();
+
+    result.label = bundleLabel;
+    let fillTimestamp = executionEndTime;
+    if (result.fill.hash) {
+      const fillPublicClient = createPublicClient({
+        chain: getChainById(result.fill.chainId),
+        transport: http(),
+      });
+      const fillTx = await fillPublicClient.getTransactionReceipt({
+        hash: result.fill.hash as Hex,
+      });
+      const fillBlock = await fillPublicClient.getBlock({
+        blockHash: fillTx.blockHash,
+      });
+      fillTimestamp = Number(fillBlock.timestamp) * 1000;
+      result.fill.gasUsed = fillTx.gasUsed;
+    }
+    for (const claim of result.claims) {
+      if (claim.hash) {
+        const claimPublicClient = createPublicClient({
+          chain: getChainById(claim.chainId),
+          transport: http(),
+        });
+        const claimTx = await claimPublicClient.getTransactionReceipt({
+          hash: claim.hash as Hex,
+        });
+        claim.gasUsed = claimTx.gasUsed;
+      }
+    }
 
     console.log(
       `${ts()} Bundle ${bundleLabel}: [4/4] Execution completed in ${
-        executionEndTime - executionStartTime
+        fillTimestamp - executionStartTime
       }ms`,
     );
     console.log(
       `${ts()} Bundle ${bundleLabel}: Total time: ${
         executionEndTime - prepareStartTime
       }ms ` +
-        `(Prepare: ${prepareEndTime - prepareStartTime}ms, Sign: ${
+        `(Route: ${prepareEndTime - prepareStartTime}ms, Sign: ${
           signEndTime - prepareEndTime
         }ms, Submit: ${submitEndTime - signEndTime}ms, Execute: ${
-          executionEndTime - executionStartTime
-        }ms)`,
+          fillTimestamp - executionStartTime
+        }ms, Index: ${executionEndTime - fillTimestamp}ms)`,
     );
-    (result as any).label = bundleLabel;
+
     console.dir(result, { depth: null });
   } catch (error: any) {
     console.error(
