@@ -43,6 +43,7 @@ export const processIntent = async (
       type: "ecdsa" as const,
       accounts: [owner],
     },
+    useDevContracts: environment.url != undefined,
   });
 
   // get the target chain and source chains
