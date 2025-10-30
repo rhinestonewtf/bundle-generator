@@ -1,5 +1,5 @@
 import { checkbox, input, confirm, select } from "@inquirer/prompts";
-import { Hex } from "viem";
+import { Hex, isAddress } from "viem";
 import { privateKeyToAccount } from "viem/accounts";
 import { Intent } from "./types.js";
 import * as fs from "fs";
@@ -70,6 +70,7 @@ export const collectUserInput = async (): Promise<{
       { name: "WETH", value: "WETH" },
       { name: "USDC", value: "USDC" },
       { name: "USDT", value: "USDT" },
+      { name: "Custom", value: "Custom" },
     ],
     validate: (choices) => {
       if (
@@ -84,6 +85,17 @@ export const collectUserInput = async (): Promise<{
     required: true,
   });
 
+  const customTokenIndex = targetTokens.indexOf('Custom')
+
+  if (customTokenIndex >= 0) {
+    const arbitraryTokenAddress = await input({
+      message: 'Insert arbitrary target token address',
+      validate: (input) => isAddress(input)
+    });
+
+    targetTokens[customTokenIndex] = arbitraryTokenAddress;
+  }
+
   const formattedTargetTokens = targetTokens.map((symbol) => {
     return {
       symbol,
@@ -93,7 +105,7 @@ export const collectUserInput = async (): Promise<{
 
   for (const token of formattedTargetTokens) {
     const amount = await input({
-      message: `Amount of ${token.symbol}`,
+      message: `Amount of ${token.symbol} (if custom token, pass amount with correct decimal notation)`,
     });
     token.amount = amount;
   }
