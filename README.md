@@ -56,11 +56,11 @@ In order to generate a large set of test cases, run `./generate.sh` or `./genera
 - [x] Destination ops: whether there are target executions
 - [x] Settlement layers: which settelment layers to use
 - [x] Samechain no token transfers
+- [x] Multi token output
 - [ ] Account deployments
 - [ ] EIP-7702
 - [ ] EOAs
 - [ ] Non-7579 accounts
-- [x] Multi token output
 - [ ] Multi token input
 - [ ] Multi origin chain
 - [ ] Locked funds
