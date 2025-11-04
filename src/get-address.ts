@@ -44,6 +44,7 @@ export const main = async () => {
       type: "ecdsa" as const,
       accounts: [owner],
     },
+    useDevContracts: environment.url != undefined,
   });
 
   const address = await rhinestoneAccount.getAddress();
