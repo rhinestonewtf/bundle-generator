@@ -38,13 +38,13 @@ export const main = async () => {
   const rhinestone = new RhinestoneSDK({
     apiKey: rhinestoneApiKey,
     endpointUrl: orchestratorUrl,
+    useDevContracts: environmentString !== "prod",
   });
   const rhinestoneAccount = await rhinestone.createAccount({
     owners: {
       type: "ecdsa" as const,
       accounts: [owner],
     },
-    useDevContracts: environment.url != undefined,
   });
 
   const address = await rhinestoneAccount.getAddress();

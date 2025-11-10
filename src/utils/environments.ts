@@ -2,7 +2,7 @@ export const getEnvironment = (environmentString: string) => {
   switch (environmentString) {
     case "prod":
       return {
-        url: undefined,
+        url: "https://v1.orchestrator.rhinestone.dev",
         apiKey: process.env.PROD_API_KEY,
       };
     case "dev":
