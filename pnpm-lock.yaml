@@ -15,8 +15,8 @@ importers:
         specifier: ^0.2.8
         version: 0.2.11(viem@2.37.5(typescript@5.9.2))
       '@rhinestone/sdk':
-        specifier: ^1.0.17
-        version: 1.0.17(typescript@5.9.2)(viem@2.37.5(typescript@5.9.2))
+        specifier: ^1.0.23
+        version: 1.0.23(typescript@5.9.2)(viem@2.37.5(typescript@5.9.2))
       '@rhinestone/shared-configs':
         specifier: ^1.4.4
         version: 1.4.4(typescript@5.9.2)(viem@2.37.5(typescript@5.9.2))
@@ -358,9 +358,15 @@ packages:
     peerDependencies:
       viem: ^2.0.0
 
-  '@rhinestone/sdk@1.0.17':
-    resolution: {integrity: sha512-qNu5DPOrE/1ZRcGbKx5zOvT0Q+7by6HGZZvtsa8hOOXCq7wQjkel2rW8uC9Jix1keIPWQ4I8YbMLn69+UUlX1g==}
+  '@rhinestone/sdk@1.0.23':
+    resolution: {integrity: sha512-/kQhDK/HdPFBRcL8Uan1uOjuENJb/j5iXPZCWh9BQZEhWdmlTty3DxcPGRMilhpD40wywXBB/kRbAjDflZ0NUw==}
     peerDependencies:
+      viem: ^2.28.0
+
+  '@rhinestone/shared-configs@1.4.19':
+    resolution: {integrity: sha512-PHMe/LizQiVzfiQNNth3nUKb18c3RmZ0EiuqkJqueAQ7Zz1NwpFPwh8vyvI7fwl208dAD3/coiXwahinzqUjPA==}
+    peerDependencies:
+      typescript: ^5
       viem: ^2.28.0
 
   '@rhinestone/shared-configs@1.4.4':
@@ -871,15 +877,20 @@ snapshots:
       tslib: 2.8.1
       viem: 2.37.5(typescript@5.9.2)
 
-  '@rhinestone/sdk@1.0.17(typescript@5.9.2)(viem@2.37.5(typescript@5.9.2))':
+  '@rhinestone/sdk@1.0.23(typescript@5.9.2)(viem@2.37.5(typescript@5.9.2))':
     dependencies:
-      '@rhinestone/shared-configs': 1.4.4(typescript@5.9.2)(viem@2.37.5(typescript@5.9.2))
+      '@rhinestone/shared-configs': 1.4.19(typescript@5.9.2)(viem@2.37.5(typescript@5.9.2))
       ox: 0.9.12(typescript@5.9.2)
       solady: 0.1.26
       viem: 2.37.5(typescript@5.9.2)
     transitivePeerDependencies:
       - typescript
       - zod
+
+  '@rhinestone/shared-configs@1.4.19(typescript@5.9.2)(viem@2.37.5(typescript@5.9.2))':
+    dependencies:
+      typescript: 5.9.2
+      viem: 2.37.5(typescript@5.9.2)
 
   '@rhinestone/shared-configs@1.4.4(typescript@5.9.2)(viem@2.37.5(typescript@5.9.2))':
     dependencies:
