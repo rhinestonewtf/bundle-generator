@@ -38,13 +38,13 @@ export const processIntent = async (
   const rhinestone = new RhinestoneSDK({
     apiKey: rhinestoneApiKey,
     endpointUrl: orchestratorUrl,
+    useDevContracts: environment.url != undefined,
   });
   const rhinestoneAccount = await rhinestone.createAccount({
     owners: {
       type: "ecdsa" as const,
       accounts: [owner],
     },
-    useDevContracts: environment.url != undefined,
   });
 
   // get the target chain and source chains
@@ -75,10 +75,12 @@ export const processIntent = async (
               to:
                 token.symbol == "ETH"
                   ? target
-                  : isAddress(token.symbol) ? token.symbol : getTokenAddress(
-                      token.symbol as TokenSymbol,
-                      targetChain.id,
-                    ),
+                  : isAddress(token.symbol)
+                    ? token.symbol
+                    : getTokenAddress(
+                        token.symbol as TokenSymbol,
+                        targetChain.id,
+                      ),
               value: token.symbol == "ETH" ? convertTokenAmount({ token }) : 0n,
               data:
                 token.symbol == "ETH"
@@ -99,7 +101,9 @@ export const processIntent = async (
 
   // prepare the token requests
   const tokenRequests = intent.targetTokens.map((token: Token) => ({
-    address: isAddress(token.symbol) ? token.symbol : getTokenAddress(token.symbol as TokenSymbol, targetChain.id),
+    address: isAddress(token.symbol)
+      ? token.symbol
+      : getTokenAddress(token.symbol as TokenSymbol, targetChain.id),
     amount: convertTokenAmount({ token }),
   }));
 
@@ -216,7 +220,7 @@ export const processIntent = async (
 
     result.label = bundleLabel;
     let fillTimestamp = executionEndTime;
-    if (result.fill.hash) {
+    if (!isSimulate && result.fill.hash) {
       const fillPublicClient = createPublicClient({
         chain: getChainById(result.fill.chainId),
         transport: http(),
