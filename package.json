@@ -14,7 +14,7 @@
   "license": "ISC",
   "dependencies": {
     "@inquirer/prompts": "^7.4.1",
-    "@rhinestone/sdk": "^1.0.23",
+    "@rhinestone/sdk": "^1.0.25",
     "@rhinestone/shared-configs": "^1.4.4",
     "abitype": "^1.0.8",
     "axios": "^1.10.0",

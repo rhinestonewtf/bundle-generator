@@ -45,6 +45,10 @@ export const processIntent = async (
       type: "ecdsa" as const,
       accounts: [owner],
     },
+    // eoa: owner,
+    // account: {
+    //   type: "eoa",
+    // },
   });
 
   // get the target chain and source chains
@@ -157,7 +161,7 @@ export const processIntent = async (
   const preparedTransaction =
     await rhinestoneAccount.prepareTransaction(transactionDetails);
 
-  // console.dir(preparedTransaction.intentRoute.intentOp, { depth: null });
+  // console.dir(preparedTransaction.intentRoute, { depth: null });
   // check that sponsorship is working correctly
   if (intent.sponsored) {
     // todo: adjust type in sdk
