@@ -10,7 +10,7 @@ import {
   isAddress,
   zeroAddress,
 } from "viem";
-import { Intent, Token, TokenSymbol } from "./types.js";
+import { Intent, ParsedToken, Token, TokenSymbol } from "./types.js";
 import { getChain, getChainById } from "./utils/chains.js";
 import { convertTokenAmount } from "./utils/tokens.js";
 import { fundAccount } from "./funding.js";
@@ -69,30 +69,38 @@ export const processIntent = async (
   // get the target address
   const target = intent.tokenRecipient as Address;
 
+  const targetTokens: ParsedToken[] = [];
+  for (const targetToken of intent.targetTokens) {
+    const address = isAddress(targetToken.symbol)
+      ? targetToken.symbol
+      : getTokenAddress(targetToken.symbol as TokenSymbol, targetChain.id);
+    const amount = await convertTokenAmount({
+      token: targetToken,
+      chainId: targetChain.id,
+    });
+    targetTokens.push({
+      address,
+      amount,
+      symbol: targetToken.symbol,
+    });
+  }
+
   // prepare the calls for the target chain
   const calls =
     intent.destinationOps == false
       ? []
-      : intent.targetTokens.length
-        ? intent.targetTokens.map((token: Token) => {
+      : targetTokens.length
+        ? targetTokens.map((token: ParsedToken) => {
             return {
-              to:
-                token.symbol == "ETH"
-                  ? target
-                  : isAddress(token.symbol)
-                    ? token.symbol
-                    : getTokenAddress(
-                        token.symbol as TokenSymbol,
-                        targetChain.id,
-                      ),
-              value: token.symbol == "ETH" ? convertTokenAmount({ token }) : 0n,
+              to: token.symbol == "ETH" ? target : token.address,
+              value: token.symbol == "ETH" ? token.amount : 0n,
               data:
                 token.symbol == "ETH"
                   ? ("0x" as Hex)
                   : encodeFunctionData({
                       abi: erc20Abi,
                       functionName: "transfer",
-                      args: [target, convertTokenAmount({ token })],
+                      args: [target, token.amount],
                     }),
             };
           })
@@ -104,11 +112,9 @@ export const processIntent = async (
           ];
 
   // prepare the token requests
-  const tokenRequests = intent.targetTokens.map((token: Token) => ({
-    address: isAddress(token.symbol)
-      ? token.symbol
-      : getTokenAddress(token.symbol as TokenSymbol, targetChain.id),
-    amount: convertTokenAmount({ token }),
+  const tokenRequests = targetTokens.map((token: ParsedToken) => ({
+    address: token.address,
+    amount: token.amount,
   }));
 
   // prepare the source assets label
@@ -161,7 +167,9 @@ export const processIntent = async (
   const preparedTransaction =
     await rhinestoneAccount.prepareTransaction(transactionDetails);
 
-  // console.dir(preparedTransaction.intentRoute, { depth: null });
+  // console.dir(preparedTransaction.intentRoute.intentOp.elements, {
+  //   depth: null,
+  // });
   // check that sponsorship is working correctly
   if (intent.sponsored) {
     // todo: adjust type in sdk
