@@ -1,6 +1,14 @@
+import { Address } from "abitype";
+
 export type Token = {
   symbol: string;
   amount: string;
+};
+
+export type ParsedToken = {
+  symbol: string;
+  address: Address;
+  amount: bigint;
 };
 
 export type Intent = {
