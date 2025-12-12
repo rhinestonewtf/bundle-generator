@@ -181,6 +181,19 @@ export const processIntent = async (
     }
   }
 
+  const quotes = preparedTransaction.intentRoute.intentOp.signedMetadata.quotes;
+  if (quotes) {
+    for (const outerQuote of Object.values(quotes)) {
+      for (const innerQuote of Object.values(outerQuote)) {
+        console.log(
+          `${ts()} Bundle ${bundleLabel}: [1/4] Swap detected with slippage ${Math.round(
+            (innerQuote as any).slippage * 100,
+          )}%`,
+        );
+      }
+    }
+  }
+
   const prepareEndTime = new Date().getTime();
   console.log(
     `${ts()} Bundle ${bundleLabel}: [1/4] Prepared in ${

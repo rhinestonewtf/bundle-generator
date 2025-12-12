@@ -12,8 +12,8 @@ importers:
         specifier: ^7.4.1
         version: 7.8.4(@types/node@22.18.1)
       '@rhinestone/sdk':
-        specifier: ^1.0.37
-        version: 1.0.37(typescript@5.9.2)(viem@2.37.5(typescript@5.9.2))
+        specifier: ^1.0.39
+        version: 1.0.39(typescript@5.9.2)(viem@2.37.5(typescript@5.9.2))
       '@rhinestone/shared-configs':
         specifier: ^1.4.4
         version: 1.4.4(typescript@5.9.2)(viem@2.37.5(typescript@5.9.2))
@@ -47,6 +47,9 @@ packages:
 
   '@adraffy/ens-normalize@1.11.0':
     resolution: {integrity: sha512-/3DDPKHqqIqxUULp8yP4zODUY1i+2xvVWsv8A79xGWdCAG+8sb0hRh0Rk2QyOJUnnbyPUAZYcpBuRe3nS2OIUg==}
+
+  '@adraffy/ens-normalize@1.11.1':
+    resolution: {integrity: sha512-nhCBV3quEgesuf7c7KYfperqSS14T8bYuvJ8PcLJp6znkZpFc0AuW4qBtr8eKVyPPe/8RSr7sglCWPU5eaxwKQ==}
 
   '@esbuild/aix-ppc64@0.25.9':
     resolution: {integrity: sha512-OaGtL73Jck6pBKjNIe24BnFE6agGl+6KxDtTfHhy1HmhthfKouEcOhqpSL64K4/0WCtbKFLOdzD/44cJ4k9opA==}
@@ -350,8 +353,8 @@ packages:
     resolution: {integrity: sha512-jCs9ldd7NwzpgXDIf6P3+NrHh9/sD6CQdxHyjQI+h/6rDNo88ypBxxz45UDuZHz9r3tNz7N/VInSVoVdtXEI4A==}
     engines: {node: ^14.21.3 || >=16}
 
-  '@rhinestone/sdk@1.0.37':
-    resolution: {integrity: sha512-8iUHE7hKHF9Gj3gGcCtXkhiFBTjRaEa9UFnqt2gi2kSinRRZvJrzh7sodH23rfXLcMPKpqxu6671kaaReLwhGQ==}
+  '@rhinestone/sdk@1.0.39':
+    resolution: {integrity: sha512-Ndwu6irohQd7EOs8k2hXCktGWmZAWCfoZHLnHtWqaajVFEHEA5flrG+xMKWBUKyGqFO2aUySiQRNEAra7bW/ng==}
     peerDependencies:
       viem: ^2.38.0
 
@@ -361,8 +364,8 @@ packages:
       typescript: ^5
       viem: ^2.28.0
 
-  '@rhinestone/shared-configs@1.4.46':
-    resolution: {integrity: sha512-NBQHnPcHYQvcR2h+602W4dZDguIyCJ0hl1HUHy/BAyLIdVDLFXYcmqPzMjS7LyKgdvTBZ+3UCLEyxq7SVvqskA==}
+  '@rhinestone/shared-configs@1.4.49':
+    resolution: {integrity: sha512-L8g1ymCJdkHXPcTpn85jy91/1Mdk2xALtKZPTsFa44W9mf7vLUTxcs/7LxOtaUC7T2Pw3mnyHprgKYUDMLfeZQ==}
     peerDependencies:
       typescript: ^5
       viem: ^2.38.0
@@ -546,8 +549,8 @@ packages:
     resolution: {integrity: sha512-WWdIxpyjEn+FhQJQQv9aQAYlHoNVdzIzUySNV1gHUPDSdZJ3yZn7pAAbQcV7B56Mvu881q9FZV+0Vx2xC44VWA==}
     engines: {node: ^18.17.0 || >=20.5.0}
 
-  ox@0.9.12:
-    resolution: {integrity: sha512-esyA5WXfFhlxpgzoVIEreRaasqqv95sjFpk3L4Me4RWk8bgBDe+J4wO3RZ5ikYmJ2Bbjyv+jKgxyaOzX6JpHPA==}
+  ox@0.9.17:
+    resolution: {integrity: sha512-rKAnhzhRU3Xh3hiko+i1ZxywZ55eWQzeS/Q4HRKLx2PqfHOolisZHErSsJVipGlmQKHW5qwOED/GighEw9dbLg==}
     peerDependencies:
       typescript: '>=5.4.0'
     peerDependenciesMeta:
@@ -643,6 +646,8 @@ packages:
 snapshots:
 
   '@adraffy/ens-normalize@1.11.0': {}
+
+  '@adraffy/ens-normalize@1.11.1': {}
 
   '@esbuild/aix-ppc64@0.25.9':
     optional: true
@@ -857,10 +862,10 @@ snapshots:
 
   '@noble/hashes@1.8.0': {}
 
-  '@rhinestone/sdk@1.0.37(typescript@5.9.2)(viem@2.37.5(typescript@5.9.2))':
+  '@rhinestone/sdk@1.0.39(typescript@5.9.2)(viem@2.37.5(typescript@5.9.2))':
     dependencies:
-      '@rhinestone/shared-configs': 1.4.46(typescript@5.9.2)(viem@2.37.5(typescript@5.9.2))
-      ox: 0.9.12(typescript@5.9.2)
+      '@rhinestone/shared-configs': 1.4.49(typescript@5.9.2)(viem@2.37.5(typescript@5.9.2))
+      ox: 0.9.17(typescript@5.9.2)
       solady: 0.1.26
       viem: 2.37.5(typescript@5.9.2)
     transitivePeerDependencies:
@@ -872,7 +877,7 @@ snapshots:
       typescript: 5.9.2
       viem: 2.37.5(typescript@5.9.2)
 
-  '@rhinestone/shared-configs@1.4.46(typescript@5.9.2)(viem@2.37.5(typescript@5.9.2))':
+  '@rhinestone/shared-configs@1.4.49(typescript@5.9.2)(viem@2.37.5(typescript@5.9.2))':
     dependencies:
       typescript: 5.9.2
       viem: 2.37.5(typescript@5.9.2)
@@ -1064,9 +1069,9 @@ snapshots:
 
   mute-stream@2.0.0: {}
 
-  ox@0.9.12(typescript@5.9.2):
+  ox@0.9.17(typescript@5.9.2):
     dependencies:
-      '@adraffy/ens-normalize': 1.11.0
+      '@adraffy/ens-normalize': 1.11.1
       '@noble/ciphers': 1.3.0
       '@noble/curves': 1.9.1
       '@noble/hashes': 1.8.0
