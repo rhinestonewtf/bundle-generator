@@ -186,9 +186,9 @@ export const processIntent = async (
     for (const outerQuote of Object.values(quotes)) {
       for (const innerQuote of Object.values(outerQuote)) {
         console.log(
-          `${ts()} Bundle ${bundleLabel}: [1/4] Swap detected with slippage ${Math.round(
-            (innerQuote as any).slippage * 100,
-          )}%`,
+          `${ts()} Bundle ${bundleLabel}: [1/4] Swap detected with slippage ${
+            Math.round((innerQuote as any).slippage * 10000) / 100
+          }%`,
         );
       }
     }
