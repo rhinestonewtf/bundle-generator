@@ -167,6 +167,13 @@ export const processIntent = async (
   const preparedTransaction =
     await rhinestoneAccount.prepareTransaction(transactionDetails);
 
+  const prepareEndTime = new Date().getTime();
+  console.log(
+    `${ts()} Bundle ${bundleLabel}: [1/4] Prepared in ${
+      prepareEndTime - prepareStartTime
+    }ms`,
+  );
+
   // console.dir(preparedTransaction.intentRoute.intentOp.elements, {
   //   depth: null,
   // });
@@ -194,11 +201,10 @@ export const processIntent = async (
     }
   }
 
-  const prepareEndTime = new Date().getTime();
   console.log(
-    `${ts()} Bundle ${bundleLabel}: [1/4] Prepared in ${
-      prepareEndTime - prepareStartTime
-    }ms`,
+    `${ts()} Bundle ${bundleLabel}: [1/4] Intent id: ${
+      preparedTransaction.intentRoute.intentOp.nonce
+    }`,
   );
 
   // sign the transaction with signTransaction method
