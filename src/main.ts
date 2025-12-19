@@ -161,6 +161,7 @@ export const processIntent = async (
     tokenRequests,
     sponsored: intent.sponsored,
   };
+
   if (intent.settlementLayers?.length > 0) {
     transactionDetails.settlementLayers = intent.settlementLayers;
   }
@@ -194,7 +195,7 @@ export const processIntent = async (
       for (const innerQuote of Object.values(outerQuote)) {
         console.log(
           `${ts()} Bundle ${bundleLabel}: [1/4] Swap detected with slippage ${
-            Math.round((innerQuote as any).slippage * 10000) / 100
+            Math.round((innerQuote as any).slippage * 100) / 100
           }%`,
         );
       }
