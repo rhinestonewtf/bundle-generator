@@ -261,7 +261,7 @@ export const processIntent = async (
         hash: result.fill.hash as Hex,
       });
       const fillBlock = await fillPublicClient.getBlock({
-        blockHash: fillTx.blockHash,
+        blockNumber: fillTx.blockNumber,
       });
       fillTimestamp = Number(fillBlock.timestamp) * 1000;
       result.fill.gasUsed = fillTx.gasUsed;
