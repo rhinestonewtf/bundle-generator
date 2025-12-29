@@ -4,6 +4,7 @@ import { privateKeyToAccount } from "viem/accounts";
 import { Intent } from "./types.js";
 import * as fs from "fs";
 import path from "path";
+import { arbitrum, arbitrumSepolia, base, baseSepolia, mainnet, optimism, optimismSepolia, polygon, sepolia, soneium, sonic } from "viem/chains";
 
 export const collectUserInput = async (): Promise<{
   intent: Intent;
@@ -11,50 +12,54 @@ export const collectUserInput = async (): Promise<{
   environment: string;
   executionMode: string;
 }> => {
+
+  const normalizeName = (str: string) => str.replace(/ /g, "");
+
+  // Construct choices dy
   const choices = [
     {
       name: "Ethereum",
-      value: "Ethereum",
+      value: normalizeName(mainnet.name),
     },
     {
       name: "Base",
-      value: "Base",
+      value: normalizeName(base.name),
     },
     {
       name: "Arbitrum",
-      value: "Arbitrum",
+      value: normalizeName(arbitrum.name),
     },
     {
       name: "Optimism",
-      value: "Optimism",
+      value: normalizeName(optimism.name),
     },
     {
       name: "Polygon",
-      value: "Polygon",
+      value: normalizeName(polygon.name),
     },
     {
       name: "Sonic",
-      value: "Sonic",
+      value: normalizeName(sonic.name),
     },
     {
       name: "Soneium",
-      value: "Soneium",
+      value: normalizeName(soneium.name),
     },
     {
       name: "Sepolia",
-      value: "Sepolia",
+      value: normalizeName(sepolia.name),
     },
     {
       name: "Base Sepolia",
-      value: "BaseSepolia",
+      value: normalizeName(baseSepolia.name),
     },
     {
       name: "Arbitrum Sepolia",
-      value: "ArbitrumSepolia",
+      value: normalizeName(arbitrumSepolia.name),
     },
     {
       name: "Optimism Sepolia",
-      value: "OptimismSepolia",
+      value: normalizeName(optimismSepolia.name),
     },
   ];
 
