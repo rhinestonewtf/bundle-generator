@@ -8,10 +8,12 @@ import {
   toHex,
   keccak256,
   encodePacked,
+  zeroAddress,
 } from "viem";
 import { arbitrum, base, mainnet } from "viem/chains";
 import { getChain } from "./utils/chains.js";
-import { TokenSymbol } from "./types.js";
+import { SourceTokens, TokenSymbol } from "./types.js";
+import { getTokenSymbol } from "@rhinestone/sdk/dist/src/orchestrator";
 
 export const lookup = (chain: Chain): string => {
   switch (chain) {
@@ -65,6 +67,66 @@ function getTokenBalanceSlot(
   return slot;
 }
 
+async function handleSourceTokensWithSymbols(
+  account: Address,
+  chain: ReturnType<typeof getChain>,
+  testClient: ReturnType<typeof createTestClient>, 
+  sourceToken: string
+) {
+  if (sourceToken === "ETH") {
+    await testClient.setBalance({
+      address: account,
+      value: 100000000000000000000000000000000000000000n,
+    });
+  } else {
+    const tokenAddress = getTokenAddress(
+      sourceToken as TokenSymbol,
+      chain.id,
+    );
+    const tokenBalanceSlot = getTokenBalanceSlot(
+      sourceToken as TokenSymbol,
+      chain.id,
+      account,
+    );
+
+    await testClient.setStorageAt({
+      address: tokenAddress,
+      index: tokenBalanceSlot,
+      value: pad(toHex(100000000000000000000000000000000000000000n)),
+    });
+  }
+}
+
+async function handleSourceTokensWithAmount(
+  account: Address,
+  chain: ReturnType<typeof getChain>,
+  testClient: ReturnType<typeof createTestClient>, 
+  sourceToken: { chainId: number, tokenAddress: Address, amount?: bigint }
+) {
+  if (sourceToken.tokenAddress === zeroAddress) {
+    await testClient.setBalance({
+      address: account,
+      value: 100000000000000000000000000000000000000000n,
+    });
+  } else {
+    const tokenSymbol = getTokenSymbol(
+      sourceToken.tokenAddress,
+      chain.id,
+    );
+    const tokenBalanceSlot = getTokenBalanceSlot(
+      tokenSymbol as TokenSymbol,
+      chain.id,
+      account,
+    );
+
+    await testClient.setStorageAt({
+      address: sourceToken.tokenAddress,
+      index: tokenBalanceSlot,
+      value: pad(toHex(100000000000000000000000000000000000000000n)),
+    });
+  }
+}
+
 export const fundAccount = async ({
   account,
   sourceChains,
@@ -72,9 +134,9 @@ export const fundAccount = async ({
 }: {
   account: Address;
   sourceChains: string[];
-  sourceTokens: string[];
+  sourceTokens: SourceTokens;
 }) => {
-  if (process.env.LOCAL_TESTNET?.toString()==="true") {
+  if (process.env.LOCAL_TESTNET?.toString() === "true") {
     for (const sourceChain of sourceChains) {
       const chain = getChain(sourceChain);
 
@@ -86,27 +148,20 @@ export const fundAccount = async ({
         transport: http(lookup(chain)),
       });
       for (const sourceToken of sourceTokens) {
-        if (sourceToken === "ETH") {
-          await testClient.setBalance({
-            address: account,
-            value: 100000000000000000000000000000000000000000n,
-          });
-        } else {
-          const tokenAddress = getTokenAddress(
-            sourceToken as TokenSymbol,
-            chain.id,
-          );
-          const tokenBalanceSlot = getTokenBalanceSlot(
-            sourceToken as TokenSymbol,
-            chain.id,
+        if (typeof sourceToken === 'string') {
+          await handleSourceTokensWithSymbols(
             account,
-          );
-
-          await testClient.setStorageAt({
-            address: tokenAddress,
-            index: tokenBalanceSlot,
-            value: pad(toHex(100000000000000000000000000000000000000000n)),
-          });
+            chain,
+            testClient,
+            sourceToken,
+          )
+        } else {
+          await handleSourceTokensWithAmount(
+            account,
+            chain,
+            testClient,
+            sourceToken,
+          )
         }
       }
     }

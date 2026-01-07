@@ -1,10 +1,11 @@
 import { checkbox, input, confirm, select } from "@inquirer/prompts";
-import { Hex, isAddress } from "viem";
+import { Hex, isAddress, parseUnits, zeroAddress } from "viem";
 import { privateKeyToAccount } from "viem/accounts";
 import { Intent } from "./types.js";
 import * as fs from "fs";
 import path from "path";
 import { arbitrum, arbitrumSepolia, base, baseSepolia, mainnet, optimism, optimismSepolia, polygon, sepolia, soneium, sonic } from "viem/chains";
+import { getTokenAddress, getTokenDecimals, TokenSymbol } from "@rhinestone/sdk";
 
 export const collectUserInput = async (): Promise<{
   intent: Intent;
@@ -15,53 +16,24 @@ export const collectUserInput = async (): Promise<{
 
   const normalizeName = (str: string) => str.replace(/ /g, "");
 
-  // Construct choices dy
-  const choices = [
-    {
-      name: "Ethereum",
-      value: normalizeName(mainnet.name),
-    },
-    {
-      name: "Base",
-      value: normalizeName(base.name),
-    },
-    {
-      name: "Arbitrum",
-      value: normalizeName(arbitrum.name),
-    },
-    {
-      name: "Optimism",
-      value: normalizeName(optimism.name),
-    },
-    {
-      name: "Polygon",
-      value: normalizeName(polygon.name),
-    },
-    {
-      name: "Sonic",
-      value: normalizeName(sonic.name),
-    },
-    {
-      name: "Soneium",
-      value: normalizeName(soneium.name),
-    },
-    {
-      name: "Sepolia",
-      value: normalizeName(sepolia.name),
-    },
-    {
-      name: "Base Sepolia",
-      value: normalizeName(baseSepolia.name),
-    },
-    {
-      name: "Arbitrum Sepolia",
-      value: normalizeName(arbitrumSepolia.name),
-    },
-    {
-      name: "Optimism Sepolia",
-      value: normalizeName(optimismSepolia.name),
-    },
+  const chainConfig = [
+    { name: "Ethereum", chain: mainnet },
+    { name: "Base", chain: base },
+    { name: "Arbitrum", chain: arbitrum },
+    { name: "Optimism", chain: optimism },
+    { name: "Polygon", chain: polygon },
+    { name: "Sonic", chain: sonic },
+    { name: "Soneium", chain: soneium },
+    { name: "Sepolia", chain: sepolia },
+    { name: "Base Sepolia", chain: baseSepolia },
+    { name: "Arbitrum Sepolia", chain: arbitrumSepolia },
+    { name: "Optimism Sepolia", chain: optimismSepolia },
   ];
+
+  const choices = chainConfig.map(({ name, chain }) => ({
+    name: name,
+    value: normalizeName(chain.name),
+  }));
 
   const targetChain = await select({
     message: `Select a target chain`,
@@ -75,7 +47,7 @@ export const collectUserInput = async (): Promise<{
       { name: "WETH", value: "WETH" },
       { name: "USDC", value: "USDC" },
       { name: "USDT", value: "USDT" },
-      { name: "Custom", value: "Custom" },
+      { name: "Arbitrary token", value: "Arbitrary token" },
     ],
     validate: (choices) => {
       if (
@@ -90,29 +62,29 @@ export const collectUserInput = async (): Promise<{
     required: true,
   });
 
-  const customTokenIndex = targetTokens.indexOf('Custom')
+  const abritraryTokenIndex = targetTokens.indexOf('Arbitrary')
 
-  if (customTokenIndex >= 0) {
+  if (abritraryTokenIndex>= 0) {
     const arbitraryTokenAddress = await input({
       message: 'Insert arbitrary target token address',
       validate: (input) => isAddress(input)
     });
 
-    targetTokens[customTokenIndex] = arbitraryTokenAddress;
+    targetTokens[abritraryTokenIndex] = arbitraryTokenAddress;
   }
 
-  const formattedTargetTokens = targetTokens.map((symbol) => {
-    return {
-      symbol,
-      amount: "0",
-    };
-  });
+  const formattedTargetTokens: { symbol: string, amount?: string }[] = 
+    targetTokens.map((symbol) => {
+      return {
+        symbol,
+      };
+    });
 
   for (const token of formattedTargetTokens) {
     const amount = await input({
-      message: `Amount of ${token.symbol} (if custom token, pass amount with correct decimal notation)`,
+      message: `Amount of ${token.symbol} (if arbitrary token, pass amount with correct decimal notation)`,
     });
-    token.amount = amount;
+    if (amount !== '') token.amount = amount;
   }
 
   const sourceChains = await checkbox({
@@ -140,6 +112,60 @@ export const collectUserInput = async (): Promise<{
       return true;
     },
   });
+
+  const sourceTokensWithAmount: { chainId: number, tokenAddress: Hex, amount?: string }[] = [];
+
+  if (sourceChains.length > 0 && sourceTokens.length > 0) {
+    const shouldConfigureAmounts = await select({
+      message: "Do you want to specify exact amounts for source tokens?",
+      choices: [
+        { name: "Yes", value: true },
+        { name: "No", value: false },
+      ],
+    });
+
+    if (shouldConfigureAmounts) {
+      const chainMap = Object.fromEntries(
+        chainConfig.map(({ chain }) => [normalizeName(chain.name), chain])
+      );
+
+      for (const chainName of sourceChains) {
+        const chain = chainMap[chainName];
+        if (!chain) continue;
+
+        for (const tokenSymbol of sourceTokens) {
+          const tokenAddress = getTokenAddress(
+            tokenSymbol as TokenSymbol,
+            chain.id
+          ) as Hex;
+
+          const tokenDecimals = getTokenDecimals(
+            tokenSymbol as TokenSymbol,
+            chain.id
+          );
+
+          const amountStr = await input({
+            message: `Amount of ${tokenSymbol} to pull from ${chain.name}`,
+          });
+
+          const sourceWithAmount: { 
+            chainId: number, 
+            tokenAddress: Hex, 
+            amount?: string 
+          } = {
+            chainId: chain.id,
+            tokenAddress: tokenAddress,
+          }
+
+          if (amountStr !== '' && amountStr !== '0') {
+            sourceWithAmount.amount = parseUnits(amountStr, tokenDecimals).toString()
+          }
+
+          sourceTokensWithAmount.push(sourceWithAmount);
+        }
+      }
+    }
+  }
 
   const settlementLayers = await checkbox({
     message: "Select settlement layers to use (optional)",
@@ -246,7 +272,9 @@ export const collectUserInput = async (): Promise<{
       targetChain,
       targetTokens: formattedTargetTokens,
       sourceChains,
-      sourceTokens,
+      sourceTokens: sourceTokensWithAmount.length 
+        ? sourceTokensWithAmount
+        : sourceTokens,
       tokenRecipient,
       settlementLayers,
       sponsored,
