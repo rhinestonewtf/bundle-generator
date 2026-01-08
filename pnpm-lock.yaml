@@ -364,8 +364,8 @@ packages:
       typescript: ^5
       viem: ^2.28.0
 
-  '@rhinestone/shared-configs@1.4.51':
-    resolution: {integrity: sha512-kwzbT3JrvRhqi9M6HYp0cLmJBI0wC65S+fdKUTpRQM/bMpcNG8OLRnD1v1yVftw6sZ+TDgxuZqbT5JlD+mSTYA==}
+  '@rhinestone/shared-configs@1.4.52':
+    resolution: {integrity: sha512-MzXjrXBEe2jlAHCcMyyyO7jOJRdzk+5ylA28pFISO3gV+YeKuqhZx5A91QRIvgYJSznX+jTPRW/xpfjYM2J9EA==}
     peerDependencies:
       typescript: ^5
       viem: ^2.38.0
@@ -864,7 +864,7 @@ snapshots:
 
   '@rhinestone/sdk@1.1.0(typescript@5.9.2)(viem@2.37.5(typescript@5.9.2))':
     dependencies:
-      '@rhinestone/shared-configs': 1.4.51(typescript@5.9.2)(viem@2.37.5(typescript@5.9.2))
+      '@rhinestone/shared-configs': 1.4.52(typescript@5.9.2)(viem@2.37.5(typescript@5.9.2))
       ox: 0.9.17(typescript@5.9.2)
       solady: 0.1.26
       viem: 2.37.5(typescript@5.9.2)
@@ -877,7 +877,7 @@ snapshots:
       typescript: 5.9.2
       viem: 2.37.5(typescript@5.9.2)
 
-  '@rhinestone/shared-configs@1.4.51(typescript@5.9.2)(viem@2.37.5(typescript@5.9.2))':
+  '@rhinestone/shared-configs@1.4.52(typescript@5.9.2)(viem@2.37.5(typescript@5.9.2))':
     dependencies:
       typescript: 5.9.2
       viem: 2.37.5(typescript@5.9.2)
