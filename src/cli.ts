@@ -1,11 +1,11 @@
 import { checkbox, input, confirm, select } from "@inquirer/prompts";
-import { Hex, isAddress, parseUnits, zeroAddress } from "viem";
+import { Chain, Hex, isAddress, parseUnits, zeroAddress } from "viem";
 import { privateKeyToAccount } from "viem/accounts";
 import { Intent } from "./types.js";
 import * as fs from "fs";
 import path from "path";
-import { arbitrum, arbitrumSepolia, base, baseSepolia, mainnet, optimism, optimismSepolia, polygon, sepolia, soneium, sonic } from "viem/chains";
-import { getTokenAddress, getTokenDecimals, TokenSymbol } from "@rhinestone/sdk";
+import * as viemChains from "viem/chains";
+import { getAllSupportedChainsAndTokens, getTokenAddress, getTokenDecimals, TokenSymbol } from "@rhinestone/sdk";
 
 export const collectUserInput = async (): Promise<{
   intent: Intent;
@@ -14,21 +14,21 @@ export const collectUserInput = async (): Promise<{
   executionMode: string;
 }> => {
 
+  const sdkData = getAllSupportedChainsAndTokens();
   const normalizeName = (str: string) => str.replace(/ /g, "");
+  const supportedChainIds = new Set(sdkData.map((c) => c.chainId));
+  const uniqueViemChains = Object.values(viemChains).reduce((acc, chain) => {
+    if (typeof chain !== "object" || !("id" in chain)) return acc;
+    if (!acc.has(chain.id) && supportedChainIds.has(chain.id)) {
+      acc.set(chain.id, chain);
+    }
+    return acc;
+  }, new Map<number, Chain>());
 
-  const chainConfig = [
-    { name: "Ethereum", chain: mainnet },
-    { name: "Base", chain: base },
-    { name: "Arbitrum", chain: arbitrum },
-    { name: "Optimism", chain: optimism },
-    { name: "Polygon", chain: polygon },
-    { name: "Sonic", chain: sonic },
-    { name: "Soneium", chain: soneium },
-    { name: "Sepolia", chain: sepolia },
-    { name: "Base Sepolia", chain: baseSepolia },
-    { name: "Arbitrum Sepolia", chain: arbitrumSepolia },
-    { name: "Optimism Sepolia", chain: optimismSepolia },
-  ];
+  const chainConfig = Array.from(uniqueViemChains.values()).map((chain) => ({
+    name: chain.name,
+    chain: chain,
+  }));
 
   const choices = chainConfig.map(({ name, chain }) => ({
     name: name,

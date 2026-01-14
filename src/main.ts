@@ -146,7 +146,7 @@ export const processIntent = async (
   const targetAssetsLabel = intent.targetTokens
     .map(
       (token) =>
-        `${token.amount} ${intent.targetChain
+        `${token.amount || 'Total Balance'} ${intent.targetChain
           .slice(0, 3)
           .toLowerCase()}.${token.symbol.toLowerCase()}`,
     )
