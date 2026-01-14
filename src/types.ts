@@ -8,14 +8,16 @@ export type Token = {
 export type ParsedToken = {
   symbol: string;
   address: Address;
-  amount: bigint;
+  amount?: bigint;
 };
+
+export type SourceTokens = string[] | { chainId: number, tokenAddress: Address, amount?: string }[];
 
 export type Intent = {
   targetChain: string;
   targetTokens: Token[];
   sourceChains: string[];
-  sourceTokens: string[];
+  sourceTokens: SourceTokens; 
   tokenRecipient: string;
   settlementLayers: string[];
   sponsored: boolean;

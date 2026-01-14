@@ -15,6 +15,7 @@ import { getChain, getChainById } from "./utils/chains.js";
 import { convertTokenAmount } from "./utils/tokens.js";
 import { fundAccount } from "./funding.js";
 import { getEnvironment } from "./utils/environments.js";
+import { getTokenSymbol } from "@rhinestone/sdk/dist/src/orchestrator";
 
 export function ts() {
   return new Date().toISOString().replace(/T/, " ").replace(/\..+/, "");
@@ -71,25 +72,28 @@ export const processIntent = async (
 
   const targetTokens: ParsedToken[] = [];
   for (const targetToken of intent.targetTokens) {
-    const address = isAddress(targetToken.symbol)
-      ? targetToken.symbol
-      : getTokenAddress(targetToken.symbol as TokenSymbol, targetChain.id);
-    const amount = await convertTokenAmount({
-      token: targetToken,
-      chainId: targetChain.id,
-    });
-    targetTokens.push({
-      address,
-      amount,
+    const target: ParsedToken = {
       symbol: targetToken.symbol,
-    });
+      address: isAddress(targetToken.symbol)
+        ? targetToken.symbol
+        : getTokenAddress(targetToken.symbol as TokenSymbol, targetChain.id)
+    }
+
+    if (targetToken.amount) {
+      target.amount = await convertTokenAmount({
+        token: targetToken,
+        chainId: targetChain.id,
+      });
+    }
+
+    targetTokens.push(target);
   }
 
   // prepare the calls for the target chain
   const calls =
     intent.destinationOps == false
       ? []
-      : targetTokens.length
+      : targetTokens.length && targetTokens.every(token => token.amount)
         ? targetTokens.map((token: ParsedToken) => {
             return {
               to: token.symbol == "ETH" ? target : token.address,
@@ -100,7 +104,7 @@ export const processIntent = async (
                   : encodeFunctionData({
                       abi: erc20Abi,
                       functionName: "transfer",
-                      args: [target, token.amount],
+                      args: [target, token.amount!],
                     }),
             };
           })
@@ -112,10 +116,16 @@ export const processIntent = async (
           ];
 
   // prepare the token requests
-  const tokenRequests = targetTokens.map((token: ParsedToken) => ({
-    address: token.address,
-    amount: token.amount,
-  }));
+  const tokenRequests = targetTokens.map((token: ParsedToken) => {
+    if (token.amount) {
+      return {
+        address: token.address,
+        amount: token.amount
+      }
+    }
+
+    return { address: token.address }
+  });
 
   // prepare the source assets label
   const sourceAssetsLabel =
@@ -126,7 +136,7 @@ export const processIntent = async (
               return `${chain.slice(0, 3).toLowerCase()}.*`;
             }
             return intent.sourceTokens
-              .map((token) => `${chain.slice(0, 3).toLowerCase()}.${token}`)
+              .map((token) => typeof token === 'string' ? `${chain.slice(0, 3).toLowerCase()}.${token}` : `${chain.slice(0, 3).toLowerCase()}.${token.tokenAddress}`)
               .join(", ");
           })
           .join(" | ")
@@ -136,7 +146,7 @@ export const processIntent = async (
   const targetAssetsLabel = intent.targetTokens
     .map(
       (token) =>
-        `${token.amount} ${intent.targetChain
+        `${token.amount || 'Total Balance'} ${intent.targetChain
           .slice(0, 3)
           .toLowerCase()}.${token.symbol.toLowerCase()}`,
     )
@@ -156,6 +166,7 @@ export const processIntent = async (
   // prepare the transaction with prepareTransaction method
   const transactionDetails: any = {
     sourceChains: sourceChains.length > 0 ? sourceChains : undefined,
+    sourceAssets: intent.sourceTokens,
     targetChain,
     calls,
     tokenRequests,
