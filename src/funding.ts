@@ -101,26 +101,26 @@ async function handleSourceTokensWithAmount(
   account: Address,
   chain: ReturnType<typeof getChain>,
   testClient: ReturnType<typeof createTestClient>, 
-  sourceToken: { chainId: number, tokenAddress: Address, amount?: bigint }
+  sourceToken: { chain: Chain, address: Address, amount?: bigint }
 ) {
-  if (sourceToken.tokenAddress === zeroAddress) {
+  if (sourceToken.address === zeroAddress) {
     await testClient.setBalance({
       address: account,
       value: 100000000000000000000000000000000000000000n,
     });
   } else {
     const tokenSymbol = getTokenSymbol(
-      sourceToken.tokenAddress,
+      sourceToken.address,
       chain.id,
     );
     const tokenBalanceSlot = getTokenBalanceSlot(
       tokenSymbol as TokenSymbol,
-      chain.id,
+      sourceToken.chain.id,
       account,
     );
 
     await testClient.setStorageAt({
-      address: sourceToken.tokenAddress,
+      address: sourceToken.address,
       index: tokenBalanceSlot,
       value: pad(toHex(100000000000000000000000000000000000000000n)),
     });
