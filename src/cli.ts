@@ -1,5 +1,5 @@
 import { checkbox, input, confirm, select } from "@inquirer/prompts";
-import { Chain, Hex, isAddress, parseUnits, zeroAddress } from "viem";
+import { Address, Chain, Hex, isAddress, parseUnits } from "viem";
 import { privateKeyToAccount } from "viem/accounts";
 import { Intent } from "./types.js";
 import * as fs from "fs";
@@ -113,7 +113,7 @@ export const collectUserInput = async (): Promise<{
     },
   });
 
-  const sourceTokensWithAmount: { chainId: number, tokenAddress: Hex, amount?: string }[] = [];
+  const sourceTokensWithAmount: { chain: { id: number }, address: Address, amount?: string }[] = [];
 
   if (sourceChains.length > 0 && sourceTokens.length > 0) {
     const shouldConfigureAmounts = await select({
@@ -149,12 +149,12 @@ export const collectUserInput = async (): Promise<{
           });
 
           const sourceWithAmount: { 
-            chainId: number, 
-            tokenAddress: Hex, 
+            chain: { id: number }, 
+            address: Address, 
             amount?: string 
           } = {
-            chainId: chain.id,
-            tokenAddress: tokenAddress,
+            chain: { id: chain.id },
+            address: tokenAddress,
           }
 
           if (amountStr !== '' && amountStr !== '0') {

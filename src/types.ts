@@ -2,7 +2,7 @@ import { Address } from "abitype";
 
 export type Token = {
   symbol: string;
-  amount: string;
+  amount?: string;
 };
 
 export type ParsedToken = {
@@ -11,7 +11,7 @@ export type ParsedToken = {
   amount?: bigint;
 };
 
-export type SourceTokens = string[] | { chainId: number, tokenAddress: Address, amount?: string }[];
+export type SourceTokens = string[] | { chain: { id: number }, address: Address, amount?: string }[];
 
 export type Intent = {
   targetChain: string;

@@ -10,12 +10,11 @@ import {
   isAddress,
   zeroAddress,
 } from "viem";
-import { Intent, ParsedToken, Token, TokenSymbol } from "./types.js";
+import { Intent, ParsedToken, TokenSymbol } from "./types.js";
 import { getChain, getChainById } from "./utils/chains.js";
 import { convertTokenAmount } from "./utils/tokens.js";
 import { fundAccount } from "./funding.js";
 import { getEnvironment } from "./utils/environments.js";
-import { getTokenSymbol } from "@rhinestone/sdk/dist/src/orchestrator";
 
 export function ts() {
   return new Date().toISOString().replace(/T/, " ").replace(/\..+/, "");
@@ -136,7 +135,7 @@ export const processIntent = async (
               return `${chain.slice(0, 3).toLowerCase()}.*`;
             }
             return intent.sourceTokens
-              .map((token) => typeof token === 'string' ? `${chain.slice(0, 3).toLowerCase()}.${token}` : `${chain.slice(0, 3).toLowerCase()}.${token.tokenAddress}`)
+              .map((token) => typeof token === 'string' ? `${chain.slice(0, 3).toLowerCase()}.${token}` : `${chain.slice(0, 3).toLowerCase()}.${token.address}`)
               .join(", ");
           })
           .join(" | ")
@@ -166,12 +165,14 @@ export const processIntent = async (
   // prepare the transaction with prepareTransaction method
   const transactionDetails: any = {
     sourceChains: sourceChains.length > 0 ? sourceChains : undefined,
-    sourceAssets: intent.sourceTokens,
     targetChain,
     calls,
     tokenRequests,
     sponsored: intent.sponsored,
   };
+
+  if (intent.sourceTokens && intent.sourceTokens.length) 
+    transactionDetails.sourceAssets = intent.sourceTokens
 
   if (intent.settlementLayers?.length > 0) {
     transactionDetails.settlementLayers = intent.settlementLayers;
