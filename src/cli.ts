@@ -62,7 +62,7 @@ export const collectUserInput = async (): Promise<{
     required: true,
   });
 
-  const abritraryTokenIndex = targetTokens.indexOf('Arbitrary')
+  const abritraryTokenIndex = targetTokens.indexOf('Arbitrary token')
 
   if (abritraryTokenIndex>= 0) {
     const arbitraryTokenAddress = await input({
