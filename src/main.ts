@@ -191,9 +191,9 @@ export const processIntent = async (
     }ms`,
   )
 
-  console.dir(preparedTransaction.intentRoute.intentOp.elements, {
-    depth: null,
-  })
+  // console.dir(preparedTransaction.intentRoute.intentOp.elements, {
+  //   depth: null,
+  // })
   // check that sponsorship is working correctly
   if (intent.sponsored) {
     // todo: adjust type in sdk
