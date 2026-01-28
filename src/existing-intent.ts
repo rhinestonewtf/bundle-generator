@@ -1,29 +1,30 @@
-import { config } from "dotenv";
-config();
+import { config } from 'dotenv'
 
-import { getReplayParams } from "./cli.js";
-import { processIntent } from "./main.js";
-import * as fs from "fs";
-import * as path from "path";
+config()
+
+import * as fs from 'node:fs'
+import * as path from 'node:path'
+import { getReplayParams } from './cli.js'
+import { processIntent } from './main.js'
 
 export const main = async () => {
-  const replayParams = await getReplayParams();
+  const replayParams = await getReplayParams()
 
-  let intentsToReplay;
+  let intentsToReplay: string[]
   if (replayParams.isAll) {
     intentsToReplay = fs
-      .readdirSync("intents")
-      .filter((file) => file.endsWith(".json"))
-      .map((file) => file);
+      .readdirSync('intents')
+      .filter((file) => file.endsWith('.json'))
+      .map((file) => file)
   } else {
-    intentsToReplay = replayParams.intentsToReplay;
+    intentsToReplay = replayParams.intentsToReplay
   }
   const intents = intentsToReplay.flatMap((file) => {
-    const filePath = path.join("intents", file);
-    const data = fs.readFileSync(filePath, "utf-8");
-    const parsedData = JSON.parse(data);
-    return parsedData.intentList ? parsedData.intentList : [parsedData];
-  });
+    const filePath = path.join('intents', file)
+    const data = fs.readFileSync(filePath, 'utf-8')
+    const parsedData = JSON.parse(data)
+    return parsedData.intentList ? parsedData.intentList : [parsedData]
+  })
 
   for (const intent of intents) {
     if (!replayParams.asyncMode) {
@@ -31,19 +32,19 @@ export const main = async () => {
         intent,
         replayParams.environment,
         replayParams.executionMode,
-      );
+      )
     } else {
       processIntent(
         intent,
         replayParams.environment,
         replayParams.executionMode,
-      );
+      )
     }
 
     await new Promise((resolve) =>
       setTimeout(resolve, replayParams.msBetweenBundles),
-    );
+    )
   }
-};
+}
 
-main();
+main()

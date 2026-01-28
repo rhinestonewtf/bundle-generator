@@ -1,278 +1,289 @@
-import { checkbox, input, confirm, select } from "@inquirer/prompts";
-import { Address, Chain, Hex, isAddress, parseUnits } from "viem";
-import { privateKeyToAccount } from "viem/accounts";
-import { Intent } from "./types.js";
-import * as fs from "fs";
-import path from "path";
-import * as viemChains from "viem/chains";
-import { getAllSupportedChainsAndTokens, getTokenAddress, getTokenDecimals, TokenSymbol } from "@rhinestone/sdk";
+import * as fs from 'node:fs'
+import path from 'node:path'
+import { checkbox, confirm, input, select } from '@inquirer/prompts'
+import {
+  getAllSupportedChainsAndTokens,
+  getTokenAddress,
+  getTokenDecimals,
+  type TokenSymbol,
+} from '@rhinestone/sdk'
+import { type Address, type Chain, type Hex, isAddress, parseUnits } from 'viem'
+import { privateKeyToAccount } from 'viem/accounts'
+import * as viemChains from 'viem/chains'
+import type { Intent } from './types.js'
 
 export const collectUserInput = async (): Promise<{
-  intent: Intent;
-  saveAsFileName?: string;
-  environment: string;
-  executionMode: string;
+  intent: Intent
+  saveAsFileName?: string
+  environment: string
+  executionMode: string
 }> => {
-
-  const sdkData = getAllSupportedChainsAndTokens();
-  const normalizeName = (str: string) => str.replace(/ /g, "");
-  const supportedChainIds = new Set(sdkData.map((c) => c.chainId));
+  const sdkData = getAllSupportedChainsAndTokens()
+  const normalizeName = (str: string) => str.replace(/ /g, '')
+  const supportedChainIds = new Set(sdkData.map((c) => c.chainId))
   const uniqueViemChains = Object.values(viemChains).reduce((acc, chain) => {
-    if (typeof chain !== "object" || !("id" in chain)) return acc;
+    if (typeof chain !== 'object' || !('id' in chain)) return acc
     if (!acc.has(chain.id) && supportedChainIds.has(chain.id)) {
-      acc.set(chain.id, chain);
+      acc.set(chain.id, chain)
     }
-    return acc;
-  }, new Map<number, Chain>());
+    return acc
+  }, new Map<number, Chain>())
 
   const chainConfig = Array.from(uniqueViemChains.values()).map((chain) => ({
     name: chain.name,
     chain: chain,
-  }));
+  }))
 
   const choices = chainConfig.map(({ name, chain }) => ({
     name: name,
     value: normalizeName(chain.name),
-  }));
+  }))
 
   const targetChain = await select({
     message: `Select a target chain`,
     choices,
-  });
+  })
 
   const targetTokens = await checkbox({
-    message: "Select tokens to transfer on the target chain",
+    message: 'Select tokens to transfer on the target chain',
     choices: [
-      { name: "ETH", value: "ETH" },
-      { name: "WETH", value: "WETH" },
-      { name: "USDC", value: "USDC" },
-      { name: "USDT", value: "USDT" },
-      { name: "Arbitrary token", value: "Arbitrary token" },
+      { name: 'ETH', value: 'ETH' },
+      { name: 'WETH', value: 'WETH' },
+      { name: 'USDC', value: 'USDC' },
+      { name: 'USDT', value: 'USDT' },
+      { name: 'Arbitrary token', value: 'Arbitrary token' },
     ],
     validate: (choices) => {
       if (
-        targetChain === "Polygon" &&
-        choices.some(({ value }) => value === "ETH")
+        targetChain === 'Polygon' &&
+        choices.some(({ value }) => value === 'ETH')
       ) {
-        return "ETH is not acceptable for Polygon target";
+        return 'ETH is not acceptable for Polygon target'
       }
 
-      return true;
+      return true
     },
     required: true,
-  });
+  })
 
   const abritraryTokenIndex = targetTokens.indexOf('Arbitrary token')
 
-  if (abritraryTokenIndex>= 0) {
+  if (abritraryTokenIndex >= 0) {
     const arbitraryTokenAddress = await input({
       message: 'Insert arbitrary target token address',
-      validate: (input) => isAddress(input)
-    });
+      validate: (input) => isAddress(input),
+    })
 
-    targetTokens[abritraryTokenIndex] = arbitraryTokenAddress;
+    targetTokens[abritraryTokenIndex] = arbitraryTokenAddress
   }
 
-  const formattedTargetTokens: { symbol: string, amount?: string }[] = 
+  const formattedTargetTokens: { symbol: string; amount?: string }[] =
     targetTokens.map((symbol) => {
       return {
         symbol,
-      };
-    });
+      }
+    })
 
   for (const token of formattedTargetTokens) {
     const amount = await input({
       message: `Amount of ${token.symbol} (if arbitrary token, pass amount with correct decimal notation)`,
-    });
-    if (amount !== '') token.amount = amount;
+    })
+    if (amount !== '') token.amount = amount
   }
 
   const sourceChains = await checkbox({
     message: `Select source chains (optional)`,
     choices,
-  });
+  })
 
   const sourceTokens = await checkbox({
-    message: "Select source tokens to use (optional)",
+    message: 'Select source tokens to use (optional)',
     choices: [
-      { name: "ETH", value: "ETH" },
-      { name: "WETH", value: "WETH" },
-      { name: "USDC", value: "USDC" },
-      { name: "USDT", value: "USDT" },
+      { name: 'ETH', value: 'ETH' },
+      { name: 'WETH', value: 'WETH' },
+      { name: 'USDC', value: 'USDC' },
+      { name: 'USDT', value: 'USDT' },
     ],
     validate: (choices) => {
       if (
         sourceChains.length === 1 &&
-        sourceChains[0] === "Polygon" &&
-        choices.some(({ value }) => value === "ETH")
+        sourceChains[0] === 'Polygon' &&
+        choices.some(({ value }) => value === 'ETH')
       ) {
-        return "Polygon being the only sorce and having ETH as a token is not valid";
+        return 'Polygon being the only sorce and having ETH as a token is not valid'
       }
 
-      return true;
+      return true
     },
-  });
+  })
 
-  const sourceTokensWithAmount: { chain: { id: number }, address: Address, amount?: string }[] = [];
+  const sourceTokensWithAmount: {
+    chain: { id: number }
+    address: Address
+    amount?: string
+  }[] = []
 
   if (sourceChains.length > 0 && sourceTokens.length > 0) {
     const shouldConfigureAmounts = await select({
-      message: "Do you want to specify exact amounts for source tokens?",
+      message: 'Do you want to specify exact amounts for source tokens?',
       choices: [
-        { name: "Yes", value: true },
-        { name: "No", value: false },
+        { name: 'Yes', value: true },
+        { name: 'No', value: false },
       ],
-    });
+    })
 
     if (shouldConfigureAmounts) {
       const chainMap = Object.fromEntries(
-        chainConfig.map(({ chain }) => [normalizeName(chain.name), chain])
-      );
+        chainConfig.map(({ chain }) => [normalizeName(chain.name), chain]),
+      )
 
       for (const chainName of sourceChains) {
-        const chain = chainMap[chainName];
-        if (!chain) continue;
+        const chain = chainMap[chainName]
+        if (!chain) continue
 
         for (const tokenSymbol of sourceTokens) {
           const tokenAddress = getTokenAddress(
             tokenSymbol as TokenSymbol,
-            chain.id
-          ) as Hex;
+            chain.id,
+          ) as Hex
 
           const tokenDecimals = getTokenDecimals(
             tokenSymbol as TokenSymbol,
-            chain.id
-          );
+            chain.id,
+          )
 
           const amountStr = await input({
             message: `Amount of ${tokenSymbol} to pull from ${chain.name}`,
-          });
+          })
 
-          const sourceWithAmount: { 
-            chain: { id: number }, 
-            address: Address, 
-            amount?: string 
+          const sourceWithAmount: {
+            chain: { id: number }
+            address: Address
+            amount?: string
           } = {
             chain: { id: chain.id },
             address: tokenAddress,
           }
 
           if (amountStr !== '' && amountStr !== '0') {
-            sourceWithAmount.amount = parseUnits(amountStr, tokenDecimals).toString()
+            sourceWithAmount.amount = parseUnits(
+              amountStr,
+              tokenDecimals,
+            ).toString()
           }
 
-          sourceTokensWithAmount.push(sourceWithAmount);
+          sourceTokensWithAmount.push(sourceWithAmount)
         }
       }
     }
   }
 
   const settlementLayers = await checkbox({
-    message: "Select settlement layers to use (optional)",
+    message: 'Select settlement layers to use (optional)',
     choices: [
       {
-        name: "Across",
-        value: "ACROSS",
+        name: 'Across',
+        value: 'ACROSS',
       },
       {
-        name: "Eco",
-        value: "ECO",
+        name: 'Eco',
+        value: 'ECO',
       },
       {
-        name: "Relay",
-        value: "RELAY",
+        name: 'Relay',
+        value: 'RELAY',
       },
     ],
-  });
+  })
 
   const sponsored = await select({
-    message: "Do you want to sponsor this intent",
+    message: 'Do you want to sponsor this intent',
     choices: [
       {
-        name: "Yes",
+        name: 'Yes',
         value: true,
       },
       {
-        name: "No",
+        name: 'No',
         value: false,
       },
     ],
-  });
+  })
 
-  let tokenRecipient = await input({
-    message: "Recipient address for tokens on the target chain",
+  const tokenRecipient = await input({
+    message: 'Recipient address for tokens on the target chain',
     default:
       process.env.DEFAULT_TOKEN_RECIPIENT ??
       privateKeyToAccount(process.env.DEPLOYMENT_PRIVATE_KEY! as Hex).address,
-  });
+  })
 
   const filterTokens = (chain: string, sourceTokens: string[]) => {
     switch (chain) {
-      case "Polygon":
-        return sourceTokens.filter((token) => token !== "ETH");
-      case "Sonic":
-        return sourceTokens.filter((token) => token === "USDC");
+      case 'Polygon':
+        return sourceTokens.filter((token) => token !== 'ETH')
+      case 'Sonic':
+        return sourceTokens.filter((token) => token === 'USDC')
       default:
-        return sourceTokens;
+        return sourceTokens
     }
-  };
+  }
 
   const sourceAssets = sourceChains
     .map((chain) => {
-      const chainPrefix = chain.slice(0, 3).toLowerCase();
-      const filteredTokens = filterTokens(chain, sourceTokens);
-      return `${chainPrefix}.${filteredTokens.join(`, ${chainPrefix}.`)}`;
+      const chainPrefix = chain.slice(0, 3).toLowerCase()
+      const filteredTokens = filterTokens(chain, sourceTokens)
+      return `${chainPrefix}.${filteredTokens.join(`, ${chainPrefix}.`)}`
     })
-    .join(", ");
+    .join(', ')
   const targetAssets = `${formattedTargetTokens
     .map((token) => `${targetChain.slice(0, 3).toLowerCase()}.${token.symbol}`)
-    .join(",")}`;
-  const timestamp = new Date().toISOString().replace(/[-:.]/g, "").slice(0, 13);
+    .join(',')}`
+  const timestamp = new Date().toISOString().replace(/[-:.]/g, '').slice(0, 13)
 
   const filename = await input({
     message:
       "Enter the .json filename to save the intent to, or 'no' / 'n' to not save\n(Note: You can continually add more intents to an existing file)",
     default: `${sourceAssets} to ${targetAssets} ${timestamp}`,
-  });
+  })
 
-  const sanitizedFilename = filename.replace(/\.json$/, "");
-  const saveAsFileName = `${sanitizedFilename}.json`;
+  const sanitizedFilename = filename.replace(/\.json$/, '')
+  const saveAsFileName = `${sanitizedFilename}.json`
 
   const environment = await select({
-    message: "Select the environments to use",
+    message: 'Select the environments to use',
     choices: [
       {
-        name: "Prod",
-        value: "prod",
+        name: 'Prod',
+        value: 'prod',
       },
       {
-        name: "Dev",
-        value: "dev",
+        name: 'Dev',
+        value: 'dev',
       },
       {
-        name: "Local",
-        value: "local",
+        name: 'Local',
+        value: 'local',
       },
     ],
-  });
+  })
 
   const executionMode = await select({
-    message: "Do you want to execute the intent or simulate it?",
+    message: 'Do you want to execute the intent or simulate it?',
     choices: [
       {
-        name: "Execute",
-        value: "execute",
+        name: 'Execute',
+        value: 'execute',
       },
-      { name: "Simulate", value: "simulate" },
+      { name: 'Simulate', value: 'simulate' },
     ],
-  });
+  })
 
   return {
     intent: {
       targetChain,
       targetTokens: formattedTargetTokens,
       sourceChains,
-      sourceTokens: sourceTokensWithAmount.length 
+      sourceTokens: sourceTokensWithAmount.length
         ? sourceTokensWithAmount
         : sourceTokens,
       tokenRecipient,
@@ -282,140 +293,140 @@ export const collectUserInput = async (): Promise<{
     saveAsFileName,
     environment,
     executionMode,
-  };
-};
+  }
+}
 
 export const showUserAccount = async (address: string) => {
   console.log(
     `To use your account, you'll need to fund it on the relevant source chain(s). Your account address is ${address}`,
-  );
-  await confirm({ message: "Continue?" });
-};
+  )
+  await confirm({ message: 'Continue?' })
+}
 export const getReplayParams = async () => {
-  if (!fs.existsSync("intents")) {
-    console.error("Error: 'intents' folder not found.");
-    process.exit(1);
+  if (!fs.existsSync('intents')) {
+    console.error("Error: 'intents' folder not found.")
+    process.exit(1)
   }
 
   const files = fs
-    .readdirSync("intents")
-    .filter((file) => file.endsWith(".json"));
+    .readdirSync('intents')
+    .filter((file) => file.endsWith('.json'))
   const intentsList = files.map((file) => {
     const data = JSON.parse(
-      fs.readFileSync(path.join("intents", file), "utf-8"),
-    );
-    return { file, count: data.intentList ? data.intentList.length : 0 };
-  });
+      fs.readFileSync(path.join('intents', file), 'utf-8'),
+    )
+    return { file, count: data.intentList ? data.intentList.length : 0 }
+  })
 
-  const args = process.argv;
-  const autoAll = args.includes("--all");
+  const args = process.argv
+  const autoAll = args.includes('--all')
 
   const isAll = autoAll
     ? true
     : await select({
-        message: "Do you want to replay all intents?",
+        message: 'Do you want to replay all intents?',
         choices: [
-          { name: "Yes", value: true },
-          { name: "No", value: false },
+          { name: 'Yes', value: true },
+          { name: 'No', value: false },
         ],
-      });
+      })
 
-  let intentsToReplay: string[] = [];
-  let totalIntentsSelected = 0;
+  let intentsToReplay: string[] = []
+  let totalIntentsSelected = 0
 
   if (isAll) {
-    intentsToReplay = files;
+    intentsToReplay = files
     totalIntentsSelected = files.reduce((total, file) => {
       const data = JSON.parse(
-        fs.readFileSync(path.join("intents", file), "utf-8"),
-      );
-      return total + (data.intentList ? data.intentList.length : 0);
-    }, 0);
+        fs.readFileSync(path.join('intents', file), 'utf-8'),
+      )
+      return total + (data.intentList ? data.intentList.length : 0)
+    }, 0)
   } else {
     const selectedFiles = await checkbox({
-      message: "Select intents to replay",
+      message: 'Select intents to replay',
       choices: intentsList.map(({ file, count }) => ({
         name: `${file} (${count} intents)`,
         value: file,
       })),
-    });
-    const uniqueFiles = new Set(selectedFiles);
+    })
+    const uniqueFiles = new Set(selectedFiles)
     intentsToReplay = Array.from(uniqueFiles).flatMap((file) => {
       const data = JSON.parse(
-        fs.readFileSync(path.join("intents", file), "utf-8"),
-      );
-      totalIntentsSelected += data.intentList ? data.intentList.length : 0;
-      return data.intentList ? [file] : [];
-    });
+        fs.readFileSync(path.join('intents', file), 'utf-8'),
+      )
+      totalIntentsSelected += data.intentList ? data.intentList.length : 0
+      return data.intentList ? [file] : []
+    })
   }
 
-  console.log(`Total intents selected: ${totalIntentsSelected}`);
+  console.log(`Total intents selected: ${totalIntentsSelected}`)
 
-  const autoAsyncMode = args.includes("--async");
-  let autoAsyncDuration;
+  const autoAsyncMode = args.includes('--async')
+  let autoAsyncDuration: string | undefined
   if (autoAsyncMode) {
-    autoAsyncDuration = args[args.findIndex((arg) => arg === "--async") + 1];
+    autoAsyncDuration = args[args.indexOf('--async') + 1]
   }
 
-  let asyncMode = autoAsyncMode;
-  let delay = autoAsyncDuration || "2500";
+  let asyncMode = autoAsyncMode
+  let delay = autoAsyncDuration || '2500'
   if (totalIntentsSelected > 1 && !asyncMode) {
     asyncMode = await select({
-      message: "Do you want to replay intents in parallel / asynchronously?",
+      message: 'Do you want to replay intents in parallel / asynchronously?',
       choices: [
-        { name: "Yes", value: true },
-        { name: "No", value: false },
+        { name: 'Yes', value: true },
+        { name: 'No', value: false },
       ],
-    });
+    })
 
     if (asyncMode) {
       delay = await input({
         message:
-          "Enter milliseconds delay between each intent (default is 2500)",
-        default: "2500",
-      });
+          'Enter milliseconds delay between each intent (default is 2500)',
+        default: '2500',
+      })
     }
   }
 
-  const isEnvSet = args.includes("--env");
-  let environment: string;
+  const isEnvSet = args.includes('--env')
+  let environment: string
   if (isEnvSet) {
-    environment = args[args.findIndex((arg) => arg === "--env") + 1];
+    environment = args[args.indexOf('--env') + 1]
   } else {
     environment = await select({
-      message: "Select the environments to use",
+      message: 'Select the environments to use',
       choices: [
         {
-          name: "Prod",
-          value: "prod",
+          name: 'Prod',
+          value: 'prod',
         },
         {
-          name: "Dev",
-          value: "dev",
+          name: 'Dev',
+          value: 'dev',
         },
         {
-          name: "Local",
-          value: "local",
+          name: 'Local',
+          value: 'local',
         },
       ],
-    });
+    })
   }
 
-  const isExecutionModeSet = args.includes("--mode");
-  let executionMode: string;
+  const isExecutionModeSet = args.includes('--mode')
+  let executionMode: string
   if (isExecutionModeSet) {
-    executionMode = args[args.findIndex((arg) => arg === "--mode") + 1];
+    executionMode = args[args.indexOf('--mode') + 1]
   } else {
     executionMode = await select({
-      message: "Do you want to execute the intent or simulate it?",
+      message: 'Do you want to execute the intent or simulate it?',
       choices: [
         {
-          name: "Execute",
-          value: "execute",
+          name: 'Execute',
+          value: 'execute',
         },
-        { name: "Simulate", value: "simulate" },
+        { name: 'Simulate', value: 'simulate' },
       ],
-    });
+    })
   }
 
   return {
@@ -425,5 +436,5 @@ export const getReplayParams = async () => {
     msBetweenBundles: parseInt(delay, 10),
     environment,
     executionMode,
-  };
-};
+  }
+}
