@@ -1,39 +1,39 @@
-import { getTokenAddress } from "@rhinestone/sdk";
+import { getTokenAddress } from '@rhinestone/sdk'
+import { getTokenSymbol } from '@rhinestone/sdk/dist/src/orchestrator'
 import {
-  Address,
-  Chain,
+  type Address,
+  type Chain,
   createTestClient,
+  encodePacked,
   http,
+  keccak256,
   pad,
   toHex,
-  keccak256,
-  encodePacked,
   zeroAddress,
-} from "viem";
-import { arbitrum, base, mainnet } from "viem/chains";
-import { getChain } from "./utils/chains.js";
-import { SourceTokens, TokenSymbol } from "./types.js";
-import { getTokenSymbol } from "@rhinestone/sdk/dist/src/orchestrator";
+} from 'viem'
+import { arbitrum, base, mainnet } from 'viem/chains'
+import type { SourceTokens, TokenSymbol } from './types.js'
+import { getChain } from './utils/chains.js'
 
 export const lookup = (chain: Chain): string => {
   switch (chain) {
     case mainnet:
-      return "http://localhost:30001";
+      return 'http://localhost:30001'
     case arbitrum:
-      return "http://localhost:30002";
+      return 'http://localhost:30002'
     case base:
-      return "http://localhost:30003";
+      return 'http://localhost:30003'
   }
-  throw new Error(`unsupported chain fork ${chain.name}`);
-};
+  throw new Error(`unsupported chain fork ${chain.name}`)
+}
 
 function getTokenBalanceSlot(
   tokenSymbol: TokenSymbol,
   chainId: number,
   account: Address,
 ): `0x${string}` {
-  if (tokenSymbol === "ETH") {
-    throw new Error("ETH does not have a balance slot (native token)");
+  if (tokenSymbol === 'ETH') {
+    throw new Error('ETH does not have a balance slot (native token)')
   }
   // common balance slots for popular tokens:
   const balanceSlots: Record<string, Record<number, number>> = {
@@ -55,75 +55,69 @@ function getTokenBalanceSlot(
       42161: 51,
       8453: 3,
     },
-  };
+  }
 
-  const balanceSlot = balanceSlots[tokenSymbol]?.[chainId] ?? 0;
+  const balanceSlot = balanceSlots[tokenSymbol]?.[chainId] ?? 0
 
   // calculate storage slot: keccak256(abi.encode(account, balanceSlot))
   const slot = keccak256(
-    encodePacked(["address", "uint256"], [account, BigInt(balanceSlot)]),
-  );
+    encodePacked(['address', 'uint256'], [account, BigInt(balanceSlot)]),
+  )
 
-  return slot;
+  return slot
 }
 
 async function handleSourceTokensWithSymbols(
   account: Address,
   chain: ReturnType<typeof getChain>,
-  testClient: ReturnType<typeof createTestClient>, 
-  sourceToken: string
+  testClient: ReturnType<typeof createTestClient>,
+  sourceToken: string,
 ) {
-  if (sourceToken === "ETH") {
+  if (sourceToken === 'ETH') {
     await testClient.setBalance({
       address: account,
       value: 100000000000000000000000000000000000000000n,
-    });
+    })
   } else {
-    const tokenAddress = getTokenAddress(
-      sourceToken as TokenSymbol,
-      chain.id,
-    );
+    const tokenAddress = getTokenAddress(sourceToken as TokenSymbol, chain.id)
     const tokenBalanceSlot = getTokenBalanceSlot(
       sourceToken as TokenSymbol,
       chain.id,
       account,
-    );
+    )
 
     await testClient.setStorageAt({
       address: tokenAddress,
       index: tokenBalanceSlot,
       value: pad(toHex(100000000000000000000000000000000000000000n)),
-    });
+    })
   }
 }
 
 async function handleSourceTokensWithAmount(
   account: Address,
   chain: ReturnType<typeof getChain>,
-  testClient: ReturnType<typeof createTestClient>, 
-  sourceToken: { chain: Chain, address: Address, amount?: bigint }
+  testClient: ReturnType<typeof createTestClient>,
+  sourceToken: { chain: Chain; address: Address; amount?: bigint },
 ) {
   if (sourceToken.address === zeroAddress) {
     await testClient.setBalance({
       address: account,
       value: 100000000000000000000000000000000000000000n,
-    });
+    })
   } else {
-    const tokenSymbol = getTokenSymbol(
-      sourceToken.address,
-      chain.id,
-    );
+    const tokenSymbol = getTokenSymbol(sourceToken.address, chain.id)
     const tokenBalanceSlot = getTokenBalanceSlot(
       tokenSymbol as TokenSymbol,
       sourceToken.chain.id,
       account,
-    );
+    )
 
     await testClient.setStorageAt({
       address: sourceToken.address,
       index: tokenBalanceSlot,
       value: pad(toHex(100000000000000000000000000000000000000000n)),
-    });
+    })
   }
 }
 
@@ -132,21 +126,21 @@ export const fundAccount = async ({
   sourceChains,
   sourceTokens,
 }: {
-  account: Address;
-  sourceChains: string[];
-  sourceTokens: SourceTokens;
+  account: Address
+  sourceChains: string[]
+  sourceTokens: SourceTokens
 }) => {
-  if (process.env.LOCAL_TESTNET?.toString() === "true") {
+  if (process.env.LOCAL_TESTNET?.toString() === 'true') {
     for (const sourceChain of sourceChains) {
-      const chain = getChain(sourceChain);
+      const chain = getChain(sourceChain)
 
-      console.log("Funding on %s for %s", chain.name, account);
+      console.log('Funding on %s for %s', chain.name, account)
 
       const testClient = createTestClient({
         chain,
-        mode: "anvil",
+        mode: 'anvil',
         transport: http(lookup(chain)),
-      });
+      })
       for (const sourceToken of sourceTokens) {
         if (typeof sourceToken === 'string') {
           await handleSourceTokensWithSymbols(
@@ -166,4 +160,4 @@ export const fundAccount = async ({
       }
     }
   }
-};
+}
