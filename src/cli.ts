@@ -4,13 +4,13 @@ import { checkbox, confirm, input, select } from '@inquirer/prompts'
 import {
   getAllSupportedChainsAndTokens,
   getTokenAddress,
-  getTokenDecimals,
   type TokenSymbol,
 } from '@rhinestone/sdk'
 import { type Address, type Chain, type Hex, isAddress, parseUnits } from 'viem'
 import { privateKeyToAccount } from 'viem/accounts'
 import * as viemChains from 'viem/chains'
 import type { Intent } from './types.js'
+import { getDecimals } from './utils/tokens.js'
 
 export const collectUserInput = async (): Promise<{
   intent: Intent
@@ -103,6 +103,7 @@ export const collectUserInput = async (): Promise<{
       { name: 'WETH', value: 'WETH' },
       { name: 'USDC', value: 'USDC' },
       { name: 'USDT', value: 'USDT' },
+      { name: 'Arbitrary token', value: 'Arbitrary token' },
     ],
     validate: (choices) => {
       if (
@@ -116,6 +117,17 @@ export const collectUserInput = async (): Promise<{
       return true
     },
   })
+
+  const arbitrarySourceTokenIndex = sourceTokens.indexOf('Arbitrary token')
+
+  if (arbitrarySourceTokenIndex >= 0) {
+    const arbitrarySourceTokenAddress = await input({
+      message: 'Insert arbitrary source token address',
+      validate: (input) => isAddress(input),
+    })
+
+    sourceTokens[arbitrarySourceTokenIndex] = arbitrarySourceTokenAddress
+  }
 
   const sourceTokensWithAmount: {
     chain: { id: number }
@@ -142,15 +154,9 @@ export const collectUserInput = async (): Promise<{
         if (!chain) continue
 
         for (const tokenSymbol of sourceTokens) {
-          const tokenAddress = getTokenAddress(
-            tokenSymbol as TokenSymbol,
-            chain.id,
-          ) as Hex
-
-          const tokenDecimals = getTokenDecimals(
-            tokenSymbol as TokenSymbol,
-            chain.id,
-          )
+          const tokenAddress = isAddress(tokenSymbol)
+            ? (tokenSymbol as Hex)
+            : (getTokenAddress(tokenSymbol as TokenSymbol, chain.id) as Hex)
 
           const amountStr = await input({
             message: `Amount of ${tokenSymbol} to pull from ${chain.name}`,
@@ -166,6 +172,10 @@ export const collectUserInput = async (): Promise<{
           }
 
           if (amountStr !== '' && amountStr !== '0') {
+            const tokenDecimals = await getDecimals({
+              tokenSymbolOrAddress: tokenSymbol,
+              chainId: chain.id,
+            })
             sourceWithAmount.amount = parseUnits(
               amountStr,
               tokenDecimals,
@@ -222,7 +232,9 @@ export const collectUserInput = async (): Promise<{
       case 'Polygon':
         return sourceTokens.filter((token) => token !== 'ETH')
       case 'Sonic':
-        return sourceTokens.filter((token) => token === 'USDC')
+        return sourceTokens.filter(
+          (token) => token === 'USDC' || isAddress(token),
+        )
       default:
         return sourceTokens
     }
