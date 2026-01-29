@@ -6,6 +6,7 @@ import {
   createTestClient,
   encodePacked,
   http,
+  isAddress,
   keccak256,
   pad,
   toHex,
@@ -73,6 +74,9 @@ async function handleSourceTokensWithSymbols(
   testClient: ReturnType<typeof createTestClient>,
   sourceToken: string,
 ) {
+  // skip arbitrary tokens (addresses) - no balance slot mapping available
+  if (isAddress(sourceToken)) return
+
   if (sourceToken === 'ETH') {
     await testClient.setBalance({
       address: account,
@@ -98,7 +102,7 @@ async function handleSourceTokensWithAmount(
   account: Address,
   chain: ReturnType<typeof getChain>,
   testClient: ReturnType<typeof createTestClient>,
-  sourceToken: { chain: Chain; address: Address; amount?: bigint },
+  sourceToken: { chain: { id: number }; address: Address; amount?: string },
 ) {
   if (sourceToken.address === zeroAddress) {
     await testClient.setBalance({
@@ -107,6 +111,10 @@ async function handleSourceTokensWithAmount(
     })
   } else {
     const tokenSymbol = getTokenSymbol(sourceToken.address, chain.id)
+
+    // skip arbitrary tokens - no balance slot mapping available
+    if (!tokenSymbol) return
+
     const tokenBalanceSlot = getTokenBalanceSlot(
       tokenSymbol as TokenSymbol,
       sourceToken.chain.id,
