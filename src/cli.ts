@@ -320,59 +320,78 @@ export const getReplayParams = async () => {
     process.exit(1)
   }
 
-  const files = fs
-    .readdirSync('intents')
-    .filter((file) => file.endsWith('.json'))
-  const intentsList = files.map((file) => {
-    const data = JSON.parse(
-      fs.readFileSync(path.join('intents', file), 'utf-8'),
-    )
-    return { file, count: data.intentList ? data.intentList.length : 0 }
-  })
-
   const args = process.argv
-  const autoAll = args.includes('--all')
-
-  const isAll = autoAll
-    ? true
-    : await select({
-        message: 'Do you want to replay all intents?',
-        choices: [
-          { name: 'Yes', value: true },
-          { name: 'No', value: false },
-        ],
-      })
+  const directFile = args.slice(2).find((arg) => !arg.startsWith('--'))
 
   let intentsToReplay: string[] = []
   let totalIntentsSelected = 0
 
-  if (isAll) {
-    intentsToReplay = files
-    totalIntentsSelected = files.reduce((total, file) => {
-      const data = JSON.parse(
-        fs.readFileSync(path.join('intents', file), 'utf-8'),
-      )
-      return total + (data.intentList ? data.intentList.length : 0)
-    }, 0)
-  } else {
-    const selectedFiles = await checkbox({
-      message: 'Select intents to replay',
-      choices: intentsList.map(({ file, count }) => ({
-        name: `${file} (${count} intents)`,
-        value: file,
-      })),
-    })
-    const uniqueFiles = new Set(selectedFiles)
-    intentsToReplay = Array.from(uniqueFiles).flatMap((file) => {
-      const data = JSON.parse(
-        fs.readFileSync(path.join('intents', file), 'utf-8'),
-      )
-      totalIntentsSelected += data.intentList ? data.intentList.length : 0
-      return data.intentList ? [file] : []
-    })
-  }
+  if (directFile) {
+    const jsonFilename = directFile.endsWith('.json')
+      ? directFile
+      : `${directFile}.json`
+    const filePath = path.join('intents', jsonFilename)
 
-  console.log(`Total intents selected: ${totalIntentsSelected}`)
+    if (!fs.existsSync(filePath)) {
+      console.error(`Error: File not found: ${filePath}`)
+      process.exit(1)
+    }
+
+    const data = JSON.parse(fs.readFileSync(filePath, 'utf-8'))
+    totalIntentsSelected = data.intentList ? data.intentList.length : 1
+    intentsToReplay = [jsonFilename]
+
+    console.log(`Loaded ${totalIntentsSelected} intent(s) from ${filePath}`)
+  } else {
+    const files = fs
+      .readdirSync('intents')
+      .filter((file) => file.endsWith('.json'))
+    const intentsList = files.map((file) => {
+      const data = JSON.parse(
+        fs.readFileSync(path.join('intents', file), 'utf-8'),
+      )
+      return { file, count: data.intentList ? data.intentList.length : 1 }
+    })
+
+    const autoAll = args.includes('--all')
+    const isAll = autoAll
+      ? true
+      : await select({
+          message: 'Do you want to replay all intents?',
+          choices: [
+            { name: 'Yes', value: true },
+            { name: 'No', value: false },
+          ],
+        })
+
+    if (isAll) {
+      intentsToReplay = files
+      totalIntentsSelected = files.reduce((total, file) => {
+        const data = JSON.parse(
+          fs.readFileSync(path.join('intents', file), 'utf-8'),
+        )
+        return total + (data.intentList ? data.intentList.length : 1)
+      }, 0)
+    } else {
+      const selectedFiles = await checkbox({
+        message: 'Select intents to replay',
+        choices: intentsList.map(({ file, count }) => ({
+          name: `${file} (${count} intents)`,
+          value: file,
+        })),
+      })
+      const uniqueFiles = new Set(selectedFiles)
+      intentsToReplay = Array.from(uniqueFiles).flatMap((file) => {
+        const data = JSON.parse(
+          fs.readFileSync(path.join('intents', file), 'utf-8'),
+        )
+        totalIntentsSelected += data.intentList ? data.intentList.length : 1
+        return [file]
+      })
+    }
+
+    console.log(`Total intents selected: ${totalIntentsSelected}`)
+  }
 
   const autoAsyncMode = args.includes('--async')
   let autoAsyncDuration: string | undefined
@@ -406,20 +425,11 @@ export const getReplayParams = async () => {
     environment = args[args.indexOf('--env') + 1]
   } else {
     environment = await select({
-      message: 'Select the environments to use',
+      message: 'Select the environment to use',
       choices: [
-        {
-          name: 'Prod',
-          value: 'prod',
-        },
-        {
-          name: 'Dev',
-          value: 'dev',
-        },
-        {
-          name: 'Local',
-          value: 'local',
-        },
+        { name: 'Prod', value: 'prod' },
+        { name: 'Dev', value: 'dev' },
+        { name: 'Local', value: 'local' },
       ],
     })
   }
@@ -432,17 +442,13 @@ export const getReplayParams = async () => {
     executionMode = await select({
       message: 'Do you want to execute the intent or simulate it?',
       choices: [
-        {
-          name: 'Execute',
-          value: 'execute',
-        },
+        { name: 'Execute', value: 'execute' },
         { name: 'Simulate', value: 'simulate' },
       ],
     })
   }
 
   return {
-    isAll,
     intentsToReplay,
     asyncMode,
     msBetweenBundles: parseInt(delay, 10),
