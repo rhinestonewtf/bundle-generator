@@ -28,7 +28,7 @@ Usage: `pnpm address` or `pnpm run address`
 
 - Gets the balance of the smart account across all supported chains
 
-Usage: `pnpm address` or `pnpm run address`
+Usage: `pnpm balance` or `pnpm run balance`
 
 ### Command: `new`
 
@@ -38,12 +38,24 @@ Usage: `pnpm address` or `pnpm run address`
 
 Usage: `pnpm new` or `pnpm run new`
 
-### Mode `replay`
+### Command `replay`
 
 - Allows you to either replay all stored intents or a subset
 - Allows you to either execute them in sequence or parallel
 
-Usage: `pnpm replay` or `pnpm run replay`
+Usage: `pnpm replay [filename] [options]`
+
+Options:
+- `filename` - Replay a specific file from `intents/` (extension optional)
+- `--all` - Replay all intents without prompting
+- `--env <prod|dev|local>` - Set environment
+- `--mode <execute|simulate>` - Set execution mode
+- `--async [delay]` - Run in parallel with optional delay in ms (default: 2500)
+
+Examples:
+- `pnpm replay` - Interactive mode
+- `pnpm replay my-intent --env prod --mode execute`
+- `pnpm replay --all --env dev --async 3000`
 
 ## Testing vectors
 
