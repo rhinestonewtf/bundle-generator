@@ -321,7 +321,14 @@ export const getReplayParams = async () => {
   }
 
   const args = process.argv
-  const directFile = args.slice(2).find((arg) => !arg.startsWith('--'))
+  const flagsWithValues = new Set(['--async', '--mode', '--env'])
+  const slicedArgs = args.slice(2)
+  const directFile = slicedArgs.find((arg, i) => {
+    if (arg.startsWith('--')) return false
+    const prevArg = slicedArgs[i - 1]
+    if (prevArg && flagsWithValues.has(prevArg)) return false
+    return true
+  })
 
   let intentsToReplay: string[] = []
   let totalIntentsSelected = 0

@@ -20,12 +20,11 @@
   "license": "ISC",
   "dependencies": {
     "@inquirer/prompts": "^7.4.1",
-    "@rhinestone/sdk": "^1.2.3",
+    "@rhinestone/sdk": "^1.2.10",
     "@rhinestone/shared-configs": "^1.4.4",
     "abitype": "^1.0.8",
     "axios": "^1.10.0",
     "dotenv": "^16.5.0",
-    "permissionless": "^0.2.47",
     "tsx": "^4.19.4",
     "typescript": "^5.8.3",
     "viem": "^2.45.0"
