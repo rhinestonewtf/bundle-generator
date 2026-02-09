@@ -10,16 +10,7 @@ import { processIntent } from './main.js'
 export const main = async () => {
   const replayParams = await getReplayParams()
 
-  let intentsToReplay: string[]
-  if (replayParams.isAll) {
-    intentsToReplay = fs
-      .readdirSync('intents')
-      .filter((file) => file.endsWith('.json'))
-      .map((file) => file)
-  } else {
-    intentsToReplay = replayParams.intentsToReplay
-  }
-  const intents = intentsToReplay.flatMap((file) => {
+  const intents = replayParams.intentsToReplay.flatMap((file) => {
     const filePath = path.join('intents', file)
     const data = fs.readFileSync(filePath, 'utf-8')
     const parsedData = JSON.parse(data)
