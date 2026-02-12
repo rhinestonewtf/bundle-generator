@@ -1,17 +1,17 @@
-import { getTokenAddress, RhinestoneSDK } from '@rhinestone/sdk'
+import { RhinestoneSDK, getTokenAddress } from '@rhinestone/sdk'
 import {
+  http,
   type Address,
+  type Hex,
   createPublicClient,
   encodeFunctionData,
   erc20Abi,
-  type Hex,
-  http,
   isAddress,
   zeroAddress,
 } from 'viem'
 import { type Account, privateKeyToAccount } from 'viem/accounts'
 import { fundAccount } from './funding.js'
-import type { Intent, ParsedToken, TokenSymbol } from './types.js'
+import type { AccountType, Intent, ParsedToken, TokenSymbol } from './types.js'
 import { getChain, getChainById } from './utils/chains.js'
 import { getEnvironment } from './utils/environments.js'
 import { convertTokenAmount } from './utils/tokens.js'
@@ -24,6 +24,7 @@ export const processIntent = async (
   intent: Intent,
   environmentString: string,
   executionMode: string,
+  accountType: AccountType = 'smart-account',
 ) => {
   // create the eoa account
   const owner: Account = privateKeyToAccount(
@@ -40,15 +41,13 @@ export const processIntent = async (
     endpointUrl: orchestratorUrl,
     useDevContracts: environment.url !== undefined,
   })
+  const isEoa = accountType === 'eoa'
   const rhinestoneAccount = await rhinestone.createAccount({
     owners: {
       type: 'ecdsa' as const,
       accounts: [owner],
     },
-    // eoa: owner,
-    // account: {
-    //   type: "eoa",
-    // },
+    ...(isEoa && { eoa: owner }),
   })
 
   // get the target chain and source chains
@@ -181,6 +180,12 @@ export const processIntent = async (
   if (intent.settlementLayers?.length > 0) {
     transactionDetails.settlementLayers = intent.settlementLayers
   }
+
+  if (isEoa) {
+    const eip7702InitSignature = await rhinestoneAccount.signEip7702InitData()
+    transactionDetails.eip7702InitSignature = eip7702InitSignature
+  }
+
   const preparedTransaction =
     await rhinestoneAccount.prepareTransaction(transactionDetails)
 
@@ -236,16 +241,23 @@ export const processIntent = async (
     }ms`,
   )
 
+  let authorizations:
+    | Awaited<ReturnType<typeof rhinestoneAccount.signAuthorizations>>
+    | undefined
+  if (isEoa) {
+    authorizations =
+      await rhinestoneAccount.signAuthorizations(signedTransaction)
+  }
+
   try {
     const submitStartTime = Date.now()
     console.log(
       `${ts()} Bundle ${bundleLabel}: [3/4] Submitting transaction...`,
     )
     const isSimulate = executionMode === 'simulate'
-    // submit the transaction using the SDK
     const transactionResult = await rhinestoneAccount.submitTransaction(
       signedTransaction,
-      undefined,
+      authorizations,
       isSimulate,
     )
 

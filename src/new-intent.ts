@@ -16,6 +16,7 @@ export const main = async () => {
     saveAsFileName,
     environment: environmentString,
     executionMode,
+    accountType,
   } = await collectUserInput()
 
   const owner: Account = privateKeyToAccount(
@@ -37,6 +38,7 @@ export const main = async () => {
       type: 'ecdsa' as const,
       accounts: [owner],
     },
+    ...(accountType === 'eoa' && { eoa: owner }),
   })
 
   const address = rhinestoneAccount.getAddress()
@@ -59,7 +61,7 @@ export const main = async () => {
     )
   }
 
-  await processIntent(intent, environmentString, executionMode)
+  await processIntent(intent, environmentString, executionMode, accountType)
 }
 
 main()

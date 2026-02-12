@@ -23,12 +23,14 @@ export const main = async () => {
         intent,
         replayParams.environment,
         replayParams.executionMode,
+        replayParams.accountType,
       )
     } else {
       processIntent(
         intent,
         replayParams.environment,
         replayParams.executionMode,
+        replayParams.accountType,
       )
     }
 

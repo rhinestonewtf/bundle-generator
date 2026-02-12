@@ -1,5 +1,7 @@
 import type { Address } from 'abitype'
 
+export type AccountType = 'smart-account' | 'eoa'
+
 export type Token = {
   symbol: string
   amount?: string

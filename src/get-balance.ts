@@ -1,8 +1,9 @@
 import { select } from '@inquirer/prompts'
 import { RhinestoneSDK } from '@rhinestone/sdk'
 import { config } from 'dotenv'
-import { type Account, formatUnits, type Hex } from 'viem'
+import { type Account, type Hex, formatUnits } from 'viem'
 import { privateKeyToAccount } from 'viem/accounts'
+import type { AccountType } from './types.js'
 import { getChainById } from './utils/chains.js'
 import { getEnvironment } from './utils/environments.js'
 
@@ -12,6 +13,14 @@ export const main = async () => {
   const owner: Account = privateKeyToAccount(
     process.env.OWNER_PRIVATE_KEY! as Hex,
   )
+
+  const accountType = await select<AccountType>({
+    message: 'Select the account type',
+    choices: [
+      { name: 'Smart Account (ERC-4337)', value: 'smart-account' },
+      { name: 'EOA (EIP-7702)', value: 'eoa' },
+    ],
+  })
 
   const environmentString = await select({
     message: 'Select the environments to use',
@@ -46,6 +55,7 @@ export const main = async () => {
       type: 'ecdsa' as const,
       accounts: [owner],
     },
+    ...(accountType === 'eoa' && { eoa: owner }),
   })
 
   const address = rhinestoneAccount.getAddress()

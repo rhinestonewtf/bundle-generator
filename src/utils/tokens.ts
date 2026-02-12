@@ -1,9 +1,9 @@
-import { getTokenDecimals, type TokenSymbol } from '@rhinestone/sdk'
+import { type TokenSymbol, getTokenDecimals } from '@rhinestone/sdk'
 import {
+  http,
   type Address,
   createPublicClient,
   erc20Abi,
-  http,
   isAddress,
   parseUnits,
 } from 'viem'

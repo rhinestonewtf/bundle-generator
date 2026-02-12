@@ -2,14 +2,14 @@ import * as fs from 'node:fs'
 import path from 'node:path'
 import { checkbox, confirm, input, select } from '@inquirer/prompts'
 import {
+  type TokenSymbol,
   getAllSupportedChainsAndTokens,
   getTokenAddress,
-  type TokenSymbol,
 } from '@rhinestone/sdk'
 import { type Address, type Chain, type Hex, isAddress, parseUnits } from 'viem'
 import { privateKeyToAccount } from 'viem/accounts'
 import * as viemChains from 'viem/chains'
-import type { Intent } from './types.js'
+import type { AccountType, Intent } from './types.js'
 import { getDecimals } from './utils/tokens.js'
 
 export const collectUserInput = async (): Promise<{
@@ -17,6 +17,7 @@ export const collectUserInput = async (): Promise<{
   saveAsFileName?: string
   environment: string
   executionMode: string
+  accountType: AccountType
 }> => {
   const sdkData = getAllSupportedChainsAndTokens()
   const normalizeName = (str: string) => str.replace(/ /g, '')
@@ -290,6 +291,14 @@ export const collectUserInput = async (): Promise<{
     ],
   })
 
+  const accountType = await select<AccountType>({
+    message: 'Select the account type',
+    choices: [
+      { name: 'Smart Account (ERC-4337)', value: 'smart-account' },
+      { name: 'EOA (EIP-7702)', value: 'eoa' },
+    ],
+  })
+
   return {
     intent: {
       targetChain,
@@ -305,6 +314,7 @@ export const collectUserInput = async (): Promise<{
     saveAsFileName,
     environment,
     executionMode,
+    accountType,
   }
 }
 
@@ -321,7 +331,12 @@ export const getReplayParams = async () => {
   }
 
   const args = process.argv
-  const flagsWithValues = new Set(['--async', '--mode', '--env'])
+  const flagsWithValues = new Set([
+    '--async',
+    '--mode',
+    '--env',
+    '--account-type',
+  ])
   const slicedArgs = args.slice(2)
   const directFile = slicedArgs.find((arg, i) => {
     if (arg.startsWith('--')) return false
@@ -455,11 +470,26 @@ export const getReplayParams = async () => {
     })
   }
 
+  const isAccountTypeSet = args.includes('--account-type')
+  let accountType: AccountType
+  if (isAccountTypeSet) {
+    accountType = args[args.indexOf('--account-type') + 1] as AccountType
+  } else {
+    accountType = await select<AccountType>({
+      message: 'Select the account type',
+      choices: [
+        { name: 'Smart Account (ERC-4337)', value: 'smart-account' },
+        { name: 'EOA (EIP-7702)', value: 'eoa' },
+      ],
+    })
+  }
+
   return {
     intentsToReplay,
     asyncMode,
-    msBetweenBundles: parseInt(delay, 10),
+    msBetweenBundles: Number.parseInt(delay, 10),
     environment,
     executionMode,
+    accountType,
   }
 }
