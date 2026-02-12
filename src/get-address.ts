@@ -3,7 +3,7 @@ import { RhinestoneSDK } from '@rhinestone/sdk'
 import { config } from 'dotenv'
 import type { Account, Hex } from 'viem'
 import { privateKeyToAccount } from 'viem/accounts'
-import { getEnvironment } from './utils/environments'
+import { getEnvironment } from './utils/environments.js'
 
 config()
 

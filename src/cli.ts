@@ -12,6 +12,20 @@ import * as viemChains from 'viem/chains'
 import type { Intent } from './types.js'
 import { getDecimals } from './utils/tokens.js'
 
+const readIntentFile = (filePath: string) => {
+  try {
+    const data = fs.readFileSync(filePath, 'utf-8')
+    return JSON.parse(data)
+  } catch (error) {
+    const message =
+      error instanceof SyntaxError
+        ? `Invalid JSON in ${filePath}: ${error.message}`
+        : `Failed to read ${filePath}: ${error}`
+    console.error(message)
+    process.exit(1)
+  }
+}
+
 export const collectUserInput = async (): Promise<{
   intent: Intent
   saveAsFileName?: string
@@ -224,7 +238,7 @@ export const collectUserInput = async (): Promise<{
     message: 'Recipient address for tokens on the target chain',
     default:
       process.env.DEFAULT_TOKEN_RECIPIENT ??
-      privateKeyToAccount(process.env.DEPLOYMENT_PRIVATE_KEY! as Hex).address,
+      privateKeyToAccount(process.env.OWNER_PRIVATE_KEY! as Hex).address,
   })
 
   const filterTokens = (chain: string, sourceTokens: string[]) => {
@@ -314,6 +328,7 @@ export const showUserAccount = async (address: string) => {
   )
   await confirm({ message: 'Continue?' })
 }
+
 export const getReplayParams = async () => {
   if (!fs.existsSync('intents')) {
     console.error("Error: 'intents' folder not found.")
@@ -330,8 +345,7 @@ export const getReplayParams = async () => {
     return true
   })
 
-  let intentsToReplay: string[] = []
-  let totalIntentsSelected = 0
+  let parsedIntents: Intent[] = []
 
   if (directFile) {
     const jsonFilename = directFile.endsWith('.json')
@@ -344,19 +358,19 @@ export const getReplayParams = async () => {
       process.exit(1)
     }
 
-    const data = JSON.parse(fs.readFileSync(filePath, 'utf-8'))
-    totalIntentsSelected = data.intentList ? data.intentList.length : 1
-    intentsToReplay = [jsonFilename]
+    const data = readIntentFile(filePath)
+    parsedIntents = data.intentList ? data.intentList : [data]
 
-    console.log(`Loaded ${totalIntentsSelected} intent(s) from ${filePath}`)
+    console.log(`Loaded ${parsedIntents.length} intent(s) from ${filePath}`)
   } else {
     const files = fs
       .readdirSync('intents')
       .filter((file) => file.endsWith('.json'))
+
+    const fileDataMap = new Map<string, any>()
     const intentsList = files.map((file) => {
-      const data = JSON.parse(
-        fs.readFileSync(path.join('intents', file), 'utf-8'),
-      )
+      const data = readIntentFile(path.join('intents', file))
+      fileDataMap.set(file, data)
       return { file, count: data.intentList ? data.intentList.length : 1 }
     })
 
@@ -372,13 +386,10 @@ export const getReplayParams = async () => {
         })
 
     if (isAll) {
-      intentsToReplay = files
-      totalIntentsSelected = files.reduce((total, file) => {
-        const data = JSON.parse(
-          fs.readFileSync(path.join('intents', file), 'utf-8'),
-        )
-        return total + (data.intentList ? data.intentList.length : 1)
-      }, 0)
+      for (const file of files) {
+        const data = fileDataMap.get(file)!
+        parsedIntents.push(...(data.intentList ? data.intentList : [data]))
+      }
     } else {
       const selectedFiles = await checkbox({
         message: 'Select intents to replay',
@@ -387,17 +398,13 @@ export const getReplayParams = async () => {
           value: file,
         })),
       })
-      const uniqueFiles = new Set(selectedFiles)
-      intentsToReplay = Array.from(uniqueFiles).flatMap((file) => {
-        const data = JSON.parse(
-          fs.readFileSync(path.join('intents', file), 'utf-8'),
-        )
-        totalIntentsSelected += data.intentList ? data.intentList.length : 1
-        return [file]
-      })
+      for (const file of new Set(selectedFiles)) {
+        const data = fileDataMap.get(file)!
+        parsedIntents.push(...(data.intentList ? data.intentList : [data]))
+      }
     }
 
-    console.log(`Total intents selected: ${totalIntentsSelected}`)
+    console.log(`Total intents selected: ${parsedIntents.length}`)
   }
 
   const autoAsyncMode = args.includes('--async')
@@ -408,7 +415,7 @@ export const getReplayParams = async () => {
 
   let asyncMode = autoAsyncMode
   let delay = autoAsyncDuration || '2500'
-  if (totalIntentsSelected > 1 && !asyncMode) {
+  if (parsedIntents.length > 1 && !asyncMode) {
     asyncMode = await select({
       message: 'Do you want to replay intents in parallel / asynchronously?',
       choices: [
@@ -456,7 +463,7 @@ export const getReplayParams = async () => {
   }
 
   return {
-    intentsToReplay,
+    intents: parsedIntents,
     asyncMode,
     msBetweenBundles: parseInt(delay, 10),
     environment,

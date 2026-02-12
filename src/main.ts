@@ -9,7 +9,7 @@ import {
   isAddress,
   zeroAddress,
 } from 'viem'
-import { type Account, privateKeyToAccount } from 'viem/accounts'
+import { privateKeyToAccount } from 'viem/accounts'
 import { fundAccount } from './funding.js'
 import type { Intent, ParsedToken, TokenSymbol } from './types.js'
 import { getChain, getChainById } from './utils/chains.js'
@@ -20,36 +20,34 @@ export function ts() {
   return new Date().toISOString().replace(/T/, ' ').replace(/\..+/, '')
 }
 
-export const processIntent = async (
-  intent: Intent,
-  environmentString: string,
-  executionMode: string,
-) => {
-  // create the eoa account
-  const owner: Account = privateKeyToAccount(
-    process.env.OWNER_PRIVATE_KEY! as Hex,
-  )
-
+export const createRhinestoneAccount = async (environmentString: string) => {
+  const owner = privateKeyToAccount(process.env.OWNER_PRIVATE_KEY! as Hex)
   const environment = getEnvironment(environmentString)
-  const orchestratorUrl = environment.url
-  const rhinestoneApiKey = environment.apiKey
-
-  // create the rhinestone account instance
   const rhinestone = new RhinestoneSDK({
-    apiKey: rhinestoneApiKey,
-    endpointUrl: orchestratorUrl,
+    apiKey: environment.apiKey,
+    endpointUrl: environment.url,
     useDevContracts: environment.url !== undefined,
   })
-  const rhinestoneAccount = await rhinestone.createAccount({
+  return rhinestone.createAccount({
     owners: {
       type: 'ecdsa' as const,
       accounts: [owner],
     },
-    // eoa: owner,
-    // account: {
-    //   type: "eoa",
-    // },
   })
+}
+
+export type RhinestoneAccount = Awaited<
+  ReturnType<typeof createRhinestoneAccount>
+>
+
+export const processIntent = async (
+  intent: Intent,
+  environmentString: string,
+  executionMode: string,
+  existingAccount?: RhinestoneAccount,
+) => {
+  const rhinestoneAccount =
+    existingAccount ?? (await createRhinestoneAccount(environmentString))
 
   // get the target chain and source chains
   const targetChain = getChain(intent.targetChain)
@@ -143,7 +141,9 @@ export const processIntent = async (
               .join(', ')
           })
           .join(' | ')
-      : (intent.sourceTokens || []).join(', ')
+      : (intent.sourceTokens || [])
+          .map((t) => (typeof t === 'string' ? t : t.address))
+          .join(', ')
 
   // prepare the target assets label
   const targetAssetsLabel = intent.targetTokens
@@ -166,21 +166,20 @@ export const processIntent = async (
   const prepareStartTime = Date.now()
   console.log(`${ts()} Bundle ${bundleLabel}: [1/4] Preparing transaction...`)
 
-  // prepare the transaction with prepareTransaction method
-  const transactionDetails: any = {
+  const transactionDetails = {
     sourceChains: sourceChains.length > 0 ? sourceChains : undefined,
     targetChain,
     calls,
     tokenRequests,
     sponsored: intent.sponsored,
+    ...(intent.sourceTokens?.length
+      ? { sourceAssets: intent.sourceTokens }
+      : {}),
+    ...(intent.settlementLayers?.length > 0
+      ? { settlementLayers: intent.settlementLayers }
+      : {}),
   }
 
-  if (intent.sourceTokens?.length)
-    transactionDetails.sourceAssets = intent.sourceTokens
-
-  if (intent.settlementLayers?.length > 0) {
-    transactionDetails.settlementLayers = intent.settlementLayers
-  }
   const preparedTransaction =
     await rhinestoneAccount.prepareTransaction(transactionDetails)
 
@@ -191,9 +190,6 @@ export const processIntent = async (
     }ms`,
   )
 
-  // console.dir(preparedTransaction.intentRoute.intentOp.elements, {
-  //   depth: null,
-  // })
   // check that sponsorship is working correctly
   if (intent.sponsored) {
     // todo: adjust type in sdk

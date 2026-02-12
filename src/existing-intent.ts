@@ -2,39 +2,42 @@ import { config } from 'dotenv'
 
 config()
 
-import * as fs from 'node:fs'
-import * as path from 'node:path'
 import { getReplayParams } from './cli.js'
-import { processIntent } from './main.js'
+import { createRhinestoneAccount, processIntent } from './main.js'
 
 export const main = async () => {
   const replayParams = await getReplayParams()
+  const { intents } = replayParams
 
-  const intents = replayParams.intentsToReplay.flatMap((file) => {
-    const filePath = path.join('intents', file)
-    const data = fs.readFileSync(filePath, 'utf-8')
-    const parsedData = JSON.parse(data)
-    return parsedData.intentList ? parsedData.intentList : [parsedData]
-  })
+  const rhinestoneAccount = await createRhinestoneAccount(
+    replayParams.environment,
+  )
 
-  for (const intent of intents) {
+  for (let i = 0; i < intents.length; i++) {
+    const intent = intents[i]
     if (!replayParams.asyncMode) {
       await processIntent(
         intent,
         replayParams.environment,
         replayParams.executionMode,
+        rhinestoneAccount,
       )
     } else {
       processIntent(
         intent,
         replayParams.environment,
         replayParams.executionMode,
-      )
+        rhinestoneAccount,
+      ).catch((error) => {
+        console.error('Intent execution failed:', error)
+      })
     }
 
-    await new Promise((resolve) =>
-      setTimeout(resolve, replayParams.msBetweenBundles),
-    )
+    if (i < intents.length - 1) {
+      await new Promise((resolve) =>
+        setTimeout(resolve, replayParams.msBetweenBundles),
+      )
+    }
   }
 }
 

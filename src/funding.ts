@@ -4,7 +4,7 @@ import {
   type Address,
   type Chain,
   createTestClient,
-  encodePacked,
+  encodeAbiParameters,
   http,
   isAddress,
   keccak256,
@@ -48,7 +48,7 @@ function getTokenBalanceSlot(
       1: 2,
       137: 0,
       42161: 51,
-      8452: 51,
+      8453: 51,
     },
     WETH: {
       1: 3,
@@ -62,7 +62,10 @@ function getTokenBalanceSlot(
 
   // calculate storage slot: keccak256(abi.encode(account, balanceSlot))
   const slot = keccak256(
-    encodePacked(['address', 'uint256'], [account, BigInt(balanceSlot)]),
+    encodeAbiParameters(
+      [{ type: 'address' }, { type: 'uint256' }],
+      [account, BigInt(balanceSlot)],
+    ),
   )
 
   return slot

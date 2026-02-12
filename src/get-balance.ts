@@ -52,7 +52,7 @@ export const main = async () => {
   console.log(`Account: ${address}\n`)
 
   console.log('Portfolio (via Rhinestone SDK):')
-  const isDevMode = process.env.DEV_CONTRACTS === 'true'
+  const isDevMode = environmentString !== 'prod'
   const portfolio = await rhinestoneAccount.getPortfolio(isDevMode)
 
   if (portfolio.length === 0) {

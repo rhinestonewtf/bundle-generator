@@ -3,12 +3,8 @@ import { config } from 'dotenv'
 config()
 
 import * as fs from 'node:fs'
-import { RhinestoneSDK } from '@rhinestone/sdk'
-import type { Account, Hex } from 'viem'
-import { privateKeyToAccount } from 'viem/accounts'
 import { collectUserInput, showUserAccount } from './cli.js'
-import { processIntent } from './main.js'
-import { getEnvironment } from './utils/environments.js'
+import { createRhinestoneAccount, processIntent } from './main.js'
 
 export const main = async () => {
   const {
@@ -18,27 +14,7 @@ export const main = async () => {
     executionMode,
   } = await collectUserInput()
 
-  const owner: Account = privateKeyToAccount(
-    process.env.OWNER_PRIVATE_KEY! as Hex,
-  )
-
-  const environment = getEnvironment(environmentString)
-  const orchestratorUrl = environment.url
-  const rhinestoneApiKey = environment.apiKey
-
-  // create the rhinestone account instance
-  const rhinestone = new RhinestoneSDK({
-    apiKey: rhinestoneApiKey,
-    endpointUrl: orchestratorUrl,
-    useDevContracts: environment.url !== undefined,
-  })
-  const rhinestoneAccount = await rhinestone.createAccount({
-    owners: {
-      type: 'ecdsa' as const,
-      accounts: [owner],
-    },
-  })
-
+  const rhinestoneAccount = await createRhinestoneAccount(environmentString)
   const address = rhinestoneAccount.getAddress()
   await showUserAccount(address)
 
@@ -59,7 +35,7 @@ export const main = async () => {
     )
   }
 
-  await processIntent(intent, environmentString, executionMode)
+  await processIntent(intent, environmentString, executionMode, rhinestoneAccount)
 }
 
 main()
