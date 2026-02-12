@@ -39,7 +39,7 @@ export const main = async () => {
   const rhinestone = new RhinestoneSDK({
     apiKey: rhinestoneApiKey,
     endpointUrl: orchestratorUrl,
-    useDevContracts: environment.url !== undefined,
+    useDevContracts: environment.useDevContracts,
   })
   const rhinestoneAccount = await rhinestone.createAccount({
     owners: {

@@ -23,7 +23,7 @@ export function ts() {
 
 const resolveSourceAssets = async (sourceAssets: SourceAssets) => {
   // Format 1: string[] → SimpleTokenList, pass as-is
-  if (Array.isArray(sourceAssets) && (sourceAssets.length === 0 || typeof sourceAssets[0] === 'string')) {
+  if (Array.isArray(sourceAssets) && sourceAssets.every((item) => typeof item === 'string')) {
     return sourceAssets as string[]
   }
 
@@ -42,9 +42,7 @@ const resolveSourceAssets = async (sourceAssets: SourceAssets) => {
           tokenSymbolOrAddress: config.token,
           chainId: chain.id,
         })
-        entry.amount = BigInt(
-          parseUnits(config.amount, decimals).toString(),
-        )
+        entry.amount = parseUnits(config.amount, decimals)
       }
       resolved.push(entry)
     }
@@ -60,13 +58,30 @@ const resolveSourceAssets = async (sourceAssets: SourceAssets) => {
   return chainTokenMap
 }
 
+/** Extract token symbols from sourceAssets for local testnet funding */
+const extractFundingTokens = (sourceAssets: SourceAssets): string[] => {
+  // string[] format: tokens are already symbols
+  if (Array.isArray(sourceAssets) && sourceAssets.every((item) => typeof item === 'string')) {
+    return sourceAssets as string[]
+  }
+
+  // ExactInputConfig[] format: extract token fields
+  if (Array.isArray(sourceAssets)) {
+    const configs = sourceAssets as { chain: string; token: string; amount?: string }[]
+    return [...new Set(configs.map((c) => c.token))]
+  }
+
+  // Record<string, string[]> format: collect all unique token symbols
+  return [...new Set(Object.values(sourceAssets).flat())]
+}
+
 export const createRhinestoneAccount = async (environmentString: string) => {
   const owner = privateKeyToAccount(process.env.OWNER_PRIVATE_KEY! as Hex)
   const environment = getEnvironment(environmentString)
   const rhinestone = new RhinestoneSDK({
     apiKey: environment.apiKey,
     endpointUrl: environment.url,
-    useDevContracts: environment.url !== undefined,
+    useDevContracts: environment.useDevContracts,
   })
   return rhinestone.createAccount({
     owners: {
@@ -98,10 +113,15 @@ export const processIntent = async (
 
   // fund the account
   const accountAddress = rhinestoneAccount.getAddress()
+  const fundingTokens = intent.sourceTokens?.length
+    ? intent.sourceTokens
+    : intent.sourceAssets
+      ? extractFundingTokens(intent.sourceAssets)
+      : []
   await fundAccount({
     account: accountAddress,
     sourceChains: intent.sourceChains,
-    sourceTokens: intent.sourceTokens,
+    sourceTokens: fundingTokens,
   })
 
   // get the target address

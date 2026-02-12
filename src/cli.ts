@@ -21,8 +21,7 @@ const readIntentFile = (filePath: string) => {
       error instanceof SyntaxError
         ? `Invalid JSON in ${filePath}: ${error.message}`
         : `Failed to read ${filePath}: ${error}`
-    console.error(message)
-    process.exit(1)
+    throw new Error(message)
   }
 }
 
@@ -435,11 +434,12 @@ export const getReplayParams = async () => {
       .readdirSync('intents')
       .filter((file) => file.endsWith('.json'))
 
-    const fileDataMap = new Map<string, any>()
+    const fileIntentsMap = new Map<string, Intent[]>()
     const intentsList = files.map((file) => {
       const data = readIntentFile(path.join('intents', file))
-      fileDataMap.set(file, data)
-      return { file, count: data.intentList ? data.intentList.length : 1 }
+      const intents: Intent[] = data.intentList ? data.intentList : [data]
+      fileIntentsMap.set(file, intents)
+      return { file, count: intents.length }
     })
 
     const autoAll = args.includes('--all')
@@ -455,8 +455,7 @@ export const getReplayParams = async () => {
 
     if (isAll) {
       for (const file of files) {
-        const data = fileDataMap.get(file)!
-        parsedIntents.push(...(data.intentList ? data.intentList : [data]))
+        parsedIntents.push(...fileIntentsMap.get(file)!)
       }
     } else {
       const selectedFiles = await checkbox({
@@ -467,8 +466,7 @@ export const getReplayParams = async () => {
         })),
       })
       for (const file of new Set(selectedFiles)) {
-        const data = fileDataMap.get(file)!
-        parsedIntents.push(...(data.intentList ? data.intentList : [data]))
+        parsedIntents.push(...fileIntentsMap.get(file)!)
       }
     }
 
