@@ -15,15 +15,23 @@ export type SourceTokens =
   | string[]
   | { chain: { id: number }; address: Address; amount?: string }[]
 
+export type SourceAssets =
+  | string[]
+  | Record<string, string[]>
+  | { chain: string; token: string; amount?: string }[]
+
 export type Intent = {
   targetChain: string
   targetTokens: Token[]
   sourceChains: string[]
   sourceTokens: SourceTokens
+  sourceAssets?: SourceAssets
   tokenRecipient: string
+  recipient?: string
   settlementLayers: string[]
   sponsored: boolean
   destinationOps?: boolean
+  feeAsset?: string
 }
 
 export type TokenSymbol = 'ETH' | 'WETH' | 'USDC' | 'USDT'

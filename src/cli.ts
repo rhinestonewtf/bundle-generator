@@ -149,54 +149,110 @@ export const collectUserInput = async (): Promise<{
     amount?: string
   }[] = []
 
+  let sourceAssetsConfig:
+    | string[]
+    | Record<string, string[]>
+    | { chain: string; token: string; amount?: string }[]
+    | undefined
+
   if (sourceChains.length > 0 && sourceTokens.length > 0) {
-    const shouldConfigureAmounts = await select({
-      message: 'Do you want to specify exact amounts for source tokens?',
+    const sourceAssetFormat = await select({
+      message: 'How do you want to configure source assets?',
       choices: [
-        { name: 'Yes', value: true },
-        { name: 'No', value: false },
+        { name: 'Simple token list (same tokens across all chains)', value: 'simple' },
+        { name: 'Per-chain token map (different tokens per chain)', value: 'chainMap' },
+        { name: 'Exact inputs with amounts', value: 'exact' },
+        { name: 'Legacy format (sourceTokens)', value: 'legacy' },
       ],
     })
 
-    if (shouldConfigureAmounts) {
-      const chainMap = Object.fromEntries(
-        chainConfig.map(({ chain }) => [normalizeName(chain.name), chain]),
-      )
-
+    if (sourceAssetFormat === 'simple') {
+      sourceAssetsConfig = sourceTokens
+    } else if (sourceAssetFormat === 'chainMap') {
+      const chainTokenMap: Record<string, string[]> = {}
       for (const chainName of sourceChains) {
-        const chain = chainMap[chainName]
-        if (!chain) continue
-
+        const tokensForChain = await checkbox({
+          message: `Select source tokens for ${chainName}`,
+          choices: [
+            { name: 'ETH', value: 'ETH' },
+            { name: 'WETH', value: 'WETH' },
+            { name: 'USDC', value: 'USDC' },
+            { name: 'USDT', value: 'USDT' },
+          ],
+        })
+        if (tokensForChain.length > 0) {
+          chainTokenMap[chainName] = tokensForChain
+        }
+      }
+      sourceAssetsConfig = chainTokenMap
+    } else if (sourceAssetFormat === 'exact') {
+      const exactConfigs: { chain: string; token: string; amount?: string }[] = []
+      for (const chainName of sourceChains) {
         for (const tokenSymbol of sourceTokens) {
-          const tokenAddress = isAddress(tokenSymbol)
-            ? (tokenSymbol as Hex)
-            : (getTokenAddress(tokenSymbol as TokenSymbol, chain.id) as Hex)
-
           const amountStr = await input({
-            message: `Amount of ${tokenSymbol} to pull from ${chain.name}`,
+            message: `Amount of ${tokenSymbol} to pull from ${chainName} (leave empty for no limit)`,
           })
-
-          const sourceWithAmount: {
-            chain: { id: number }
-            address: Address
-            amount?: string
-          } = {
-            chain: { id: chain.id },
-            address: tokenAddress,
+          const config: { chain: string; token: string; amount?: string } = {
+            chain: chainName,
+            token: tokenSymbol,
           }
-
           if (amountStr !== '' && amountStr !== '0') {
-            const tokenDecimals = await getDecimals({
-              tokenSymbolOrAddress: tokenSymbol,
-              chainId: chain.id,
-            })
-            sourceWithAmount.amount = parseUnits(
-              amountStr,
-              tokenDecimals,
-            ).toString()
+            config.amount = amountStr
           }
+          exactConfigs.push(config)
+        }
+      }
+      sourceAssetsConfig = exactConfigs
+    } else {
+      // Legacy format
+      const shouldConfigureAmounts = await select({
+        message: 'Do you want to specify exact amounts for source tokens?',
+        choices: [
+          { name: 'Yes', value: true },
+          { name: 'No', value: false },
+        ],
+      })
 
-          sourceTokensWithAmount.push(sourceWithAmount)
+      if (shouldConfigureAmounts) {
+        const chainMap = Object.fromEntries(
+          chainConfig.map(({ chain }) => [normalizeName(chain.name), chain]),
+        )
+
+        for (const chainName of sourceChains) {
+          const chain = chainMap[chainName]
+          if (!chain) continue
+
+          for (const tokenSymbol of sourceTokens) {
+            const tokenAddress = isAddress(tokenSymbol)
+              ? (tokenSymbol as Hex)
+              : (getTokenAddress(tokenSymbol as TokenSymbol, chain.id) as Hex)
+
+            const amountStr = await input({
+              message: `Amount of ${tokenSymbol} to pull from ${chain.name}`,
+            })
+
+            const sourceWithAmount: {
+              chain: { id: number }
+              address: Address
+              amount?: string
+            } = {
+              chain: { id: chain.id },
+              address: tokenAddress,
+            }
+
+            if (amountStr !== '' && amountStr !== '0') {
+              const tokenDecimals = await getDecimals({
+                tokenSymbolOrAddress: tokenSymbol,
+                chainId: chain.id,
+              })
+              sourceWithAmount.amount = parseUnits(
+                amountStr,
+                tokenDecimals,
+              ).toString()
+            }
+
+            sourceTokensWithAmount.push(sourceWithAmount)
+          }
         }
       }
     }
@@ -232,6 +288,15 @@ export const collectUserInput = async (): Promise<{
         value: false,
       },
     ],
+  })
+
+  const feeAsset = await input({
+    message:
+      'Fee asset token symbol or address (optional, e.g. USDC, ETH, or 0x...)',
+  })
+
+  const recipient = await input({
+    message: 'Recipient address for the orchestrator (optional, address)',
   })
 
   const tokenRecipient = await input({
@@ -312,9 +377,12 @@ export const collectUserInput = async (): Promise<{
       sourceTokens: sourceTokensWithAmount.length
         ? sourceTokensWithAmount
         : sourceTokens,
+      ...(sourceAssetsConfig ? { sourceAssets: sourceAssetsConfig } : {}),
       tokenRecipient,
+      ...(recipient ? { recipient } : {}),
       settlementLayers,
       sponsored,
+      ...(feeAsset ? { feeAsset } : {}),
     },
     saveAsFileName,
     environment,

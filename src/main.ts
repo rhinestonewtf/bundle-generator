@@ -7,17 +7,57 @@ import {
   type Hex,
   http,
   isAddress,
+  parseUnits,
   zeroAddress,
 } from 'viem'
 import { privateKeyToAccount } from 'viem/accounts'
 import { fundAccount } from './funding.js'
-import type { Intent, ParsedToken, TokenSymbol } from './types.js'
+import type { Intent, ParsedToken, SourceAssets, TokenSymbol } from './types.js'
 import { getChain, getChainById } from './utils/chains.js'
 import { getEnvironment } from './utils/environments.js'
-import { convertTokenAmount } from './utils/tokens.js'
+import { convertTokenAmount, getDecimals } from './utils/tokens.js'
 
 export function ts() {
   return new Date().toISOString().replace(/T/, ' ').replace(/\..+/, '')
+}
+
+const resolveSourceAssets = async (sourceAssets: SourceAssets) => {
+  // Format 1: string[] → SimpleTokenList, pass as-is
+  if (Array.isArray(sourceAssets) && (sourceAssets.length === 0 || typeof sourceAssets[0] === 'string')) {
+    return sourceAssets as string[]
+  }
+
+  // Format 3: ExactInputConfig[] → resolve chain names and amounts
+  if (Array.isArray(sourceAssets)) {
+    const configs = sourceAssets as { chain: string; token: string; amount?: string }[]
+    const resolved = []
+    for (const config of configs) {
+      const chain = getChain(config.chain)
+      const entry: { chain: typeof chain; address: string; amount?: bigint } = {
+        chain,
+        address: config.token,
+      }
+      if (config.amount) {
+        const decimals = await getDecimals({
+          tokenSymbolOrAddress: config.token,
+          chainId: chain.id,
+        })
+        entry.amount = BigInt(
+          parseUnits(config.amount, decimals).toString(),
+        )
+      }
+      resolved.push(entry)
+    }
+    return resolved
+  }
+
+  // Format 2: Record<string, string[]> → ChainTokenMap (chain name keys → chain ID keys)
+  const chainTokenMap: Record<number, string[]> = {}
+  for (const [chainName, tokens] of Object.entries(sourceAssets)) {
+    const chain = getChain(chainName)
+    chainTokenMap[chain.id] = tokens
+  }
+  return chainTokenMap
 }
 
 export const createRhinestoneAccount = async (environmentString: string) => {
@@ -166,18 +206,25 @@ export const processIntent = async (
   const prepareStartTime = Date.now()
   console.log(`${ts()} Bundle ${bundleLabel}: [1/4] Preparing transaction...`)
 
+  // resolve source assets: prefer sourceAssets over sourceTokens
+  const resolvedSourceAssets = intent.sourceAssets
+    ? await resolveSourceAssets(intent.sourceAssets)
+    : intent.sourceTokens?.length
+      ? intent.sourceTokens
+      : undefined
+
   const transactionDetails = {
     sourceChains: sourceChains.length > 0 ? sourceChains : undefined,
     targetChain,
     calls,
     tokenRequests,
     sponsored: intent.sponsored,
-    ...(intent.sourceTokens?.length
-      ? { sourceAssets: intent.sourceTokens }
-      : {}),
+    ...(resolvedSourceAssets ? { sourceAssets: resolvedSourceAssets } : {}),
     ...(intent.settlementLayers?.length > 0
       ? { settlementLayers: intent.settlementLayers }
       : {}),
+    ...(intent.recipient ? { recipient: intent.recipient as Address } : {}),
+    ...(intent.feeAsset ? { feeAsset: intent.feeAsset } : {}),
   }
 
   const preparedTransaction =

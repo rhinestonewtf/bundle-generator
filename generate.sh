@@ -69,3 +69,34 @@ for SRC_NET in "${NETWORKS[@]}"; do
     fi
   done
 done
+
+# --- Additional test vectors for new intent fields ---
+
+RECIPIENT="0x1234567890abcdef1234567890abcdef12345678"
+
+# feeAsset tests: same-chain with feeAsset set
+for NET in "${NETWORKS[@]}"; do
+  echo "Generating intent for $NET -> $NET (WETH, feeAsset: USDC)"
+  FILENAME="intents/${NET}_to_${NET}_WETH_feeAsset_USDC.json"
+  echo '{"intentList": [{"targetChain": "'$NET'", "targetTokens": [{"symbol": "WETH", "amount": "'$AMOUNT'"}], "sourceChains": ["'$NET'"], "sourceTokens": [], "tokenRecipient": "'$TOKEN_RECIPIENT'", "settlementLayers": [], "sponsored": false, "destinationOps": true, "feeAsset": "USDC"}]}' > "$FILENAME"
+done
+
+# recipient tests: cross-chain with recipient set
+echo "Generating intent for Base -> ArbitrumOne (WETH, recipient)"
+FILENAME="intents/Base_to_ArbitrumOne_WETH_recipient.json"
+echo '{"intentList": [{"targetChain": "ArbitrumOne", "targetTokens": [{"symbol": "WETH", "amount": "'$AMOUNT'"}], "sourceChains": ["Base"], "sourceTokens": [], "tokenRecipient": "'$TOKEN_RECIPIENT'", "recipient": "'$RECIPIENT'", "settlementLayers": ["ACROSS"], "sponsored": false, "destinationOps": true}]}' > "$FILENAME"
+
+# sourceAssets tests: ChainTokenMap format
+echo "Generating intent for Base -> ArbitrumOne (WETH, sourceAssets chainMap)"
+FILENAME="intents/Base_to_ArbitrumOne_WETH_sourceAssets_chainMap.json"
+echo '{"intentList": [{"targetChain": "ArbitrumOne", "targetTokens": [{"symbol": "WETH", "amount": "'$AMOUNT'"}], "sourceChains": ["Base"], "sourceTokens": [], "sourceAssets": {"Base": ["WETH", "USDC"]}, "tokenRecipient": "'$TOKEN_RECIPIENT'", "settlementLayers": ["ACROSS"], "sponsored": false, "destinationOps": true}]}' > "$FILENAME"
+
+# sourceAssets tests: ExactInputConfig format
+echo "Generating intent for Base -> ArbitrumOne (WETH, sourceAssets exact)"
+FILENAME="intents/Base_to_ArbitrumOne_WETH_sourceAssets_exact.json"
+echo '{"intentList": [{"targetChain": "ArbitrumOne", "targetTokens": [{"symbol": "WETH", "amount": "'$AMOUNT'"}], "sourceChains": ["Base"], "sourceTokens": [], "sourceAssets": [{"chain": "Base", "token": "WETH", "amount": "0.001"}], "tokenRecipient": "'$TOKEN_RECIPIENT'", "settlementLayers": ["ACROSS"], "sponsored": false, "destinationOps": true}]}' > "$FILENAME"
+
+# Combined: feeAsset + recipient + sourceAssets
+echo "Generating intent for Base -> ArbitrumOne (WETH, all new fields)"
+FILENAME="intents/Base_to_ArbitrumOne_WETH_all_new_fields.json"
+echo '{"intentList": [{"targetChain": "ArbitrumOne", "targetTokens": [{"symbol": "WETH", "amount": "'$AMOUNT'"}], "sourceChains": ["Base"], "sourceTokens": [], "sourceAssets": {"Base": ["WETH"]}, "tokenRecipient": "'$TOKEN_RECIPIENT'", "recipient": "'$RECIPIENT'", "settlementLayers": ["ACROSS"], "sponsored": false, "destinationOps": true, "feeAsset": "USDC"}]}' > "$FILENAME"
