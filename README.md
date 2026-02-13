@@ -126,30 +126,3 @@ Specifies off-chain balances (e.g. exchange accounts) that the route-finder can 
   }]
 }
 ```
-
-## Test vector generation
-
-```sh
-./generate.sh           # mainnet test vectors
-./generate_testnets.sh  # testnet test vectors
-```
-
-Coverage:
-
-- [x] Networks
-- [x] Token outputs (single and multi)
-- [x] Sponsored / unsponsored
-- [x] Destination ops
-- [x] Settlement layers
-- [x] Same-chain (no token transfers)
-- [x] `feeAsset`
-- [x] `recipient`
-- [x] `sourceAssets` (all 3 formats)
-- [ ] Token inputs
-- [ ] Account deployments
-- [ ] EIP-7702
-- [ ] EOAs
-- [ ] Non-7579 accounts
-- [ ] Multi origin chain
-- [ ] Locked / unlocked funds
-- [ ] Preclaim ops
