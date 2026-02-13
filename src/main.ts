@@ -123,6 +123,7 @@ export const processIntent = async (
   environmentString: string,
   executionMode: string,
   existingAccount?: RhinestoneAccount,
+  verbose?: boolean,
 ) => {
   const rhinestoneAccount =
     existingAccount ?? (await createRhinestoneAccount(environmentString))
@@ -285,6 +286,13 @@ export const processIntent = async (
       prepareEndTime - prepareStartTime
     }ms`,
   )
+
+  if (verbose) {
+    console.log(`${ts()} Bundle ${bundleLabel}: [verbose] intentOp:`)
+    console.dir(preparedTransaction.intentRoute.intentOp, { depth: null })
+    console.log(`${ts()} Bundle ${bundleLabel}: [verbose] intentCost:`)
+    console.dir(preparedTransaction.intentRoute.intentCost, { depth: null })
+  }
 
   // check that sponsorship is working correctly
   if (intent.sponsored) {

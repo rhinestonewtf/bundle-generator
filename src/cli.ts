@@ -528,11 +528,14 @@ export const getReplayParams = async () => {
     })
   }
 
+  const verbose = args.includes('--verbose')
+
   return {
     intents: parsedIntents,
     asyncMode,
     msBetweenBundles: parseInt(delay, 10),
     environment,
     executionMode,
+    verbose,
   }
 }

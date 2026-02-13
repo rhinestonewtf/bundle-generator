@@ -21,6 +21,7 @@ export const main = async () => {
         replayParams.environment,
         replayParams.executionMode,
         rhinestoneAccount,
+        replayParams.verbose,
       )
     } else {
       processIntent(
@@ -28,6 +29,7 @@ export const main = async () => {
         replayParams.environment,
         replayParams.executionMode,
         rhinestoneAccount,
+        replayParams.verbose,
       ).catch((error) => {
         console.error('Intent execution failed:', error)
       })

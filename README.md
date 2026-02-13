@@ -47,6 +47,7 @@ Replay saved intents from the `intents/` directory.
 | `--env <prod\|dev\|local>` | Set environment |
 | `--mode <execute\|simulate>` | Set execution mode |
 | `--async [delay]` | Run in parallel with optional delay in ms (default: 2500) |
+| `--verbose` | Print `intentOp` and `intentCost` after transaction preparation |
 
 Examples:
 
