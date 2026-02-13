@@ -324,6 +324,20 @@ export const processIntent = async (
     }`,
   )
 
+  if (executionMode === 'route') {
+    console.log(
+      `${ts()} Bundle ${bundleLabel}: Route-only mode, skipping sign/submit/execute`,
+    )
+    console.dir(preparedTransaction.intentRoute, { depth: null })
+    console.log(
+      `${ts()} Bundle ${bundleLabel}: Total time: ${
+        prepareEndTime - prepareStartTime
+      }ms ` +
+        `(Route: ${prepareEndTime - prepareStartTime}ms, Sign: 0ms, Submit: 0ms, Execute: 0ms, Index: 0ms)`,
+    )
+    return
+  }
+
   // sign the transaction with signTransaction method
   console.log(`${ts()} Bundle ${bundleLabel}: [2/4] Signing transaction...`)
   const signedTransaction =
