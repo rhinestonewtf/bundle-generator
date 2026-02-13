@@ -124,6 +124,17 @@ export const processIntent = async (
     sourceTokens: fundingTokens,
   })
 
+  // fund auxiliary tokens (manually specified in intent JSON)
+  if (intent.auxiliaryFunds) {
+    for (const [chainName, tokens] of Object.entries(intent.auxiliaryFunds)) {
+      await fundAccount({
+        account: accountAddress,
+        sourceChains: [chainName],
+        sourceTokens: tokens,
+      })
+    }
+  }
+
   // get the target address
   const target = intent.tokenRecipient as Address
 
