@@ -12,6 +12,19 @@ import * as viemChains from 'viem/chains'
 import type { Intent } from './types.js'
 import { getDecimals } from './utils/tokens.js'
 
+const readIntentFile = (filePath: string) => {
+  try {
+    const data = fs.readFileSync(filePath, 'utf-8')
+    return JSON.parse(data)
+  } catch (error) {
+    const message =
+      error instanceof SyntaxError
+        ? `Invalid JSON in ${filePath}: ${error.message}`
+        : `Failed to read ${filePath}: ${error}`
+    throw new Error(message)
+  }
+}
+
 export const collectUserInput = async (): Promise<{
   intent: Intent
   saveAsFileName?: string
@@ -135,54 +148,110 @@ export const collectUserInput = async (): Promise<{
     amount?: string
   }[] = []
 
+  let sourceAssetsConfig:
+    | string[]
+    | Record<string, string[]>
+    | { chain: string; token: string; amount?: string }[]
+    | undefined
+
   if (sourceChains.length > 0 && sourceTokens.length > 0) {
-    const shouldConfigureAmounts = await select({
-      message: 'Do you want to specify exact amounts for source tokens?',
+    const sourceAssetFormat = await select({
+      message: 'How do you want to configure source assets?',
       choices: [
-        { name: 'Yes', value: true },
-        { name: 'No', value: false },
+        { name: 'Simple token list (same tokens across all chains)', value: 'simple' },
+        { name: 'Per-chain token map (different tokens per chain)', value: 'chainMap' },
+        { name: 'Exact inputs with amounts', value: 'exact' },
+        { name: 'Legacy format (sourceTokens)', value: 'legacy' },
       ],
     })
 
-    if (shouldConfigureAmounts) {
-      const chainMap = Object.fromEntries(
-        chainConfig.map(({ chain }) => [normalizeName(chain.name), chain]),
-      )
-
+    if (sourceAssetFormat === 'simple') {
+      sourceAssetsConfig = sourceTokens
+    } else if (sourceAssetFormat === 'chainMap') {
+      const chainTokenMap: Record<string, string[]> = {}
       for (const chainName of sourceChains) {
-        const chain = chainMap[chainName]
-        if (!chain) continue
-
+        const tokensForChain = await checkbox({
+          message: `Select source tokens for ${chainName}`,
+          choices: [
+            { name: 'ETH', value: 'ETH' },
+            { name: 'WETH', value: 'WETH' },
+            { name: 'USDC', value: 'USDC' },
+            { name: 'USDT', value: 'USDT' },
+          ],
+        })
+        if (tokensForChain.length > 0) {
+          chainTokenMap[chainName] = tokensForChain
+        }
+      }
+      sourceAssetsConfig = chainTokenMap
+    } else if (sourceAssetFormat === 'exact') {
+      const exactConfigs: { chain: string; token: string; amount?: string }[] = []
+      for (const chainName of sourceChains) {
         for (const tokenSymbol of sourceTokens) {
-          const tokenAddress = isAddress(tokenSymbol)
-            ? (tokenSymbol as Hex)
-            : (getTokenAddress(tokenSymbol as TokenSymbol, chain.id) as Hex)
-
           const amountStr = await input({
-            message: `Amount of ${tokenSymbol} to pull from ${chain.name}`,
+            message: `Amount of ${tokenSymbol} to pull from ${chainName} (leave empty for no limit)`,
           })
-
-          const sourceWithAmount: {
-            chain: { id: number }
-            address: Address
-            amount?: string
-          } = {
-            chain: { id: chain.id },
-            address: tokenAddress,
+          const config: { chain: string; token: string; amount?: string } = {
+            chain: chainName,
+            token: tokenSymbol,
           }
-
           if (amountStr !== '' && amountStr !== '0') {
-            const tokenDecimals = await getDecimals({
-              tokenSymbolOrAddress: tokenSymbol,
-              chainId: chain.id,
-            })
-            sourceWithAmount.amount = parseUnits(
-              amountStr,
-              tokenDecimals,
-            ).toString()
+            config.amount = amountStr
           }
+          exactConfigs.push(config)
+        }
+      }
+      sourceAssetsConfig = exactConfigs
+    } else {
+      // Legacy format
+      const shouldConfigureAmounts = await select({
+        message: 'Do you want to specify exact amounts for source tokens?',
+        choices: [
+          { name: 'Yes', value: true },
+          { name: 'No', value: false },
+        ],
+      })
 
-          sourceTokensWithAmount.push(sourceWithAmount)
+      if (shouldConfigureAmounts) {
+        const chainMap = Object.fromEntries(
+          chainConfig.map(({ chain }) => [normalizeName(chain.name), chain]),
+        )
+
+        for (const chainName of sourceChains) {
+          const chain = chainMap[chainName]
+          if (!chain) continue
+
+          for (const tokenSymbol of sourceTokens) {
+            const tokenAddress = isAddress(tokenSymbol)
+              ? (tokenSymbol as Hex)
+              : (getTokenAddress(tokenSymbol as TokenSymbol, chain.id) as Hex)
+
+            const amountStr = await input({
+              message: `Amount of ${tokenSymbol} to pull from ${chain.name}`,
+            })
+
+            const sourceWithAmount: {
+              chain: { id: number }
+              address: Address
+              amount?: string
+            } = {
+              chain: { id: chain.id },
+              address: tokenAddress,
+            }
+
+            if (amountStr !== '' && amountStr !== '0') {
+              const tokenDecimals = await getDecimals({
+                tokenSymbolOrAddress: tokenSymbol,
+                chainId: chain.id,
+              })
+              sourceWithAmount.amount = parseUnits(
+                amountStr,
+                tokenDecimals,
+              ).toString()
+            }
+
+            sourceTokensWithAmount.push(sourceWithAmount)
+          }
         }
       }
     }
@@ -220,11 +289,20 @@ export const collectUserInput = async (): Promise<{
     ],
   })
 
+  const feeAsset = await input({
+    message:
+      'Fee asset token symbol or address (optional, e.g. USDC, ETH, or 0x...)',
+  })
+
+  const recipient = await input({
+    message: 'Recipient address for the orchestrator (optional, address)',
+  })
+
   const tokenRecipient = await input({
     message: 'Recipient address for tokens on the target chain',
     default:
       process.env.DEFAULT_TOKEN_RECIPIENT ??
-      privateKeyToAccount(process.env.DEPLOYMENT_PRIVATE_KEY! as Hex).address,
+      privateKeyToAccount(process.env.OWNER_PRIVATE_KEY! as Hex).address,
   })
 
   const filterTokens = (chain: string, sourceTokens: string[]) => {
@@ -298,9 +376,12 @@ export const collectUserInput = async (): Promise<{
       sourceTokens: sourceTokensWithAmount.length
         ? sourceTokensWithAmount
         : sourceTokens,
+      ...(sourceAssetsConfig ? { sourceAssets: sourceAssetsConfig } : {}),
       tokenRecipient,
+      ...(recipient ? { recipient } : {}),
       settlementLayers,
       sponsored,
+      ...(feeAsset ? { feeAsset } : {}),
     },
     saveAsFileName,
     environment,
@@ -314,6 +395,7 @@ export const showUserAccount = async (address: string) => {
   )
   await confirm({ message: 'Continue?' })
 }
+
 export const getReplayParams = async () => {
   if (!fs.existsSync('intents')) {
     console.error("Error: 'intents' folder not found.")
@@ -330,8 +412,7 @@ export const getReplayParams = async () => {
     return true
   })
 
-  let intentsToReplay: string[] = []
-  let totalIntentsSelected = 0
+  let parsedIntents: Intent[] = []
 
   if (directFile) {
     const jsonFilename = directFile.endsWith('.json')
@@ -344,20 +425,21 @@ export const getReplayParams = async () => {
       process.exit(1)
     }
 
-    const data = JSON.parse(fs.readFileSync(filePath, 'utf-8'))
-    totalIntentsSelected = data.intentList ? data.intentList.length : 1
-    intentsToReplay = [jsonFilename]
+    const data = readIntentFile(filePath)
+    parsedIntents = data.intentList ? data.intentList : [data]
 
-    console.log(`Loaded ${totalIntentsSelected} intent(s) from ${filePath}`)
+    console.log(`Loaded ${parsedIntents.length} intent(s) from ${filePath}`)
   } else {
     const files = fs
       .readdirSync('intents')
       .filter((file) => file.endsWith('.json'))
+
+    const fileIntentsMap = new Map<string, Intent[]>()
     const intentsList = files.map((file) => {
-      const data = JSON.parse(
-        fs.readFileSync(path.join('intents', file), 'utf-8'),
-      )
-      return { file, count: data.intentList ? data.intentList.length : 1 }
+      const data = readIntentFile(path.join('intents', file))
+      const intents: Intent[] = data.intentList ? data.intentList : [data]
+      fileIntentsMap.set(file, intents)
+      return { file, count: intents.length }
     })
 
     const autoAll = args.includes('--all')
@@ -372,13 +454,9 @@ export const getReplayParams = async () => {
         })
 
     if (isAll) {
-      intentsToReplay = files
-      totalIntentsSelected = files.reduce((total, file) => {
-        const data = JSON.parse(
-          fs.readFileSync(path.join('intents', file), 'utf-8'),
-        )
-        return total + (data.intentList ? data.intentList.length : 1)
-      }, 0)
+      for (const file of files) {
+        parsedIntents.push(...fileIntentsMap.get(file)!)
+      }
     } else {
       const selectedFiles = await checkbox({
         message: 'Select intents to replay',
@@ -387,17 +465,12 @@ export const getReplayParams = async () => {
           value: file,
         })),
       })
-      const uniqueFiles = new Set(selectedFiles)
-      intentsToReplay = Array.from(uniqueFiles).flatMap((file) => {
-        const data = JSON.parse(
-          fs.readFileSync(path.join('intents', file), 'utf-8'),
-        )
-        totalIntentsSelected += data.intentList ? data.intentList.length : 1
-        return [file]
-      })
+      for (const file of new Set(selectedFiles)) {
+        parsedIntents.push(...fileIntentsMap.get(file)!)
+      }
     }
 
-    console.log(`Total intents selected: ${totalIntentsSelected}`)
+    console.log(`Total intents selected: ${parsedIntents.length}`)
   }
 
   const autoAsyncMode = args.includes('--async')
@@ -408,7 +481,7 @@ export const getReplayParams = async () => {
 
   let asyncMode = autoAsyncMode
   let delay = autoAsyncDuration || '2500'
-  if (totalIntentsSelected > 1 && !asyncMode) {
+  if (parsedIntents.length > 1 && !asyncMode) {
     asyncMode = await select({
       message: 'Do you want to replay intents in parallel / asynchronously?',
       choices: [
@@ -455,11 +528,14 @@ export const getReplayParams = async () => {
     })
   }
 
+  const verbose = args.includes('--verbose')
+
   return {
-    intentsToReplay,
+    intents: parsedIntents,
     asyncMode,
     msBetweenBundles: parseInt(delay, 10),
     environment,
     executionMode,
+    verbose,
   }
 }

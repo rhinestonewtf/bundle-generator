@@ -2,7 +2,7 @@
   "name": "bundle-generator",
   "version": "1.0.0",
   "description": "",
-  "main": "index.js",
+  "type": "module",
   "scripts": {
     "new": "tsx src/new-intent.ts",
     "replay": "tsx src/existing-intent.ts",
@@ -20,10 +20,8 @@
   "license": "ISC",
   "dependencies": {
     "@inquirer/prompts": "^7.4.1",
-    "@rhinestone/sdk": "^1.2.10",
-    "@rhinestone/shared-configs": "^1.4.4",
+    "@rhinestone/sdk": "^1.2.12",
     "abitype": "^1.0.8",
-    "axios": "^1.10.0",
     "dotenv": "^16.5.0",
     "tsx": "^4.19.4",
     "typescript": "^5.8.3",

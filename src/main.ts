@@ -1,4 +1,4 @@
-import { getTokenAddress, RhinestoneSDK } from '@rhinestone/sdk'
+import { type AuxiliaryFunds, getTokenAddress, RhinestoneSDK } from '@rhinestone/sdk'
 import {
   type Address,
   createPublicClient,
@@ -7,49 +7,126 @@ import {
   type Hex,
   http,
   isAddress,
+  parseUnits,
   zeroAddress,
 } from 'viem'
-import { type Account, privateKeyToAccount } from 'viem/accounts'
+import { privateKeyToAccount } from 'viem/accounts'
 import { fundAccount } from './funding.js'
-import type { Intent, ParsedToken, TokenSymbol } from './types.js'
+import type { Intent, ParsedToken, SourceAssets, TokenSymbol } from './types.js'
 import { getChain, getChainById } from './utils/chains.js'
 import { getEnvironment } from './utils/environments.js'
-import { convertTokenAmount } from './utils/tokens.js'
+import { convertTokenAmount, getDecimals } from './utils/tokens.js'
 
 export function ts() {
   return new Date().toISOString().replace(/T/, ' ').replace(/\..+/, '')
 }
 
-export const processIntent = async (
-  intent: Intent,
-  environmentString: string,
-  executionMode: string,
-) => {
-  // create the eoa account
-  const owner: Account = privateKeyToAccount(
-    process.env.OWNER_PRIVATE_KEY! as Hex,
-  )
+const resolveSourceAssets = async (sourceAssets: SourceAssets) => {
+  // Format 1: string[] → SimpleTokenList, pass as-is
+  if (Array.isArray(sourceAssets) && sourceAssets.every((item) => typeof item === 'string')) {
+    return sourceAssets as string[]
+  }
 
+  // Format 3: ExactInputConfig[] → resolve chain names and amounts
+  if (Array.isArray(sourceAssets)) {
+    const configs = sourceAssets as { chain: string; token: string; amount?: string }[]
+    const resolved = []
+    for (const config of configs) {
+      const chain = getChain(config.chain)
+      const entry: { chain: typeof chain; address: string; amount?: bigint } = {
+        chain,
+        address: config.token,
+      }
+      if (config.amount) {
+        const decimals = await getDecimals({
+          tokenSymbolOrAddress: config.token,
+          chainId: chain.id,
+        })
+        entry.amount = parseUnits(config.amount, decimals)
+      }
+      resolved.push(entry)
+    }
+    return resolved
+  }
+
+  // Format 2: Record<string, string[]> → ChainTokenMap (chain name keys → chain ID keys)
+  const chainTokenMap: Record<number, string[]> = {}
+  for (const [chainName, tokens] of Object.entries(sourceAssets)) {
+    const chain = getChain(chainName)
+    chainTokenMap[chain.id] = tokens
+  }
+  return chainTokenMap
+}
+
+/** Resolve human-friendly auxiliaryFunds to SDK format */
+const resolveAuxiliaryFunds = async (
+  funds: Record<string, Record<string, string>>,
+): Promise<AuxiliaryFunds> => {
+  const result: AuxiliaryFunds = {}
+  for (const [chainName, tokens] of Object.entries(funds)) {
+    const chain = getChain(chainName)
+    const tokenEntries: Record<Address, bigint> = {}
+    for (const [tokenSymbol, amount] of Object.entries(tokens)) {
+      const address = isAddress(tokenSymbol)
+        ? (tokenSymbol as Address)
+        : getTokenAddress(tokenSymbol as TokenSymbol, chain.id)
+      const decimals = await getDecimals({
+        tokenSymbolOrAddress: tokenSymbol,
+        chainId: chain.id,
+      })
+      tokenEntries[address] = parseUnits(amount, decimals)
+    }
+    result[chain.id] = tokenEntries
+  }
+  return result
+}
+
+/** Extract token symbols from sourceAssets for local testnet funding */
+const extractFundingTokens = (sourceAssets: SourceAssets): string[] => {
+  // string[] format: tokens are already symbols
+  if (Array.isArray(sourceAssets) && sourceAssets.every((item) => typeof item === 'string')) {
+    return sourceAssets as string[]
+  }
+
+  // ExactInputConfig[] format: extract token fields
+  if (Array.isArray(sourceAssets)) {
+    const configs = sourceAssets as { chain: string; token: string; amount?: string }[]
+    return [...new Set(configs.map((c) => c.token))]
+  }
+
+  // Record<string, string[]> format: collect all unique token symbols
+  return [...new Set(Object.values(sourceAssets).flat())]
+}
+
+export const createRhinestoneAccount = async (environmentString: string) => {
+  const owner = privateKeyToAccount(process.env.OWNER_PRIVATE_KEY! as Hex)
   const environment = getEnvironment(environmentString)
-  const orchestratorUrl = environment.url
-  const rhinestoneApiKey = environment.apiKey
-
-  // create the rhinestone account instance
   const rhinestone = new RhinestoneSDK({
-    apiKey: rhinestoneApiKey,
-    endpointUrl: orchestratorUrl,
-    useDevContracts: environment.url !== undefined,
+    apiKey: environment.apiKey,
+    endpointUrl: environment.url,
+    useDevContracts: environment.useDevContracts,
   })
-  const rhinestoneAccount = await rhinestone.createAccount({
+  return rhinestone.createAccount({
     owners: {
       type: 'ecdsa' as const,
       accounts: [owner],
     },
-    // eoa: owner,
-    // account: {
-    //   type: "eoa",
-    // },
   })
+}
+
+export type RhinestoneAccount = Awaited<
+  ReturnType<typeof createRhinestoneAccount>
+>
+
+export const processIntent = async (
+  intent: Intent,
+  environmentString: string,
+  executionMode: string,
+  existingAccount?: RhinestoneAccount,
+  verbose?: boolean,
+) => {
+  const rhinestoneAccount =
+    existingAccount ?? (await createRhinestoneAccount(environmentString))
 
   // get the target chain and source chains
   const targetChain = getChain(intent.targetChain)
@@ -60,10 +137,15 @@ export const processIntent = async (
 
   // fund the account
   const accountAddress = rhinestoneAccount.getAddress()
+  const fundingTokens = intent.sourceTokens?.length
+    ? intent.sourceTokens
+    : intent.sourceAssets
+      ? extractFundingTokens(intent.sourceAssets)
+      : []
   await fundAccount({
     account: accountAddress,
     sourceChains: intent.sourceChains,
-    sourceTokens: intent.sourceTokens,
+    sourceTokens: fundingTokens,
   })
 
   // get the target address
@@ -143,7 +225,9 @@ export const processIntent = async (
               .join(', ')
           })
           .join(' | ')
-      : (intent.sourceTokens || []).join(', ')
+      : (intent.sourceTokens || [])
+          .map((t) => (typeof t === 'string' ? t : t.address))
+          .join(', ')
 
   // prepare the target assets label
   const targetAssetsLabel = intent.targetTokens
@@ -166,21 +250,33 @@ export const processIntent = async (
   const prepareStartTime = Date.now()
   console.log(`${ts()} Bundle ${bundleLabel}: [1/4] Preparing transaction...`)
 
-  // prepare the transaction with prepareTransaction method
-  const transactionDetails: any = {
+  // resolve source assets: prefer sourceAssets over sourceTokens
+  const resolvedSourceAssets = intent.sourceAssets
+    ? await resolveSourceAssets(intent.sourceAssets)
+    : intent.sourceTokens?.length
+      ? intent.sourceTokens
+      : undefined
+
+  // resolve auxiliary funds if provided
+  const resolvedAuxiliaryFunds = intent.auxiliaryFunds
+    ? await resolveAuxiliaryFunds(intent.auxiliaryFunds)
+    : undefined
+
+  const transactionDetails = {
     sourceChains: sourceChains.length > 0 ? sourceChains : undefined,
     targetChain,
     calls,
     tokenRequests,
     sponsored: intent.sponsored,
+    ...(resolvedSourceAssets ? { sourceAssets: resolvedSourceAssets } : {}),
+    ...(intent.settlementLayers?.length > 0
+      ? { settlementLayers: intent.settlementLayers }
+      : {}),
+    ...(intent.recipient ? { recipient: intent.recipient as Address } : {}),
+    ...(intent.feeAsset ? { feeAsset: intent.feeAsset } : {}),
+    ...(resolvedAuxiliaryFunds ? { auxiliaryFunds: resolvedAuxiliaryFunds } : {}),
   }
 
-  if (intent.sourceTokens?.length)
-    transactionDetails.sourceAssets = intent.sourceTokens
-
-  if (intent.settlementLayers?.length > 0) {
-    transactionDetails.settlementLayers = intent.settlementLayers
-  }
   const preparedTransaction =
     await rhinestoneAccount.prepareTransaction(transactionDetails)
 
@@ -191,9 +287,13 @@ export const processIntent = async (
     }ms`,
   )
 
-  // console.dir(preparedTransaction.intentRoute.intentOp.elements, {
-  //   depth: null,
-  // })
+  if (verbose) {
+    console.log(`${ts()} Bundle ${bundleLabel}: [verbose] intentOp:`)
+    console.dir(preparedTransaction.intentRoute.intentOp, { depth: null })
+    console.log(`${ts()} Bundle ${bundleLabel}: [verbose] intentCost:`)
+    console.dir(preparedTransaction.intentRoute.intentCost, { depth: null })
+  }
+
   // check that sponsorship is working correctly
   if (intent.sponsored) {
     // todo: adjust type in sdk

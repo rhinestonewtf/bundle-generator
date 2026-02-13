@@ -1,80 +1,129 @@
 # Bundle Generator
 
-A simple CLI tool to generate intents on the Rhinestone Orchestrator for testing.
+CLI tool to generate and replay intents on the Rhinestone Orchestrator.
 
-## Usage
+## Setup
 
-When using the bundle generator for the first time, run `pnpm i` to install the dependencies. You will also need to create a `.env` file based on `.env.example`. The owner private key is just used to sign so can be a random private key. You only need the api keys of the env you're using.
+```sh
+pnpm i
+cp .env.example .env
+```
 
-## Environments
+Set the API key for your target environment in `.env`. The owner private key is used for signing and can be any valid private key.
 
-The bundle generator supports three different environments:
+## Environment variables
 
-- Prod
-- Dev
-- Local
+| Variable | Description |
+|---|---|
+| `OWNER_PRIVATE_KEY` | Private key for signing intents |
+| `PROD_API_KEY` | API key for prod orchestrator |
+| `DEV_API_KEY` | API key for dev orchestrator |
+| `LOCAL_API_KEY` | API key for local orchestrator |
+| `DEFAULT_TOKEN_RECIPIENT` | Default recipient address (falls back to owner) |
+| `LOCAL_TESTNET` | Set to `true` to enable local testnet funding |
 
-Note: if you're running a local testnet, set `LOCAL_TESTNET=true`
+## Commands
 
-## Usage
+### `pnpm address`
 
-### Command `address`
+Prints the smart account address.
 
-- Gets the address for the smart account to send funds to
+### `pnpm balance`
 
-Usage: `pnpm address` or `pnpm run address`
+Shows token balances across all supported chains.
 
-### Command `balance`
+### `pnpm new`
 
-- Gets the balance of the smart account across all supported chains
+Interactive CLI to create, save, and execute a new intent.
 
-Usage: `pnpm balance` or `pnpm run balance`
+### `pnpm replay [filename] [options]`
 
-### Command: `new`
+Replay saved intents from the `intents/` directory.
 
-- Creates a new intent through a cli
-- Stores the intent params for future use
-- Executes the intent
-
-Usage: `pnpm new` or `pnpm run new`
-
-### Command `replay`
-
-- Allows you to either replay all stored intents or a subset
-- Allows you to either execute them in sequence or parallel
-
-Usage: `pnpm replay [filename] [options]`
-
-Options:
-- `filename` - Replay a specific file from `intents/` (extension optional)
-- `--all` - Replay all intents without prompting
-- `--env <prod|dev|local>` - Set environment
-- `--mode <execute|simulate>` - Set execution mode
-- `--async [delay]` - Run in parallel with optional delay in ms (default: 2500)
+| Option | Description |
+|---|---|
+| `filename` | Replay a specific file (`.json` extension optional) |
+| `--all` | Replay all intents without prompting |
+| `--env <prod\|dev\|local>` | Set environment |
+| `--mode <execute\|simulate>` | Set execution mode |
+| `--async [delay]` | Run in parallel with optional delay in ms (default: 2500) |
+| `--verbose` | Print `intentOp` and `intentCost` after transaction preparation |
 
 Examples:
-- `pnpm replay` - Interactive mode
-- `pnpm replay my-intent --env prod --mode execute`
-- `pnpm replay --all --env dev --async 3000`
 
-## Testing vectors
+```sh
+pnpm replay                                        # interactive
+pnpm replay my-intent --env prod --mode execute     # specific file
+pnpm replay --all --env dev --async 3000            # all, parallel
+```
 
-In order to generate a large set of test cases, run `./generate.sh` or `./generate_testnets.sh`. The vectors are:
+## Intent JSON format
 
-- [x] Networks: what networks to use
-- [x] Token outs: what tokens to request on target
-- [ ] Token ins: what tokens to use as input
-- [x] Sponsored: whether the intent is sponsored
-- [x] Destination ops: whether there are target executions
-- [x] Settlement layers: which settelment layers to use
-- [x] Samechain no token transfers
-- [x] Multi token output
-- [ ] Account deployments
-- [ ] EIP-7702
-- [ ] EOAs
-- [ ] Non-7579 accounts
-- [ ] Multi token input
-- [ ] Multi origin chain
-- [ ] Locked funds
-- [ ] Unlocked funds
-- [ ] Preclaim ops
+Intents are stored in `intents/*.json`. A file contains either a single intent object or `{ "intentList": [...] }`.
+
+### Fields
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `targetChain` | `string` | yes | Target chain name (e.g. `"ArbitrumOne"`, `"Base"`) |
+| `targetTokens` | `{ symbol, amount? }[]` | yes | Tokens to receive on target chain |
+| `sourceChains` | `string[]` | yes | Source chain names (can be empty for auto-routing) |
+| `sourceTokens` | `string[] \| object[]` | yes | Source tokens (symbols or `{ chain, address, amount }` objects) |
+| `tokenRecipient` | `string` | yes | Address to receive tokens on target chain |
+| `settlementLayers` | `string[]` | yes | Settlement layers (`"ACROSS"`, `"ECO"`, `"RELAY"`, or `[]`) |
+| `sponsored` | `boolean` | yes | Whether the intent is sponsored |
+| `sourceAssets` | see below | no | Source asset configuration (overrides `sourceTokens` for routing) |
+| `recipient` | `string` | no | Recipient address for the orchestrator |
+| `feeAsset` | `string` | no | Fee token symbol or address (e.g. `"USDC"`) |
+| `destinationOps` | `boolean` | no | Whether to include target chain executions (default: `true`) |
+| `auxiliaryFunds` | `Record<chain, Record<token, amount>>` | no | Off-chain balances for route-finding |
+
+### `sourceAssets` formats
+
+Three formats are supported:
+
+**Simple token list** (same tokens across all source chains):
+```json
+"sourceAssets": ["WETH", "USDC"]
+```
+
+**Per-chain token map** (different tokens per chain):
+```json
+"sourceAssets": { "Base": ["WETH", "USDC"], "ArbitrumOne": ["USDC"] }
+```
+
+**Exact inputs with amounts**:
+```json
+"sourceAssets": [{ "chain": "Base", "token": "WETH", "amount": "0.001" }]
+```
+
+### `auxiliaryFunds`
+
+Specifies off-chain balances (e.g. exchange accounts) that the route-finder can consider. Uses human-readable chain names, token symbols, and amounts:
+
+```json
+"auxiliaryFunds": {
+  "ArbitrumOne": { "USDC": "500" },
+  "Base": { "WETH": "0.5" }
+}
+```
+
+### Example intent
+
+```json
+{
+  "intentList": [{
+    "targetChain": "ArbitrumOne",
+    "targetTokens": [{ "symbol": "WETH", "amount": "0.001" }],
+    "sourceChains": ["Base"],
+    "sourceTokens": [],
+    "sourceAssets": { "Base": ["WETH", "USDC"] },
+    "tokenRecipient": "0x...",
+    "recipient": "0x...",
+    "settlementLayers": ["ACROSS"],
+    "sponsored": false,
+    "feeAsset": "USDC",
+    "auxiliaryFunds": { "ArbitrumOne": { "USDC": "500" } }
+  }]
+}
+```
