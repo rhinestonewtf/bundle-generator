@@ -32,6 +32,7 @@ export type Intent = {
   sponsored: boolean
   destinationOps?: boolean
   feeAsset?: string
+  auxiliaryFunds?: Record<string, Record<string, string>>
 }
 
 export type TokenSymbol = 'ETH' | 'WETH' | 'USDC' | 'USDT'

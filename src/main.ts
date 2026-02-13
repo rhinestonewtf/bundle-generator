@@ -1,4 +1,4 @@
-import { getTokenAddress, RhinestoneSDK } from '@rhinestone/sdk'
+import { type AuxiliaryFunds, getTokenAddress, RhinestoneSDK } from '@rhinestone/sdk'
 import {
   type Address,
   createPublicClient,
@@ -56,6 +56,29 @@ const resolveSourceAssets = async (sourceAssets: SourceAssets) => {
     chainTokenMap[chain.id] = tokens
   }
   return chainTokenMap
+}
+
+/** Resolve human-friendly auxiliaryFunds to SDK format */
+const resolveAuxiliaryFunds = async (
+  funds: Record<string, Record<string, string>>,
+): Promise<AuxiliaryFunds> => {
+  const result: AuxiliaryFunds = {}
+  for (const [chainName, tokens] of Object.entries(funds)) {
+    const chain = getChain(chainName)
+    const tokenEntries: Record<Address, bigint> = {}
+    for (const [tokenSymbol, amount] of Object.entries(tokens)) {
+      const address = isAddress(tokenSymbol)
+        ? (tokenSymbol as Address)
+        : getTokenAddress(tokenSymbol as TokenSymbol, chain.id)
+      const decimals = await getDecimals({
+        tokenSymbolOrAddress: tokenSymbol,
+        chainId: chain.id,
+      })
+      tokenEntries[address] = parseUnits(amount, decimals)
+    }
+    result[chain.id] = tokenEntries
+  }
+  return result
 }
 
 /** Extract token symbols from sourceAssets for local testnet funding */
@@ -233,6 +256,11 @@ export const processIntent = async (
       ? intent.sourceTokens
       : undefined
 
+  // resolve auxiliary funds if provided
+  const resolvedAuxiliaryFunds = intent.auxiliaryFunds
+    ? await resolveAuxiliaryFunds(intent.auxiliaryFunds)
+    : undefined
+
   const transactionDetails = {
     sourceChains: sourceChains.length > 0 ? sourceChains : undefined,
     targetChain,
@@ -245,6 +273,7 @@ export const processIntent = async (
       : {}),
     ...(intent.recipient ? { recipient: intent.recipient as Address } : {}),
     ...(intent.feeAsset ? { feeAsset: intent.feeAsset } : {}),
+    ...(resolvedAuxiliaryFunds ? { auxiliaryFunds: resolvedAuxiliaryFunds } : {}),
   }
 
   const preparedTransaction =
