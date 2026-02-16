@@ -158,8 +158,14 @@ export const collectUserInput = async (): Promise<{
     const sourceAssetFormat = await select({
       message: 'How do you want to configure source assets?',
       choices: [
-        { name: 'Simple token list (same tokens across all chains)', value: 'simple' },
-        { name: 'Per-chain token map (different tokens per chain)', value: 'chainMap' },
+        {
+          name: 'Simple token list (same tokens across all chains)',
+          value: 'simple',
+        },
+        {
+          name: 'Per-chain token map (different tokens per chain)',
+          value: 'chainMap',
+        },
         { name: 'Exact inputs with amounts', value: 'exact' },
         { name: 'Legacy format (sourceTokens)', value: 'legacy' },
       ],
@@ -185,7 +191,8 @@ export const collectUserInput = async (): Promise<{
       }
       sourceAssetsConfig = chainTokenMap
     } else if (sourceAssetFormat === 'exact') {
-      const exactConfigs: { chain: string; token: string; amount?: string }[] = []
+      const exactConfigs: { chain: string; token: string; amount?: string }[] =
+        []
       for (const chainName of sourceChains) {
         for (const tokenSymbol of sourceTokens) {
           const amountStr = await input({

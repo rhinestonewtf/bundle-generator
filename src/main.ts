@@ -1,4 +1,8 @@
-import { type AuxiliaryFunds, getTokenAddress, RhinestoneSDK } from '@rhinestone/sdk'
+import {
+  type AuxiliaryFunds,
+  getTokenAddress,
+  RhinestoneSDK,
+} from '@rhinestone/sdk'
 import {
   type Address,
   createPublicClient,
@@ -24,7 +28,13 @@ export function ts() {
 const logTimingSummary = (
   bundleLabel: string,
   totalMs: number,
-  timings: { route: number; sign: number; submit: number; execute: number; index: number },
+  timings: {
+    route: number
+    sign: number
+    submit: number
+    execute: number
+    index: number
+  },
 ) => {
   console.log(
     `${ts()} Bundle ${bundleLabel}: Total time: ${totalMs}ms ` +
@@ -34,13 +44,20 @@ const logTimingSummary = (
 
 const resolveSourceAssets = async (sourceAssets: SourceAssets) => {
   // Format 1: string[] → SimpleTokenList, pass as-is
-  if (Array.isArray(sourceAssets) && sourceAssets.every((item) => typeof item === 'string')) {
+  if (
+    Array.isArray(sourceAssets) &&
+    sourceAssets.every((item) => typeof item === 'string')
+  ) {
     return sourceAssets as string[]
   }
 
   // Format 3: ExactInputConfig[] → resolve chain names and amounts
   if (Array.isArray(sourceAssets)) {
-    const configs = sourceAssets as { chain: string; token: string; amount?: string }[]
+    const configs = sourceAssets as {
+      chain: string
+      token: string
+      amount?: string
+    }[]
     const resolved = []
     for (const config of configs) {
       const chain = getChain(config.chain)
@@ -95,13 +112,20 @@ const resolveAuxiliaryFunds = async (
 /** Extract token symbols from sourceAssets for local testnet funding */
 const extractFundingTokens = (sourceAssets: SourceAssets): string[] => {
   // string[] format: tokens are already symbols
-  if (Array.isArray(sourceAssets) && sourceAssets.every((item) => typeof item === 'string')) {
+  if (
+    Array.isArray(sourceAssets) &&
+    sourceAssets.every((item) => typeof item === 'string')
+  ) {
     return sourceAssets as string[]
   }
 
   // ExactInputConfig[] format: extract token fields
   if (Array.isArray(sourceAssets)) {
-    const configs = sourceAssets as { chain: string; token: string; amount?: string }[]
+    const configs = sourceAssets as {
+      chain: string
+      token: string
+      amount?: string
+    }[]
     return [...new Set(configs.map((c) => c.token))]
   }
 
@@ -285,7 +309,9 @@ export const processIntent = async (
       : {}),
     ...(intent.recipient ? { recipient: intent.recipient as Address } : {}),
     ...(intent.feeAsset ? { feeAsset: intent.feeAsset } : {}),
-    ...(resolvedAuxiliaryFunds ? { auxiliaryFunds: resolvedAuxiliaryFunds } : {}),
+    ...(resolvedAuxiliaryFunds
+      ? { auxiliaryFunds: resolvedAuxiliaryFunds }
+      : {}),
   }
 
   const preparedTransaction =

@@ -20,7 +20,7 @@
   "license": "ISC",
   "dependencies": {
     "@inquirer/prompts": "^7.4.1",
-    "@rhinestone/sdk": "^1.2.12",
+    "@rhinestone/sdk": "^1.2.13",
     "abitype": "^1.0.8",
     "dotenv": "^16.5.0",
     "tsx": "^4.19.4",

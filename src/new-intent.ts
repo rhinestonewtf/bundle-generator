@@ -35,7 +35,12 @@ export const main = async () => {
     )
   }
 
-  await processIntent(intent, environmentString, executionMode, rhinestoneAccount)
+  await processIntent(
+    intent,
+    environmentString,
+    executionMode,
+    rhinestoneAccount,
+  )
 }
 
 main()
