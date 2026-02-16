@@ -21,6 +21,17 @@ export function ts() {
   return new Date().toISOString().replace(/T/, ' ').replace(/\..+/, '')
 }
 
+const logTimingSummary = (
+  bundleLabel: string,
+  totalMs: number,
+  timings: { route: number; sign: number; submit: number; execute: number; index: number },
+) => {
+  console.log(
+    `${ts()} Bundle ${bundleLabel}: Total time: ${totalMs}ms ` +
+      `(Route: ${timings.route}ms, Sign: ${timings.sign}ms, Submit: ${timings.submit}ms, Execute: ${timings.execute}ms, Index: ${timings.index}ms)`,
+  )
+}
+
 const resolveSourceAssets = async (sourceAssets: SourceAssets) => {
   // Format 1: string[] → SimpleTokenList, pass as-is
   if (Array.isArray(sourceAssets) && sourceAssets.every((item) => typeof item === 'string')) {
@@ -324,6 +335,21 @@ export const processIntent = async (
     }`,
   )
 
+  if (executionMode === 'route') {
+    console.log(
+      `${ts()} Bundle ${bundleLabel}: Route-only mode, skipping sign/submit/execute`,
+    )
+    console.dir(preparedTransaction.intentRoute, { depth: null })
+    logTimingSummary(bundleLabel, prepareEndTime - prepareStartTime, {
+      route: prepareEndTime - prepareStartTime,
+      sign: 0,
+      submit: 0,
+      execute: 0,
+      index: 0,
+    })
+    return
+  }
+
   // sign the transaction with signTransaction method
   console.log(`${ts()} Bundle ${bundleLabel}: [2/4] Signing transaction...`)
   const signedTransaction =
@@ -398,16 +424,13 @@ export const processIntent = async (
         fillTimestamp - executionStartTime
       }ms`,
     )
-    console.log(
-      `${ts()} Bundle ${bundleLabel}: Total time: ${
-        executionEndTime - prepareStartTime
-      }ms ` +
-        `(Route: ${prepareEndTime - prepareStartTime}ms, Sign: ${
-          signEndTime - prepareEndTime
-        }ms, Submit: ${submitEndTime - signEndTime}ms, Execute: ${
-          fillTimestamp - executionStartTime
-        }ms, Index: ${executionEndTime - fillTimestamp}ms)`,
-    )
+    logTimingSummary(bundleLabel, executionEndTime - prepareStartTime, {
+      route: prepareEndTime - prepareStartTime,
+      sign: signEndTime - prepareEndTime,
+      submit: submitEndTime - signEndTime,
+      execute: fillTimestamp - executionStartTime,
+      index: executionEndTime - fillTimestamp,
+    })
 
     console.dir(result, { depth: null })
   } catch (error: any) {

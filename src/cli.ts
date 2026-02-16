@@ -365,6 +365,7 @@ export const collectUserInput = async (): Promise<{
         value: 'execute',
       },
       { name: 'Simulate', value: 'simulate' },
+      { name: 'Route', value: 'route' },
     ],
   })
 
@@ -524,6 +525,7 @@ export const getReplayParams = async () => {
       choices: [
         { name: 'Execute', value: 'execute' },
         { name: 'Simulate', value: 'simulate' },
+        { name: 'Route', value: 'route' },
       ],
     })
   }
