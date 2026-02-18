@@ -3,12 +3,12 @@ import {
   type Address,
   createPublicClient,
   erc20Abi,
-  http,
   isAddress,
   parseUnits,
 } from 'viem'
 import type { Token } from '../types.js'
 import { getChainById } from './chains.js'
+import { rpcTransport } from './rpc.js'
 
 export const getDecimals = async ({
   tokenSymbolOrAddress,
@@ -20,7 +20,7 @@ export const getDecimals = async ({
   if (isAddress(tokenSymbolOrAddress)) {
     const publicClient = createPublicClient({
       chain: getChainById(chainId),
-      transport: http(),
+      transport: rpcTransport(chainId),
     })
     return publicClient.readContract({
       address: tokenSymbolOrAddress as Address,

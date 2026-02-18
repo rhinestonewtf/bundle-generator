@@ -9,7 +9,6 @@ import {
   encodeFunctionData,
   erc20Abi,
   type Hex,
-  http,
   isAddress,
   parseUnits,
   zeroAddress,
@@ -19,6 +18,7 @@ import { fundAccount } from './funding.js'
 import type { Intent, ParsedToken, SourceAssets, TokenSymbol } from './types.js'
 import { getChain, getChainById } from './utils/chains.js'
 import { getEnvironment } from './utils/environments.js'
+import { rpcTransport } from './utils/rpc.js'
 import { convertTokenAmount, getDecimals } from './utils/tokens.js'
 
 export function ts() {
@@ -421,7 +421,7 @@ export const processIntent = async (
     if (!isSimulate && result.fill.hash) {
       const fillPublicClient = createPublicClient({
         chain: getChainById(result.fill.chainId),
-        transport: http(),
+        transport: rpcTransport(result.fill.chainId),
       })
       const fillTx = await fillPublicClient.getTransactionReceipt({
         hash: result.fill.hash as Hex,
@@ -436,7 +436,7 @@ export const processIntent = async (
       if (claim.hash) {
         const claimPublicClient = createPublicClient({
           chain: getChainById(claim.chainId),
-          transport: http(),
+          transport: rpcTransport(claim.chainId),
         })
         const claimTx = await claimPublicClient.getTransactionReceipt({
           hash: claim.hash as Hex,
