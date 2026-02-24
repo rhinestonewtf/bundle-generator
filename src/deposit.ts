@@ -314,9 +314,7 @@ export async function runDepositMode(
       {
         chain: targetChain.id,
         token: targetTokenAddress,
-        ...(intent.tokenRecipient
-          ? { recipient: intent.tokenRecipient as Address }
-          : {}),
+        recipient,
       },
     )
     console.log(`${ts()} Deposit: Registration complete`)

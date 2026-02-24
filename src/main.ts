@@ -281,7 +281,9 @@ export const processIntent = async (
     .join(', ')
 
   // prepare the recipient label
-  const recipientLabel = intent.tokenRecipient.slice(0, 6)
+  const recipientLabel = intent.tokenRecipient
+    ? intent.tokenRecipient.slice(0, 6)
+    : 'self'
 
   const bundleLabel = `${sourceAssetsLabel} > ${targetAssetsLabel}${intent.settlementLayers?.length ? ` via ${intent.settlementLayers.join()}` : ''}${intent.sponsored ? ' sponsored' : ''} to ${recipientLabel}`
 
