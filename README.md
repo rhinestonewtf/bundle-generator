@@ -21,6 +21,7 @@ Set the API key for your target environment in `.env`. The owner private key is 
 | `LOCAL_API_KEY` | API key for local orchestrator |
 | `DEFAULT_TOKEN_RECIPIENT` | Default recipient address (falls back to owner) |
 | `LOCAL_TESTNET` | Set to `true` to enable local testnet funding |
+| `NGROK_AUTHTOKEN` | Ngrok auth token for deposit webhook support (optional, falls back to balance polling) |
 
 ## Commands
 
@@ -45,7 +46,7 @@ Replay saved intents from the `intents/` directory.
 | `filename` | Replay a specific file (`.json` extension optional) |
 | `--all` | Replay all intents without prompting |
 | `--env <prod\|dev\|local>` | Set environment |
-| `--mode <execute\|simulate>` | Set execution mode |
+| `--mode <execute\|simulate\|route\|deposit>` | Set execution mode |
 | `--async [delay]` | Run in parallel with optional delay in ms (default: 2500) |
 | `--verbose` | Print `intentOp` and `intentCost` after transaction preparation |
 
@@ -55,7 +56,18 @@ Examples:
 pnpm replay                                        # interactive
 pnpm replay my-intent --env prod --mode execute     # specific file
 pnpm replay --all --env dev --async 3000            # all, parallel
+pnpm replay my-deposit --env dev --mode deposit     # deposit mode
 ```
+
+### Deposit mode
+
+`--mode deposit` tests the deposit service end-to-end. It creates a session-enabled deposit account, funds it via an intent, and waits for the deposit service to bridge funds to the target chain.
+
+Deposit intents require:
+- Exactly 1 source chain (the deposit chain)
+- `sourceAssets` in exact input format with amounts
+
+If `NGROK_AUTHTOKEN` is set, deposit mode uses outbound webhooks from the deposit service for faster bridge detection and timing breakdown (detect, route, bridge). Otherwise it falls back to balance polling.
 
 ## Intent JSON format
 
