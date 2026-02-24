@@ -31,6 +31,20 @@ export const main = async () => {
     ],
   })
 
+  const networkType = await select({
+    message: 'Select the network type',
+    choices: [
+      {
+        name: 'Mainnet',
+        value: 'mainnet',
+      },
+      {
+        name: 'Testnet',
+        value: 'testnet',
+      },
+    ],
+  })
+
   const environment = getEnvironment(environmentString)
   const orchestratorUrl = environment.url
   const rhinestoneApiKey = environment.apiKey
@@ -52,8 +66,8 @@ export const main = async () => {
   console.log(`Account: ${address}\n`)
 
   console.log('Portfolio (via Rhinestone SDK):')
-  const isDevMode = environmentString !== 'prod'
-  const portfolio = await rhinestoneAccount.getPortfolio(isDevMode)
+  const isTestnet = networkType === 'testnet'
+  const portfolio = await rhinestoneAccount.getPortfolio(isTestnet)
 
   if (portfolio.length === 0) {
     console.log('   No tokens found in portfolio')
