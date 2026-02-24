@@ -22,7 +22,8 @@ import {
   ts,
 } from './main.js'
 import type { Intent, Token, TokenSymbol } from './types.js'
-import { getChain } from './utils/chains.js'
+import { getChain, getChainById } from './utils/chains.js'
+import { createWebhookListener, type WebhookListener } from './deposit-webhook.js'
 import { getDepositServiceConfig } from './utils/environments.js'
 
 function jsonStringify(value: unknown): string {
@@ -285,116 +286,169 @@ export async function runDepositMode(
   const depositAddress = depositAccountSetup.address
   console.log(`${ts()} Deposit: Deposit account address: ${depositAddress}`)
 
-  // 6. Register with deposit service (always re-register to handle
-  // changing deposit chains or targets between intents)
-  console.log(`${ts()} Deposit: Registering with deposit service...`)
-  await setupClient(
-    depositConfig.url,
-    depositConfig.apiKey,
-    intent.sponsored,
-    depositChain.id,
-    targetChain.id,
-  )
-  await registerAccount(
-    depositConfig.url,
-    depositConfig.apiKey,
-    depositAccountSetup,
-    {
-      chain: targetChain.id,
-      token: targetTokenAddress,
-      ...(intent.tokenRecipient
-        ? { recipient: intent.tokenRecipient as Address }
-        : {}),
-    },
-  )
-  console.log(`${ts()} Deposit: Registration complete`)
-
-  // 7. Record initial balance on Z
-  const targetTokenAddressOnZ = targetTokenAddress
-  const publicClient = createPublicClient({
-    chain: targetChain,
-    transport: http(),
-  })
-  const initialBalance = await publicClient.readContract({
-    address: targetTokenAddressOnZ,
-    abi: erc20Abi,
-    functionName: 'balanceOf',
-    args: [recipient],
-  })
-  console.log(
-    `${ts()} Deposit: Initial balance on ${targetChain.name}: ${initialBalance}`,
-  )
-
-  // 8. Build and execute funding intent (send to deposit address on Y)
-  // Derive targetTokens from sourceAssets: the source tokens with amounts become
-  // the exact target on the deposit chain. sourceAssets must be in exact input format.
-  if (!intent.sourceAssets || !Array.isArray(intent.sourceAssets)) {
-    throw new Error(
-      'Deposit mode requires sourceAssets in exact input format: [{ chain, token, amount }]',
+  // 5.5. Start webhook listener if ngrok is configured
+  const useWebhooks = !!process.env.NGROK_AUTHTOKEN
+  let webhookListener: WebhookListener | undefined
+  if (useWebhooks) {
+    webhookListener = await createWebhookListener(
+      depositConfig.url,
+      depositConfig.apiKey,
     )
   }
-  const sourceAssetConfigs = intent.sourceAssets as {
-    chain: string
-    token: string
-    amount?: string
-  }[]
-  const missingAmounts = sourceAssetConfigs.filter((c) => !c.amount)
-  if (missingAmounts.length > 0) {
-    throw new Error(
-      `Deposit mode requires all sourceAssets to have amounts. Missing amounts for: ${missingAmounts.map((c) => c.token).join(', ')}`,
+
+  try {
+    // 6. Register with deposit service (always re-register to handle
+    // changing deposit chains or targets between intents)
+    console.log(`${ts()} Deposit: Registering with deposit service...`)
+    await setupClient(
+      depositConfig.url,
+      depositConfig.apiKey,
+      intent.sponsored,
+      depositChain.id,
+      targetChain.id,
     )
+    await registerAccount(
+      depositConfig.url,
+      depositConfig.apiKey,
+      depositAccountSetup,
+      {
+        chain: targetChain.id,
+        token: targetTokenAddress,
+        ...(intent.tokenRecipient
+          ? { recipient: intent.tokenRecipient as Address }
+          : {}),
+      },
+    )
+    console.log(`${ts()} Deposit: Registration complete`)
+
+    // 7. Record initial balance on Z
+    const targetTokenAddressOnZ = targetTokenAddress
+    const publicClient = createPublicClient({
+      chain: targetChain,
+      transport: http(),
+    })
+    const initialBalance = await publicClient.readContract({
+      address: targetTokenAddressOnZ,
+      abi: erc20Abi,
+      functionName: 'balanceOf',
+      args: [recipient],
+    })
+    console.log(
+      `${ts()} Deposit: Initial balance on ${targetChain.name}: ${initialBalance}`,
+    )
+
+    // 8. Build and execute funding intent (send to deposit address on Y)
+    // Derive targetTokens from sourceAssets: the source tokens with amounts become
+    // the exact target on the deposit chain. sourceAssets must be in exact input format.
+    if (!intent.sourceAssets || !Array.isArray(intent.sourceAssets)) {
+      throw new Error(
+        'Deposit mode requires sourceAssets in exact input format: [{ chain, token, amount }]',
+      )
+    }
+    const sourceAssetConfigs = intent.sourceAssets as {
+      chain: string
+      token: string
+      amount?: string
+    }[]
+    const missingAmounts = sourceAssetConfigs.filter((c) => !c.amount)
+    if (missingAmounts.length > 0) {
+      throw new Error(
+        `Deposit mode requires all sourceAssets to have amounts. Missing amounts for: ${missingAmounts.map((c) => c.token).join(', ')}`,
+      )
+    }
+    const fundingTargetTokens: Token[] = sourceAssetConfigs.map((config) => ({
+      symbol: config.token,
+      amount: config.amount,
+    }))
+
+    // Create a prod account for the funding intent — deposit mode always uses
+    // prod orchestrator and prod contracts, regardless of selected environment.
+    console.log(`${ts()} Deposit: Creating prod account for funding intent...`)
+    const prodAccount = await createRhinestoneAccount('prod')
+
+    console.log(`${ts()} Deposit: Funding deposit address via intent...`)
+    const fundingIntent: Intent = {
+      targetChain: intent.sourceChains[0],
+      targetTokens: fundingTargetTokens,
+      sourceChains: [],
+      sourceTokens: [],
+      tokenRecipient: depositAddress,
+      settlementLayers: [],
+      sponsored: false,
+    }
+
+    const fillResult = await processIntent(
+      fundingIntent,
+      'prod',
+      'execute',
+      prodAccount,
+      verbose,
+    )
+
+    if (!fillResult) {
+      throw new Error('Funding intent returned no result')
+    }
+
+    console.log(
+      `${ts()} Deposit: Funding complete. Fill hash: ${fillResult.fill.hash} on chain ${fillResult.fill.chainId}`,
+    )
+    if (verbose) {
+      console.dir(fillResult, { depth: null })
+    }
+
+    // Record the on-chain fill timestamp for webhook timing
+    if (webhookListener && fillResult.fill.hash) {
+      const fillChain = getChainById(fillResult.fill.chainId)
+      const fillClient = createPublicClient({
+        chain: fillChain,
+        transport: http(),
+      })
+      const fillTx = await fillClient.getTransactionReceipt({
+        hash: fillResult.fill.hash as Hex,
+      })
+      const fillBlock = await fillClient.getBlock({
+        blockNumber: fillTx.blockNumber,
+      })
+      const fillTimestamp = Number(fillBlock.timestamp) * 1000
+      webhookListener.markFundingComplete(depositAddress, fillTimestamp)
+    }
+
+    // 9. Wait for bridge completion
+    if (webhookListener) {
+      console.log(
+        `${ts()} Deposit: Waiting for bridge via webhook on ${targetChain.name}...`,
+      )
+      const bridgeResult = await webhookListener.waitForBridge(
+        depositAddress,
+        POLL_TIMEOUT,
+      )
+      const { timings } = bridgeResult
+      console.log(
+        `${ts()} Deposit: Success! Bridge complete on ${targetChain.name}` +
+          ` (fill: ${bridgeResult.destination.transactionHash}, amount: ${bridgeResult.destination.amount})`,
+      )
+      console.log(
+        `${ts()} Deposit: ${depositChain.name} → ${targetChain.name}: Total: ${timings.total}ms` +
+          ` (Detect: ${timings.detect}ms, Route: ${timings.route}ms, Bridge: ${timings.bridge}ms)`,
+      )
+    } else {
+      console.log(
+        `${ts()} Deposit: Polling for balance on ${targetChain.name}...`,
+      )
+      const finalBalance = await pollBalance(
+        targetChain,
+        targetTokenAddressOnZ,
+        recipient,
+        POLL_TIMEOUT,
+        initialBalance,
+      )
+      console.log(
+        `${ts()} Deposit: Success! Final balance on ${targetChain.name}: ${finalBalance} (was ${initialBalance})`,
+      )
+    }
+  } finally {
+    if (webhookListener) {
+      await webhookListener.cleanup()
+    }
   }
-  const fundingTargetTokens: Token[] = sourceAssetConfigs.map((config) => ({
-    symbol: config.token,
-    amount: config.amount,
-  }))
-
-  // Create a prod account for the funding intent — deposit mode always uses
-  // prod orchestrator and prod contracts, regardless of selected environment.
-  console.log(`${ts()} Deposit: Creating prod account for funding intent...`)
-  const prodAccount = await createRhinestoneAccount('prod')
-
-  console.log(`${ts()} Deposit: Funding deposit address via intent...`)
-  const fundingIntent: Intent = {
-    targetChain: intent.sourceChains[0],
-    targetTokens: fundingTargetTokens,
-    sourceChains: [],
-    sourceTokens: [],
-    tokenRecipient: depositAddress,
-    settlementLayers: [],
-    sponsored: false,
-  }
-
-  const fillResult = await processIntent(
-    fundingIntent,
-    'prod',
-    'execute',
-    prodAccount,
-    verbose,
-  )
-
-  if (!fillResult) {
-    throw new Error('Funding intent returned no result')
-  }
-
-  console.log(
-    `${ts()} Deposit: Funding complete. Fill hash: ${fillResult.fill.hash} on chain ${fillResult.fill.chainId}`,
-  )
-  if (verbose) {
-    console.dir(fillResult, { depth: null })
-  }
-
-  // 9. Poll balance on Z until it increases
-  console.log(`${ts()} Deposit: Polling for balance on ${targetChain.name}...`)
-  const finalBalance = await pollBalance(
-    targetChain,
-    targetTokenAddressOnZ,
-    recipient,
-    POLL_TIMEOUT,
-    initialBalance,
-  )
-
-  console.log(
-    `${ts()} Deposit: Success! Final balance on ${targetChain.name}: ${finalBalance} (was ${initialBalance})`,
-  )
 }
