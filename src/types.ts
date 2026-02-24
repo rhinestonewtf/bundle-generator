@@ -52,6 +52,18 @@ export type BundleResult = {
   [key: string]: any
 }
 
+export type IntentResult = {
+  fill: {
+    hash: string | undefined
+    chainId: number
+  }
+  claims: {
+    hash: string | undefined
+    chainId: number
+  }[]
+  [key: string]: any
+}
+
 export type OrderPath = {
   [key: string]: any
 }

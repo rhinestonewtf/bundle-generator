@@ -16,7 +16,13 @@ import {
 } from 'viem'
 import { privateKeyToAccount } from 'viem/accounts'
 import { fundAccount } from './funding.js'
-import type { Intent, ParsedToken, SourceAssets, TokenSymbol } from './types.js'
+import type {
+  Intent,
+  IntentResult,
+  ParsedToken,
+  SourceAssets,
+  TokenSymbol,
+} from './types.js'
 import { getChain, getChainById } from './utils/chains.js'
 import { getEnvironment } from './utils/environments.js'
 import { convertTokenAmount, getDecimals } from './utils/tokens.js'
@@ -159,7 +165,7 @@ export const processIntent = async (
   executionMode: string,
   existingAccount?: RhinestoneAccount,
   verbose?: boolean,
-) => {
+): Promise<IntentResult | undefined> => {
   const rhinestoneAccount =
     existingAccount ?? (await createRhinestoneAccount(environmentString))
 
@@ -458,7 +464,11 @@ export const processIntent = async (
       index: executionEndTime - fillTimestamp,
     })
 
-    console.dir(result, { depth: null })
+    if (verbose) {
+      console.dir(result, { depth: null })
+    }
+
+    return result as IntentResult
   } catch (error: any) {
     console.error(
       `${ts()} Bundle ${bundleLabel}: Submission/Execution failed`,
