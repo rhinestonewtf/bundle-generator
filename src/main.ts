@@ -139,13 +139,17 @@ const extractFundingTokens = (sourceAssets: SourceAssets): string[] => {
   return [...new Set(Object.values(sourceAssets).flat())]
 }
 
-export const createRhinestoneAccount = async (environmentString: string) => {
+export const createRhinestoneAccount = async (
+  environmentString: string,
+  featureFlags?: string,
+) => {
   const owner = privateKeyToAccount(process.env.OWNER_PRIVATE_KEY! as Hex)
   const environment = getEnvironment(environmentString)
   const rhinestone = new RhinestoneSDK({
     apiKey: environment.apiKey,
     endpointUrl: environment.url,
     useDevContracts: environment.useDevContracts,
+    ...(featureFlags && { headers: { 'x-feature-flags': featureFlags } }),
   })
   return rhinestone.createAccount({
     owners: {

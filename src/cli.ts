@@ -412,7 +412,7 @@ export const getReplayParams = async () => {
   }
 
   const args = process.argv
-  const flagsWithValues = new Set(['--async', '--mode', '--env'])
+  const flagsWithValues = new Set(['--async', '--mode', '--env', '--feature-flags'])
   const slicedArgs = args.slice(2)
   const directFile = slicedArgs.find((arg, i) => {
     if (arg.startsWith('--')) return false
@@ -541,6 +541,11 @@ export const getReplayParams = async () => {
 
   const verbose = args.includes('--verbose')
 
+  const isFeatureFlagsSet = args.includes('--feature-flags')
+  const featureFlags = isFeatureFlagsSet
+    ? args[args.indexOf('--feature-flags') + 1]
+    : process.env.FEATURE_FLAGS
+
   return {
     intents: parsedIntents,
     asyncMode,
@@ -548,5 +553,6 @@ export const getReplayParams = async () => {
     environment,
     executionMode,
     verbose,
+    featureFlags,
   }
 }
