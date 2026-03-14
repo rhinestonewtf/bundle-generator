@@ -12,6 +12,7 @@ export const main = async () => {
 
   const rhinestoneAccount = await createRhinestoneAccount(
     replayParams.environment,
+    replayParams.featureFlags,
   )
 
   if (replayParams.executionMode === 'deposit') {
