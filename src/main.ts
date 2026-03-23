@@ -142,6 +142,7 @@ const extractFundingTokens = (sourceAssets: SourceAssets): string[] => {
 export const createRhinestoneAccount = async (
   environmentString: string,
   featureFlags?: string,
+  accountType: 'smart' | 'eoa' = 'smart',
 ) => {
   const owner = privateKeyToAccount(process.env.OWNER_PRIVATE_KEY! as Hex)
   const environment = getEnvironment(environmentString)
@@ -151,6 +152,16 @@ export const createRhinestoneAccount = async (
     useDevContracts: environment.useDevContracts,
     ...(featureFlags && { headers: { 'x-feature-flags': featureFlags } }),
   })
+
+  if (accountType === 'eoa') {
+    return rhinestone.createAccount({
+      eoa: owner,
+      account: {
+        type: 'eoa' as const,
+      },
+    })
+  }
+
   return rhinestone.createAccount({
     owners: {
       type: 'ecdsa' as const,

@@ -1,18 +1,13 @@
 import { select } from '@inquirer/prompts'
-import { RhinestoneSDK } from '@rhinestone/sdk'
 import { config } from 'dotenv'
-import { type Account, formatUnits, type Hex } from 'viem'
-import { privateKeyToAccount } from 'viem/accounts'
+import { formatUnits } from 'viem'
+import { parseAccountType } from './cli.js'
+import { createRhinestoneAccount } from './main.js'
 import { getChainById } from './utils/chains.js'
-import { getEnvironment } from './utils/environments.js'
 
 config()
 
 export const main = async () => {
-  const owner: Account = privateKeyToAccount(
-    process.env.OWNER_PRIVATE_KEY! as Hex,
-  )
-
   const environmentString = await select({
     message: 'Select the environments to use',
     choices: [
@@ -45,22 +40,12 @@ export const main = async () => {
     ],
   })
 
-  const environment = getEnvironment(environmentString)
-  const orchestratorUrl = environment.url
-  const rhinestoneApiKey = environment.apiKey
-
-  // create the rhinestone account instance
-  const rhinestone = new RhinestoneSDK({
-    apiKey: rhinestoneApiKey,
-    endpointUrl: orchestratorUrl,
-    useDevContracts: environment.useDevContracts,
-  })
-  const rhinestoneAccount = await rhinestone.createAccount({
-    owners: {
-      type: 'ecdsa' as const,
-      accounts: [owner],
-    },
-  })
+  const accountType = parseAccountType()
+  const rhinestoneAccount = await createRhinestoneAccount(
+    environmentString,
+    undefined,
+    accountType,
+  )
 
   const address = rhinestoneAccount.getAddress()
   console.log(`Account: ${address}\n`)
