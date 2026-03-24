@@ -398,6 +398,23 @@ export const collectUserInput = async (): Promise<{
   }
 }
 
+export const parseAccountType = (): 'smart' | 'eoa' => {
+  const args = process.argv
+  const isAccountTypeSet = args.includes('--account-type')
+  const accountType = isAccountTypeSet
+    ? args[args.indexOf('--account-type') + 1]
+    : process.env.ACCOUNT_TYPE ?? 'smart'
+
+  if (accountType !== 'smart' && accountType !== 'eoa') {
+    console.error(
+      `Error: --account-type must be 'smart' or 'eoa', got '${accountType}'`,
+    )
+    process.exit(1)
+  }
+
+  return accountType as 'smart' | 'eoa'
+}
+
 export const showUserAccount = async (address: string) => {
   console.log(
     `To use your account, you'll need to fund it on the relevant source chain(s). Your account address is ${address}`,
@@ -412,7 +429,7 @@ export const getReplayParams = async () => {
   }
 
   const args = process.argv
-  const flagsWithValues = new Set(['--async', '--mode', '--env', '--feature-flags'])
+  const flagsWithValues = new Set(['--async', '--mode', '--env', '--feature-flags', '--account-type'])
   const slicedArgs = args.slice(2)
   const directFile = slicedArgs.find((arg, i) => {
     if (arg.startsWith('--')) return false
@@ -546,6 +563,8 @@ export const getReplayParams = async () => {
     ? args[args.indexOf('--feature-flags') + 1]
     : process.env.FEATURE_FLAGS
 
+  const accountType = parseAccountType()
+
   return {
     intents: parsedIntents,
     asyncMode,
@@ -554,5 +573,6 @@ export const getReplayParams = async () => {
     executionMode,
     verbose,
     featureFlags,
+    accountType,
   }
 }

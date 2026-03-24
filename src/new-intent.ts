@@ -3,7 +3,7 @@ import { config } from 'dotenv'
 config()
 
 import * as fs from 'node:fs'
-import { collectUserInput, showUserAccount } from './cli.js'
+import { collectUserInput, parseAccountType, showUserAccount } from './cli.js'
 import { createRhinestoneAccount, processIntent } from './main.js'
 
 export const main = async () => {
@@ -14,7 +14,12 @@ export const main = async () => {
     executionMode,
   } = await collectUserInput()
 
-  const rhinestoneAccount = await createRhinestoneAccount(environmentString)
+  const accountType = parseAccountType()
+  const rhinestoneAccount = await createRhinestoneAccount(
+    environmentString,
+    undefined,
+    accountType,
+  )
   const address = rhinestoneAccount.getAddress()
   await showUserAccount(address)
 
