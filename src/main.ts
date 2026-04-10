@@ -355,7 +355,10 @@ export const processIntent = async (
   }
 
   // check that sponsorship is working correctly
-  if (intent.sponsored) {
+  // Skip for tokenless intents — sponsor fee is legitimately zero because
+  // the relayer is compensated via the gas refund mechanism, not a user fee.
+  const isTokenless = intent.targetTokens.length === 0
+  if (intent.sponsored && !isTokenless) {
     // todo: adjust type in sdk
     const sponsorFee =
       // @ts-expect-error
