@@ -1,8 +1,4 @@
 import {
-  getAllSupportedChainsAndTokens,
-  getTokenAddress,
-} from '@rhinestone/sdk'
-import {
   type Address,
   type Chain,
   createTestClient,
@@ -15,31 +11,9 @@ import {
   zeroAddress,
 } from 'viem'
 import { arbitrum, base, mainnet } from 'viem/chains'
+import { getTokenAddress, getTokenSymbol } from './registry.js'
 import type { SourceTokens, TokenSymbol } from './types.js'
 import { getChain } from './utils/chains.js'
-
-// `getTokenSymbol` was an internal export under the dist subpath in earlier
-// SDK versions. 2.0.0-beta.1 only exposes it via the registry, which isn't
-// in the public `exports` map. Reverse-build the (chainId, address)->symbol
-// lookup from `getAllSupportedChainsAndTokens()` and memoize it.
-let symbolLookupCache: Map<string, string> | undefined
-const getTokenSymbol = (
-  tokenAddress: Address,
-  chainId: number,
-): string | undefined => {
-  if (!symbolLookupCache) {
-    symbolLookupCache = new Map()
-    for (const entry of getAllSupportedChainsAndTokens()) {
-      for (const token of entry.tokens) {
-        symbolLookupCache.set(
-          `${entry.chainId}:${token.address.toLowerCase()}`,
-          token.symbol,
-        )
-      }
-    }
-  }
-  return symbolLookupCache.get(`${chainId}:${tokenAddress.toLowerCase()}`)
-}
 
 export const lookup = (chain: Chain): string => {
   switch (chain) {

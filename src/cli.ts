@@ -1,15 +1,16 @@
 import * as fs from 'node:fs'
 import path from 'node:path'
 import { checkbox, confirm, input, select } from '@inquirer/prompts'
-import {
-  getAllSupportedChainsAndTokens,
-  getTokenAddress,
-  type TokenSymbol,
-} from '@rhinestone/sdk'
 import { type Address, type Chain, type Hex, isAddress, parseUnits } from 'viem'
 import { privateKeyToAccount } from 'viem/accounts'
 import * as viemChains from 'viem/chains'
-import type { Intent } from './types.js'
+import {
+  getSupportedChainIds,
+  getTokenAddress,
+  initRegistry,
+} from './registry.js'
+import type { Intent, TokenSymbol } from './types.js'
+import { getEnvironment } from './utils/environments.js'
 import { getDecimals } from './utils/tokens.js'
 
 const readIntentFile = (filePath: string) => {
@@ -31,9 +32,19 @@ export const collectUserInput = async (): Promise<{
   environment: string
   executionMode: string
 }> => {
-  const sdkData = getAllSupportedChainsAndTokens()
+  const environment = await select({
+    message: 'Select the environments to use',
+    choices: [
+      { name: 'Prod', value: 'prod' },
+      { name: 'Dev', value: 'dev' },
+      { name: 'Local', value: 'local' },
+    ],
+  })
+
+  await initRegistry(getEnvironment(environment).url)
+
   const normalizeName = (str: string) => str.replace(/ /g, '')
-  const supportedChainIds = new Set(sdkData.map((c) => c.chainId))
+  const supportedChainIds = new Set(getSupportedChainIds())
   const uniqueViemChains = Object.values(viemChains).reduce((acc, chain) => {
     if (typeof chain !== 'object' || !('id' in chain)) return acc
     if (!acc.has(chain.id) && supportedChainIds.has(chain.id)) {
@@ -346,24 +357,6 @@ export const collectUserInput = async (): Promise<{
   const sanitizedFilename = filename.replace(/\.json$/, '')
   const saveAsFileName = `${sanitizedFilename}.json`
 
-  const environment = await select({
-    message: 'Select the environments to use',
-    choices: [
-      {
-        name: 'Prod',
-        value: 'prod',
-      },
-      {
-        name: 'Dev',
-        value: 'dev',
-      },
-      {
-        name: 'Local',
-        value: 'local',
-      },
-    ],
-  })
-
   const executionMode = await select({
     message: 'Do you want to execute the intent or simulate it?',
     choices: [
@@ -373,7 +366,6 @@ export const collectUserInput = async (): Promise<{
       },
       { name: 'Simulate', value: 'simulate' },
       { name: 'Route', value: 'route' },
-      { name: 'Deposit', value: 'deposit' },
     ],
   })
 
@@ -403,7 +395,7 @@ export const parseAccountType = (): 'smart' | 'eoa' => {
   const isAccountTypeSet = args.includes('--account-type')
   const accountType = isAccountTypeSet
     ? args[args.indexOf('--account-type') + 1]
-    : process.env.ACCOUNT_TYPE ?? 'smart'
+    : (process.env.ACCOUNT_TYPE ?? 'smart')
 
   if (accountType !== 'smart' && accountType !== 'eoa') {
     console.error(
@@ -429,7 +421,14 @@ export const getReplayParams = async () => {
   }
 
   const args = process.argv
-  const flagsWithValues = new Set(['--async', '--mode', '--env', '--feature-flags', '--account-type', '--quote'])
+  const flagsWithValues = new Set([
+    '--async',
+    '--mode',
+    '--env',
+    '--feature-flags',
+    '--account-type',
+    '--quote',
+  ])
   const slicedArgs = args.slice(2)
   const directFile = slicedArgs.find((arg, i) => {
     if (arg.startsWith('--')) return false
@@ -551,7 +550,6 @@ export const getReplayParams = async () => {
         { name: 'Execute', value: 'execute' },
         { name: 'Simulate', value: 'simulate' },
         { name: 'Route', value: 'route' },
-        { name: 'Deposit', value: 'deposit' },
       ],
     })
   }
@@ -567,7 +565,7 @@ export const getReplayParams = async () => {
 
   const isQuoteSet = args.includes('--quote')
   const quoteSelection = isQuoteSet
-    ? args[args.indexOf('--quote') + 1] ?? 'best'
+    ? (args[args.indexOf('--quote') + 1] ?? 'best')
     : 'best'
 
   if (quoteSelection === 'interactive' && asyncMode) {

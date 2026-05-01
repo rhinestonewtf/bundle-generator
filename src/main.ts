@@ -1,7 +1,6 @@
 import { select } from '@inquirer/prompts'
 import {
   type AuxiliaryFunds,
-  getTokenAddress,
   type PreparedQuotes,
   RhinestoneSDK,
 } from '@rhinestone/sdk'
@@ -18,12 +17,12 @@ import {
 } from 'viem'
 import { privateKeyToAccount } from 'viem/accounts'
 import { fundAccount } from './funding.js'
+import { getTokenAddress, initRegistry } from './registry.js'
 import type {
   Intent,
   IntentResult,
   ParsedToken,
   SourceAssets,
-  TokenSymbol,
 } from './types.js'
 import { getChain, getChainById } from './utils/chains.js'
 import { getEnvironment } from './utils/environments.js'
@@ -105,7 +104,7 @@ const resolveAuxiliaryFunds = async (
     for (const [tokenSymbol, amount] of Object.entries(tokens)) {
       const address = isAddress(tokenSymbol)
         ? (tokenSymbol as Address)
-        : getTokenAddress(tokenSymbol as TokenSymbol, chain.id)
+        : getTokenAddress(tokenSymbol, chain.id)
       const decimals = await getDecimals({
         tokenSymbolOrAddress: tokenSymbol,
         chainId: chain.id,
@@ -148,6 +147,7 @@ export const createRhinestoneAccount = async (
 ) => {
   const owner = privateKeyToAccount(process.env.OWNER_PRIVATE_KEY! as Hex)
   const environment = getEnvironment(environmentString)
+  await initRegistry(environment.url)
   const rhinestone = new RhinestoneSDK({
     apiKey: environment.apiKey,
     endpointUrl: environment.url,
@@ -178,7 +178,9 @@ export type RhinestoneAccount = Awaited<
 
 type Quote = PreparedQuotes['all'][number]
 
-const pickQuoteInteractively = async (quotes: PreparedQuotes): Promise<Quote> => {
+const pickQuoteInteractively = async (
+  quotes: PreparedQuotes,
+): Promise<Quote> => {
   if (quotes.all.length === 1) {
     return quotes.all[0]
   }
@@ -255,7 +257,7 @@ export const processIntent = async (
       symbol: targetToken.symbol,
       address: isAddress(targetToken.symbol)
         ? targetToken.symbol
-        : getTokenAddress(targetToken.symbol as TokenSymbol, targetChain.id),
+        : getTokenAddress(targetToken.symbol, targetChain.id),
     }
 
     if (targetToken.amount) {
@@ -412,7 +414,10 @@ export const processIntent = async (
     })
   }
 
-  const chosenQuote = await pickQuote(preparedTransaction.quotes, quoteSelection)
+  const chosenQuote = await pickQuote(
+    preparedTransaction.quotes,
+    quoteSelection,
+  )
   if (chosenQuote.intentId !== best.intentId) {
     console.log(
       `${ts()} Bundle ${bundleLabel}: [1/4] Selected non-best route: ${chosenQuote.settlementLayer} (intentId=${chosenQuote.intentId})`,
@@ -457,8 +462,7 @@ export const processIntent = async (
     // submit the transaction using the SDK
     const transactionResult = await rhinestoneAccount.submitTransaction(
       signedTransaction,
-      undefined,
-      isSimulate,
+      { internal_dryRun: isSimulate },
     )
 
     const submitEndTime = Date.now()
@@ -472,7 +476,6 @@ export const processIntent = async (
     const executionStartTime = Date.now()
     const result = (await rhinestoneAccount.waitForExecution(
       transactionResult,
-      isSimulate,
     )) as any
     const executionEndTime = Date.now()
 

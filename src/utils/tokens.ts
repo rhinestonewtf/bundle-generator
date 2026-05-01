@@ -1,34 +1,15 @@
-import { getTokenDecimals, type TokenSymbol } from '@rhinestone/sdk'
-import {
-  type Address,
-  createPublicClient,
-  erc20Abi,
-  http,
-  isAddress,
-  parseUnits,
-} from 'viem'
+import { parseUnits } from 'viem'
+import { getTokenDecimals } from '../registry.js'
 import type { Token } from '../types.js'
-import { getChainById } from './chains.js'
 
-export const getDecimals = async ({
+export const getDecimals = ({
   tokenSymbolOrAddress,
   chainId,
 }: {
   tokenSymbolOrAddress: string
   chainId: number
 }): Promise<number> => {
-  if (isAddress(tokenSymbolOrAddress)) {
-    const publicClient = createPublicClient({
-      chain: getChainById(chainId),
-      transport: http(),
-    })
-    return publicClient.readContract({
-      address: tokenSymbolOrAddress as Address,
-      abi: erc20Abi,
-      functionName: 'decimals',
-    })
-  }
-  return getTokenDecimals(tokenSymbolOrAddress as TokenSymbol, chainId)
+  return getTokenDecimals(tokenSymbolOrAddress, chainId)
 }
 
 export const convertTokenAmount = async ({
