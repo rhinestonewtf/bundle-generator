@@ -429,6 +429,10 @@ export const processIntent = async (
       `${ts()} Bundle ${bundleLabel}: [1/4] Selected non-best route: ${chosenQuote.settlementLayer} (intentId=${chosenQuote.intentId})`,
     )
   }
+  // Capture the post-picker timestamp so interactive wait time doesn't get
+  // attributed to the sign phase (or the total).
+  const pickEndTime = Date.now()
+  const pickerElapsed = pickEndTime - prepareEndTime
 
   if (executionMode === 'route') {
     console.log(
@@ -455,7 +459,7 @@ export const processIntent = async (
   const signEndTime = Date.now()
   console.log(
     `${ts()} Bundle ${bundleLabel}: [2/4] Signed in ${
-      signEndTime - prepareEndTime
+      signEndTime - pickEndTime
     }ms`,
   )
 
@@ -519,13 +523,17 @@ export const processIntent = async (
         fillTimestamp - executionStartTime
       }ms`,
     )
-    logTimingSummary(bundleLabel, executionEndTime - prepareStartTime, {
-      route: prepareEndTime - prepareStartTime,
-      sign: signEndTime - prepareEndTime,
-      submit: submitEndTime - signEndTime,
-      execute: fillTimestamp - executionStartTime,
-      index: executionEndTime - fillTimestamp,
-    })
+    logTimingSummary(
+      bundleLabel,
+      executionEndTime - prepareStartTime - pickerElapsed,
+      {
+        route: prepareEndTime - prepareStartTime,
+        sign: signEndTime - pickEndTime,
+        submit: submitEndTime - signEndTime,
+        execute: fillTimestamp - executionStartTime,
+        index: executionEndTime - fillTimestamp,
+      },
+    )
 
     if (verbose) {
       console.dir(result, { depth: null })
