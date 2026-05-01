@@ -4,13 +4,7 @@ import { checkbox, confirm, input, select } from '@inquirer/prompts'
 import { type Address, type Chain, type Hex, isAddress, parseUnits } from 'viem'
 import { privateKeyToAccount } from 'viem/accounts'
 import * as viemChains from 'viem/chains'
-import {
-  getSupportedChainIds,
-  getTokenAddress,
-  initRegistry,
-} from './registry.js'
-import type { Intent, TokenSymbol } from './types.js'
-import { getEnvironment } from './utils/environments.js'
+import type { Intent } from './types.js'
 import { getDecimals } from './utils/tokens.js'
 
 const readIntentFile = (filePath: string) => {
@@ -41,15 +35,10 @@ export const collectUserInput = async (): Promise<{
     ],
   })
 
-  await initRegistry(getEnvironment(environment).url)
-
   const normalizeName = (str: string) => str.replace(/ /g, '')
-  const supportedChainIds = new Set(getSupportedChainIds())
   const uniqueViemChains = Object.values(viemChains).reduce((acc, chain) => {
     if (typeof chain !== 'object' || !('id' in chain)) return acc
-    if (!acc.has(chain.id) && supportedChainIds.has(chain.id)) {
-      acc.set(chain.id, chain)
-    }
+    if (!acc.has(chain.id)) acc.set(chain.id, chain)
     return acc
   }, new Map<number, Chain>())
 
@@ -155,7 +144,7 @@ export const collectUserInput = async (): Promise<{
 
   const sourceTokensWithAmount: {
     chain: { id: number }
-    address: Address
+    address: string
     amount?: string
   }[] = []
 
@@ -240,21 +229,17 @@ export const collectUserInput = async (): Promise<{
           if (!chain) continue
 
           for (const tokenSymbol of sourceTokens) {
-            const tokenAddress = isAddress(tokenSymbol)
-              ? (tokenSymbol as Hex)
-              : (getTokenAddress(tokenSymbol as TokenSymbol, chain.id) as Hex)
-
             const amountStr = await input({
               message: `Amount of ${tokenSymbol} to pull from ${chain.name}`,
             })
 
             const sourceWithAmount: {
               chain: { id: number }
-              address: Address
+              address: string
               amount?: string
             } = {
               chain: { id: chain.id },
-              address: tokenAddress,
+              address: tokenSymbol,
             }
 
             if (amountStr !== '' && amountStr !== '0') {

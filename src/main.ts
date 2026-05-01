@@ -17,7 +17,6 @@ import {
 } from 'viem'
 import { privateKeyToAccount } from 'viem/accounts'
 import { fundAccount } from './funding.js'
-import { getTokenAddress, initRegistry } from './registry.js'
 import type {
   Intent,
   IntentResult,
@@ -93,7 +92,7 @@ const resolveSourceAssets = async (sourceAssets: SourceAssets) => {
   return chainTokenMap
 }
 
-/** Resolve human-friendly auxiliaryFunds to SDK format */
+/** Resolve human-friendly auxiliaryFunds to SDK format. Keys must be addresses. */
 const resolveAuxiliaryFunds = async (
   funds: Record<string, Record<string, string>>,
 ): Promise<AuxiliaryFunds> => {
@@ -101,15 +100,17 @@ const resolveAuxiliaryFunds = async (
   for (const [chainName, tokens] of Object.entries(funds)) {
     const chain = getChain(chainName)
     const tokenEntries: Record<Address, bigint> = {}
-    for (const [tokenSymbol, amount] of Object.entries(tokens)) {
-      const address = isAddress(tokenSymbol)
-        ? (tokenSymbol as Address)
-        : getTokenAddress(tokenSymbol, chain.id)
+    for (const [tokenKey, amount] of Object.entries(tokens)) {
+      if (!isAddress(tokenKey)) {
+        throw new Error(
+          `auxiliaryFunds for ${chainName}: '${tokenKey}' must be an address (symbols not supported here)`,
+        )
+      }
       const decimals = await getDecimals({
-        tokenSymbolOrAddress: tokenSymbol,
+        tokenSymbolOrAddress: tokenKey,
         chainId: chain.id,
       })
-      tokenEntries[address] = parseUnits(amount, decimals)
+      tokenEntries[tokenKey as Address] = parseUnits(amount, decimals)
     }
     result[chain.id] = tokenEntries
   }
@@ -147,7 +148,6 @@ export const createRhinestoneAccount = async (
 ) => {
   const owner = privateKeyToAccount(process.env.OWNER_PRIVATE_KEY! as Hex)
   const environment = getEnvironment(environmentString)
-  await initRegistry(environment.url)
   const rhinestone = new RhinestoneSDK({
     apiKey: environment.apiKey,
     endpointUrl: environment.url,
@@ -253,31 +253,36 @@ export const processIntent = async (
 
   const targetTokens: ParsedToken[] = []
   for (const targetToken of intent.targetTokens) {
-    const target: ParsedToken = {
+    const parsed: ParsedToken = {
       symbol: targetToken.symbol,
-      address: isAddress(targetToken.symbol)
-        ? targetToken.symbol
-        : getTokenAddress(targetToken.symbol, targetChain.id),
+      ...(isAddress(targetToken.symbol)
+        ? { address: targetToken.symbol as Address }
+        : {}),
     }
 
     if (targetToken.amount) {
-      target.amount = await convertTokenAmount({
+      parsed.amount = await convertTokenAmount({
         token: targetToken,
         chainId: targetChain.id,
       })
     }
 
-    targetTokens.push(target)
+    targetTokens.push(parsed)
   }
 
-  // prepare the calls for the target chain
+  // prepare the calls for the target chain. Build a real ERC20 transfer only
+  // when the user gave an address; symbol-only intents fall through to a
+  // no-op call (the orchestrator's routing is what we're testing).
+  const canBuildErc20Transfer = (token: ParsedToken) =>
+    token.amount !== undefined &&
+    (token.symbol === 'ETH' || token.address !== undefined)
   const calls =
     intent.destinationOps === false
       ? []
-      : targetTokens.length && targetTokens.every((token) => token.amount)
+      : targetTokens.length && targetTokens.every(canBuildErc20Transfer)
         ? targetTokens.map((token: ParsedToken) => {
             return {
-              to: token.symbol === 'ETH' ? target : token.address,
+              to: token.symbol === 'ETH' ? target : (token.address as Address),
               value: token.symbol === 'ETH' ? token.amount : 0n,
               data:
                 token.symbol === 'ETH'
@@ -296,16 +301,17 @@ export const processIntent = async (
             },
           ]
 
-  // prepare the token requests
+  // prepare the token requests. SDK accepts symbol or address here, so pass
+  // the user's string through untouched.
   const tokenRequests = targetTokens.map((token: ParsedToken) => {
     if (token.amount) {
       return {
-        address: token.address,
+        address: token.symbol as Address,
         amount: token.amount,
       }
     }
 
-    return { address: token.address }
+    return { address: token.symbol as Address }
   })
 
   // prepare the source assets label

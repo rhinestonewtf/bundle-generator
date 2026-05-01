@@ -6,14 +6,16 @@ export type Token = {
 }
 
 export type ParsedToken = {
+  /** User-provided string: either a symbol like 'USDC' or an address. */
   symbol: string
-  address: Address
+  /** Set only when `symbol` is an address; needed to build destination ERC20 transfer calls. */
+  address?: Address
   amount?: bigint
 }
 
 export type SourceTokens =
   | string[]
-  | { chain: { id: number }; address: Address; amount?: string }[]
+  | { chain: { id: number }; address: string; amount?: string }[]
 
 export type SourceAssets =
   | string[]

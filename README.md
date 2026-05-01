@@ -102,12 +102,12 @@ Three formats are supported:
 
 ### `auxiliaryFunds`
 
-Specifies off-chain balances (e.g. exchange accounts) that the route-finder can consider. Uses human-readable chain names, token symbols, and amounts:
+Specifies off-chain balances (e.g. exchange accounts) that the route-finder can consider. Uses human-readable chain names. **Token keys must be addresses** (not symbols) since the SDK requires addresses here; decimals are read from the chain.
 
 ```json
 "auxiliaryFunds": {
-  "ArbitrumOne": { "USDC": "500" },
-  "Base": { "WETH": "0.5" }
+  "ArbitrumOne": { "0xaf88d065e77c8cC2239327C5EDb3A432268e5831": "500" },
+  "Base": { "0x4200000000000000000000000000000000000006": "0.5" }
 }
 ```
 
@@ -126,7 +126,7 @@ Specifies off-chain balances (e.g. exchange accounts) that the route-finder can 
     "settlementLayers": ["ACROSS"],
     "sponsored": false,
     "feeAsset": "USDC",
-    "auxiliaryFunds": { "ArbitrumOne": { "USDC": "500" } }
+    "auxiliaryFunds": { "ArbitrumOne": { "0xaf88d065e77c8cC2239327C5EDb3A432268e5831": "500" } }
   }]
 }
 ```

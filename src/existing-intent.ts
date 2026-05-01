@@ -4,14 +4,10 @@ config()
 
 import { getReplayParams } from './cli.js'
 import { createRhinestoneAccount, processIntent } from './main.js'
-import { initRegistry } from './registry.js'
-import { getEnvironment } from './utils/environments.js'
 
 export const main = async () => {
   const replayParams = await getReplayParams()
   const { intents } = replayParams
-
-  await initRegistry(getEnvironment(replayParams.environment).url)
 
   const rhinestoneAccount = await createRhinestoneAccount(
     replayParams.environment,
