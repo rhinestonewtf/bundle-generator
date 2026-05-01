@@ -1,11 +1,6 @@
 import * as fs from 'node:fs'
 import path from 'node:path'
 import { checkbox, confirm, input, select } from '@inquirer/prompts'
-import {
-  getAllSupportedChainsAndTokens,
-  getTokenAddress,
-  type TokenSymbol,
-} from '@rhinestone/sdk'
 import { type Address, type Chain, type Hex, isAddress, parseUnits } from 'viem'
 import { privateKeyToAccount } from 'viem/accounts'
 import * as viemChains from 'viem/chains'
@@ -31,14 +26,19 @@ export const collectUserInput = async (): Promise<{
   environment: string
   executionMode: string
 }> => {
-  const sdkData = getAllSupportedChainsAndTokens()
+  const environment = await select({
+    message: 'Select the environments to use',
+    choices: [
+      { name: 'Prod', value: 'prod' },
+      { name: 'Dev', value: 'dev' },
+      { name: 'Local', value: 'local' },
+    ],
+  })
+
   const normalizeName = (str: string) => str.replace(/ /g, '')
-  const supportedChainIds = new Set(sdkData.map((c) => c.chainId))
   const uniqueViemChains = Object.values(viemChains).reduce((acc, chain) => {
     if (typeof chain !== 'object' || !('id' in chain)) return acc
-    if (!acc.has(chain.id) && supportedChainIds.has(chain.id)) {
-      acc.set(chain.id, chain)
-    }
+    if (!acc.has(chain.id)) acc.set(chain.id, chain)
     return acc
   }, new Map<number, Chain>())
 
@@ -144,7 +144,7 @@ export const collectUserInput = async (): Promise<{
 
   const sourceTokensWithAmount: {
     chain: { id: number }
-    address: Address
+    address: string
     amount?: string
   }[] = []
 
@@ -229,21 +229,17 @@ export const collectUserInput = async (): Promise<{
           if (!chain) continue
 
           for (const tokenSymbol of sourceTokens) {
-            const tokenAddress = isAddress(tokenSymbol)
-              ? (tokenSymbol as Hex)
-              : (getTokenAddress(tokenSymbol as TokenSymbol, chain.id) as Hex)
-
             const amountStr = await input({
               message: `Amount of ${tokenSymbol} to pull from ${chain.name}`,
             })
 
             const sourceWithAmount: {
               chain: { id: number }
-              address: Address
+              address: string
               amount?: string
             } = {
               chain: { id: chain.id },
-              address: tokenAddress,
+              address: tokenSymbol,
             }
 
             if (amountStr !== '' && amountStr !== '0') {
@@ -346,24 +342,6 @@ export const collectUserInput = async (): Promise<{
   const sanitizedFilename = filename.replace(/\.json$/, '')
   const saveAsFileName = `${sanitizedFilename}.json`
 
-  const environment = await select({
-    message: 'Select the environments to use',
-    choices: [
-      {
-        name: 'Prod',
-        value: 'prod',
-      },
-      {
-        name: 'Dev',
-        value: 'dev',
-      },
-      {
-        name: 'Local',
-        value: 'local',
-      },
-    ],
-  })
-
   const executionMode = await select({
     message: 'Do you want to execute the intent or simulate it?',
     choices: [
@@ -373,7 +351,6 @@ export const collectUserInput = async (): Promise<{
       },
       { name: 'Simulate', value: 'simulate' },
       { name: 'Route', value: 'route' },
-      { name: 'Deposit', value: 'deposit' },
     ],
   })
 
@@ -403,7 +380,7 @@ export const parseAccountType = (): 'smart' | 'eoa' => {
   const isAccountTypeSet = args.includes('--account-type')
   const accountType = isAccountTypeSet
     ? args[args.indexOf('--account-type') + 1]
-    : process.env.ACCOUNT_TYPE ?? 'smart'
+    : (process.env.ACCOUNT_TYPE ?? 'smart')
 
   if (accountType !== 'smart' && accountType !== 'eoa') {
     console.error(
@@ -429,7 +406,14 @@ export const getReplayParams = async () => {
   }
 
   const args = process.argv
-  const flagsWithValues = new Set(['--async', '--mode', '--env', '--feature-flags', '--account-type'])
+  const flagsWithValues = new Set([
+    '--async',
+    '--mode',
+    '--env',
+    '--feature-flags',
+    '--account-type',
+    '--quote',
+  ])
   const slicedArgs = args.slice(2)
   const directFile = slicedArgs.find((arg, i) => {
     if (arg.startsWith('--')) return false
@@ -551,7 +535,6 @@ export const getReplayParams = async () => {
         { name: 'Execute', value: 'execute' },
         { name: 'Simulate', value: 'simulate' },
         { name: 'Route', value: 'route' },
-        { name: 'Deposit', value: 'deposit' },
       ],
     })
   }
@@ -565,6 +548,18 @@ export const getReplayParams = async () => {
 
   const accountType = parseAccountType()
 
+  const isQuoteSet = args.includes('--quote')
+  const quoteSelection = isQuoteSet
+    ? (args[args.indexOf('--quote') + 1] ?? 'best')
+    : 'best'
+
+  if (quoteSelection === 'interactive' && asyncMode) {
+    console.error(
+      'Error: --quote interactive cannot be combined with --async (no stdin in parallel mode)',
+    )
+    process.exit(1)
+  }
+
   return {
     intents: parsedIntents,
     asyncMode,
@@ -574,5 +569,6 @@ export const getReplayParams = async () => {
     verbose,
     featureFlags,
     accountType,
+    quoteSelection,
   }
 }

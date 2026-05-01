@@ -1,6 +1,7 @@
+import { select } from '@inquirer/prompts'
 import {
   type AuxiliaryFunds,
-  getTokenAddress,
+  type PreparedQuotes,
   RhinestoneSDK,
 } from '@rhinestone/sdk'
 import {
@@ -21,7 +22,6 @@ import type {
   IntentResult,
   ParsedToken,
   SourceAssets,
-  TokenSymbol,
 } from './types.js'
 import { getChain, getChainById } from './utils/chains.js'
 import { getEnvironment } from './utils/environments.js'
@@ -92,7 +92,7 @@ const resolveSourceAssets = async (sourceAssets: SourceAssets) => {
   return chainTokenMap
 }
 
-/** Resolve human-friendly auxiliaryFunds to SDK format */
+/** Resolve human-friendly auxiliaryFunds to SDK format. Keys must be addresses. */
 const resolveAuxiliaryFunds = async (
   funds: Record<string, Record<string, string>>,
 ): Promise<AuxiliaryFunds> => {
@@ -100,15 +100,17 @@ const resolveAuxiliaryFunds = async (
   for (const [chainName, tokens] of Object.entries(funds)) {
     const chain = getChain(chainName)
     const tokenEntries: Record<Address, bigint> = {}
-    for (const [tokenSymbol, amount] of Object.entries(tokens)) {
-      const address = isAddress(tokenSymbol)
-        ? (tokenSymbol as Address)
-        : getTokenAddress(tokenSymbol as TokenSymbol, chain.id)
+    for (const [tokenKey, amount] of Object.entries(tokens)) {
+      if (!isAddress(tokenKey)) {
+        throw new Error(
+          `auxiliaryFunds for ${chainName}: '${tokenKey}' must be an address (symbols not supported here)`,
+        )
+      }
       const decimals = await getDecimals({
-        tokenSymbolOrAddress: tokenSymbol,
+        tokenSymbolOrAddress: tokenKey,
         chainId: chain.id,
       })
-      tokenEntries[address] = parseUnits(amount, decimals)
+      tokenEntries[tokenKey as Address] = parseUnits(amount, decimals)
     }
     result[chain.id] = tokenEntries
   }
@@ -174,12 +176,54 @@ export type RhinestoneAccount = Awaited<
   ReturnType<typeof createRhinestoneAccount>
 >
 
+type Quote = PreparedQuotes['all'][number]
+
+const pickQuoteInteractively = async (
+  quotes: PreparedQuotes,
+): Promise<Quote> => {
+  if (quotes.all.length === 1) {
+    return quotes.all[0]
+  }
+  const choice = await select<string>({
+    message: 'Pick a route',
+    choices: quotes.all.map((quote) => {
+      const isBest = quote.intentId === quotes.best.intentId
+      return {
+        name: `${isBest ? '*' : ' '} ${quote.settlementLayer} — ${quote.estimatedFillTime.seconds}s — $${quote.cost.fees.total.usd}`,
+        value: quote.intentId,
+      }
+    }),
+  })
+  return quotes.all.find((q) => q.intentId === choice) ?? quotes.best
+}
+
+const pickQuote = async (
+  quotes: PreparedQuotes,
+  selection: string,
+): Promise<Quote> => {
+  if (selection === 'best') return quotes.best
+  if (selection === 'interactive') return pickQuoteInteractively(quotes)
+
+  const layer = selection.toUpperCase()
+  const match = quotes.all.find(
+    (q) => q.settlementLayer.toUpperCase() === layer,
+  )
+  if (!match) {
+    const available = [...new Set(quotes.all.map((q) => q.settlementLayer))]
+    throw new Error(
+      `No route found for settlement layer '${selection}'. Available: ${available.join(', ')}`,
+    )
+  }
+  return match
+}
+
 export const processIntent = async (
   intent: Intent,
   environmentString: string,
   executionMode: string,
   existingAccount?: RhinestoneAccount,
   verbose?: boolean,
+  quoteSelection: string = 'best',
 ): Promise<IntentResult | undefined> => {
   const rhinestoneAccount =
     existingAccount ?? (await createRhinestoneAccount(environmentString))
@@ -209,31 +253,36 @@ export const processIntent = async (
 
   const targetTokens: ParsedToken[] = []
   for (const targetToken of intent.targetTokens) {
-    const target: ParsedToken = {
+    const parsed: ParsedToken = {
       symbol: targetToken.symbol,
-      address: isAddress(targetToken.symbol)
-        ? targetToken.symbol
-        : getTokenAddress(targetToken.symbol as TokenSymbol, targetChain.id),
+      ...(isAddress(targetToken.symbol)
+        ? { address: targetToken.symbol as Address }
+        : {}),
     }
 
     if (targetToken.amount) {
-      target.amount = await convertTokenAmount({
+      parsed.amount = await convertTokenAmount({
         token: targetToken,
         chainId: targetChain.id,
       })
     }
 
-    targetTokens.push(target)
+    targetTokens.push(parsed)
   }
 
-  // prepare the calls for the target chain
+  // prepare the calls for the target chain. Build a real ERC20 transfer only
+  // when the user gave an address; symbol-only intents fall through to a
+  // no-op call (the orchestrator's routing is what we're testing).
+  const canBuildErc20Transfer = (token: ParsedToken) =>
+    token.amount !== undefined &&
+    (token.symbol === 'ETH' || token.address !== undefined)
   const calls =
     intent.destinationOps === false
       ? []
-      : targetTokens.length && targetTokens.every((token) => token.amount)
+      : targetTokens.length && targetTokens.every(canBuildErc20Transfer)
         ? targetTokens.map((token: ParsedToken) => {
             return {
-              to: token.symbol === 'ETH' ? target : token.address,
+              to: token.symbol === 'ETH' ? target : (token.address as Address),
               value: token.symbol === 'ETH' ? token.amount : 0n,
               data:
                 token.symbol === 'ETH'
@@ -252,16 +301,17 @@ export const processIntent = async (
             },
           ]
 
-  // prepare the token requests
+  // prepare the token requests. SDK accepts symbol or address here, so pass
+  // the user's string through untouched.
   const tokenRequests = targetTokens.map((token: ParsedToken) => {
     if (token.amount) {
       return {
-        address: token.address,
+        address: token.symbol as Address,
         amount: token.amount,
       }
     }
 
-    return { address: token.address }
+    return { address: token.symbol as Address }
   })
 
   // prepare the source assets label
@@ -347,48 +397,48 @@ export const processIntent = async (
     }ms`,
   )
 
-  if (verbose) {
-    console.log(`${ts()} Bundle ${bundleLabel}: [verbose] intentOp:`)
-    console.dir(preparedTransaction.intentRoute.intentOp, { depth: null })
-    console.log(`${ts()} Bundle ${bundleLabel}: [verbose] intentCost:`)
-    console.dir(preparedTransaction.intentRoute.intentCost, { depth: null })
-  }
-
-  // check that sponsorship is working correctly
-  if (intent.sponsored) {
-    // todo: adjust type in sdk
-    const sponsorFee =
-      // @ts-expect-error
-      preparedTransaction.intentRoute.intentCost.sponsorFee
-    if (sponsorFee.relayer === 0) {
-      throw new Error('Sponsorship is not supplied as expected')
-    }
-  }
-
-  const quotes = preparedTransaction.intentRoute.intentOp.signedMetadata.quotes
-  if (quotes) {
-    for (const outerQuote of Object.values(quotes)) {
-      for (const innerQuote of Object.values(outerQuote)) {
-        console.log(
-          `${ts()} Bundle ${bundleLabel}: [1/4] Swap detected with slippage ${
-            Math.round((innerQuote as any).slippage * 100) / 100
-          }%`,
-        )
-      }
-    }
-  }
-
+  const { best, all } = preparedTransaction.quotes
   console.log(
-    `${ts()} Bundle ${bundleLabel}: [1/4] Intent id: ${
-      preparedTransaction.intentRoute.intentOp.nonce
-    }`,
+    `${ts()} Bundle ${bundleLabel}: [1/4] Got ${all.length} route(s); best: ${best.intentId} via ${best.settlementLayer}`,
   )
+
+  if (verbose) {
+    console.log(
+      `${ts()} Bundle ${bundleLabel}: [verbose] all routes (${all.length}):`,
+    )
+    all.forEach((quote, i) => {
+      const marker = quote.intentId === best.intentId ? '*' : ' '
+      console.log(
+        `${ts()} Bundle ${bundleLabel}: [verbose] ${marker} [${i}] ${quote.settlementLayer} (intentId=${quote.intentId}, fillTime=${quote.estimatedFillTime.seconds}s, fees=$${quote.cost.fees.total.usd})`,
+      )
+      const {
+        signData: _signData,
+        tokenRequirements: _tokenRequirements,
+        ...rest
+      } = quote
+      console.dir(rest, { depth: null })
+    })
+  }
+
+  const chosenQuote = await pickQuote(
+    preparedTransaction.quotes,
+    quoteSelection,
+  )
+  if (chosenQuote.intentId !== best.intentId) {
+    console.log(
+      `${ts()} Bundle ${bundleLabel}: [1/4] Selected non-best route: ${chosenQuote.settlementLayer} (intentId=${chosenQuote.intentId})`,
+    )
+  }
+  // Capture the post-picker timestamp so interactive wait time doesn't get
+  // attributed to the sign phase (or the total).
+  const pickEndTime = Date.now()
+  const pickerElapsed = pickEndTime - prepareEndTime
 
   if (executionMode === 'route') {
     console.log(
       `${ts()} Bundle ${bundleLabel}: Route-only mode, skipping sign/submit/execute`,
     )
-    console.dir(preparedTransaction.intentRoute, { depth: null })
+    console.dir(preparedTransaction.quotes, { depth: null })
     logTimingSummary(bundleLabel, prepareEndTime - prepareStartTime, {
       route: prepareEndTime - prepareStartTime,
       sign: 0,
@@ -401,13 +451,15 @@ export const processIntent = async (
 
   // sign the transaction with signTransaction method
   console.log(`${ts()} Bundle ${bundleLabel}: [2/4] Signing transaction...`)
-  const signedTransaction =
-    await rhinestoneAccount.signTransaction(preparedTransaction)
+  const signedTransaction = await rhinestoneAccount.signTransaction(
+    preparedTransaction,
+    { intentId: chosenQuote.intentId },
+  )
 
   const signEndTime = Date.now()
   console.log(
     `${ts()} Bundle ${bundleLabel}: [2/4] Signed in ${
-      signEndTime - prepareEndTime
+      signEndTime - pickEndTime
     }ms`,
   )
 
@@ -420,8 +472,7 @@ export const processIntent = async (
     // submit the transaction using the SDK
     const transactionResult = await rhinestoneAccount.submitTransaction(
       signedTransaction,
-      undefined,
-      isSimulate,
+      { internal_dryRun: isSimulate },
     )
 
     const submitEndTime = Date.now()
@@ -435,7 +486,6 @@ export const processIntent = async (
     const executionStartTime = Date.now()
     const result = (await rhinestoneAccount.waitForExecution(
       transactionResult,
-      isSimulate,
     )) as any
     const executionEndTime = Date.now()
 
@@ -473,13 +523,17 @@ export const processIntent = async (
         fillTimestamp - executionStartTime
       }ms`,
     )
-    logTimingSummary(bundleLabel, executionEndTime - prepareStartTime, {
-      route: prepareEndTime - prepareStartTime,
-      sign: signEndTime - prepareEndTime,
-      submit: submitEndTime - signEndTime,
-      execute: fillTimestamp - executionStartTime,
-      index: executionEndTime - fillTimestamp,
-    })
+    logTimingSummary(
+      bundleLabel,
+      executionEndTime - prepareStartTime - pickerElapsed,
+      {
+        route: prepareEndTime - prepareStartTime,
+        sign: signEndTime - pickEndTime,
+        submit: submitEndTime - signEndTime,
+        execute: fillTimestamp - executionStartTime,
+        index: executionEndTime - fillTimestamp,
+      },
+    )
 
     if (verbose) {
       console.dir(result, { depth: null })

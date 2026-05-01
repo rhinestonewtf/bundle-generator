@@ -6,14 +6,16 @@ export type Token = {
 }
 
 export type ParsedToken = {
+  /** User-provided string: either a symbol like 'USDC' or an address. */
   symbol: string
-  address: Address
+  /** Set only when `symbol` is an address; needed to build destination ERC20 transfer calls. */
+  address?: Address
   amount?: bigint
 }
 
 export type SourceTokens =
   | string[]
-  | { chain: { id: number }; address: Address; amount?: string }[]
+  | { chain: { id: number }; address: string; amount?: string }[]
 
 export type SourceAssets =
   | string[]
@@ -36,21 +38,6 @@ export type Intent = {
 }
 
 export type TokenSymbol = 'ETH' | 'WETH' | 'USDC' | 'USDT'
-
-export type BundleResult = {
-  status: string
-  claims?: Array<{
-    chainId: number
-    status: string
-    depositId?: bigint
-    claimTimestamp?: number
-    claimTransactionHash?: string
-  }>
-  destinationChainId?: number
-  fillTransactionHash?: string
-  fillTimestamp?: number
-  [key: string]: any
-}
 
 export type IntentResult = {
   fill: {
