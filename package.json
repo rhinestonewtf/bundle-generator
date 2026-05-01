@@ -21,7 +21,7 @@
   "dependencies": {
     "@inquirer/prompts": "^7.4.1",
     "@ngrok/ngrok": "^1.7.0",
-    "@rhinestone/sdk": "0.0.0-dev-20260313215539",
+    "@rhinestone/sdk": "2.0.0-beta.1",
     "abitype": "^1.0.8",
     "dotenv": "^16.5.0",
     "tsx": "^4.19.4",

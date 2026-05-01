@@ -48,7 +48,8 @@ Replay saved intents from the `intents/` directory.
 | `--env <prod\|dev\|local>` | Set environment |
 | `--mode <execute\|simulate\|route\|deposit>` | Set execution mode |
 | `--async [delay]` | Run in parallel with optional delay in ms (default: 2500) |
-| `--verbose` | Print `intentOp` and `intentCost` after transaction preparation |
+| `--verbose` | Print all returned routes after transaction preparation |
+| `--quote <best\|<layer>\|interactive>` | Pick the route to sign. Defaults to `best`. Pass a settlement layer name (e.g. `ECO`, `ACROSS`, `RELAY`) to force that layer, or `interactive` to choose from a list (incompatible with `--async`). |
 
 Examples:
 
@@ -57,6 +58,8 @@ pnpm replay                                        # interactive
 pnpm replay my-intent --env prod --mode execute     # specific file
 pnpm replay --all --env dev --async 3000            # all, parallel
 pnpm replay my-deposit --env dev --mode deposit     # deposit mode
+pnpm replay my-intent --quote ECO                   # force ECO settlement
+pnpm replay my-intent --quote interactive           # pick from a list
 ```
 
 ### Deposit mode

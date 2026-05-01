@@ -429,7 +429,7 @@ export const getReplayParams = async () => {
   }
 
   const args = process.argv
-  const flagsWithValues = new Set(['--async', '--mode', '--env', '--feature-flags', '--account-type'])
+  const flagsWithValues = new Set(['--async', '--mode', '--env', '--feature-flags', '--account-type', '--quote'])
   const slicedArgs = args.slice(2)
   const directFile = slicedArgs.find((arg, i) => {
     if (arg.startsWith('--')) return false
@@ -565,6 +565,18 @@ export const getReplayParams = async () => {
 
   const accountType = parseAccountType()
 
+  const isQuoteSet = args.includes('--quote')
+  const quoteSelection = isQuoteSet
+    ? args[args.indexOf('--quote') + 1] ?? 'best'
+    : 'best'
+
+  if (quoteSelection === 'interactive' && asyncMode) {
+    console.error(
+      'Error: --quote interactive cannot be combined with --async (no stdin in parallel mode)',
+    )
+    process.exit(1)
+  }
+
   return {
     intents: parsedIntents,
     asyncMode,
@@ -574,5 +586,6 @@ export const getReplayParams = async () => {
     verbose,
     featureFlags,
     accountType,
+    quoteSelection,
   }
 }

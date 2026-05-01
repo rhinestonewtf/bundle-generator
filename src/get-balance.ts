@@ -58,20 +58,14 @@ export const main = async () => {
     console.log('   No tokens found in portfolio')
   } else {
     portfolio.forEach((token) => {
-      const totalBalance = token.balances.locked + token.balances.unlocked
-      const formattedBalance = formatUnits(totalBalance, token.decimals)
-      console.log(
-        `   ${token.symbol}: ${formattedBalance} (${token.chains.length} chains)`,
-      )
-
+      console.log(`   ${token.symbol}: (${token.chains.length} chain(s))`)
       token.chains.forEach((chain) => {
         const chainBalance = chain.locked + chain.unlocked
-        const chainFormatted = formatUnits(chainBalance, token.decimals)
+        if (chainBalance === 0n) return
+        const chainFormatted = formatUnits(chainBalance, chain.decimals)
         const chainInfo = getChainById(chain.chain)
         const chainName = chainInfo?.name || `Chain ${chain.chain}`
-        if (chainBalance > 0n) {
-          console.log(`     └─ ${chainName}: ${chainFormatted}`)
-        }
+        console.log(`     └─ ${chainName}: ${chainFormatted}`)
       })
     })
   }
