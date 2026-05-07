@@ -17,11 +17,12 @@ import {
 } from 'viem'
 import { privateKeyToAccount } from 'viem/accounts'
 import { fundAccount } from './funding.js'
-import type {
-  Intent,
-  IntentResult,
-  ParsedToken,
-  SourceAssets,
+import {
+  getAllOperations,
+  type Intent,
+  type IntentResult,
+  type ParsedToken,
+  type SourceAssets,
 } from './types.js'
 import { getChain, getChainById } from './utils/chains.js'
 import { getEnvironment } from './utils/environments.js'
@@ -486,35 +487,30 @@ export const processIntent = async (
     const executionStartTime = Date.now()
     const result = (await rhinestoneAccount.waitForExecution(
       transactionResult,
-    )) as any
+    )) as IntentResult
     const executionEndTime = Date.now()
 
     result.label = bundleLabel
+    const allOps = getAllOperations(result)
     let fillTimestamp = executionEndTime
-    if (!isSimulate && result.fill.hash) {
-      const fillPublicClient = createPublicClient({
-        chain: getChainById(result.fill.chainId),
-        transport: http(),
-      })
-      const fillTx = await fillPublicClient.getTransactionReceipt({
-        hash: result.fill.hash as Hex,
-      })
-      const fillBlock = await fillPublicClient.getBlock({
-        blockNumber: fillTx.blockNumber,
-      })
-      fillTimestamp = Number(fillBlock.timestamp) * 1000
-      result.fill.gasUsed = fillTx.gasUsed
-    }
-    for (const claim of result.claims) {
-      if (claim.hash) {
-        const claimPublicClient = createPublicClient({
-          chain: getChainById(claim.chainId),
+    for (const op of allOps) {
+      if (!isSimulate && op.hash) {
+        const publicClient = createPublicClient({
+          chain: getChainById(op.chainId),
           transport: http(),
         })
-        const claimTx = await claimPublicClient.getTransactionReceipt({
-          hash: claim.hash as Hex,
+        const txReceipt = await publicClient.getTransactionReceipt({
+          hash: op.hash as Hex,
         })
-        claim.gasUsed = claimTx.gasUsed
+        ;(op as any).gasUsed = txReceipt.gasUsed
+        // Use the latest on-chain timestamp as the fill timestamp
+        const block = await publicClient.getBlock({
+          blockNumber: txReceipt.blockNumber,
+        })
+        const blockTime = Number(block.timestamp) * 1000
+        if (blockTime > fillTimestamp) {
+          fillTimestamp = blockTime
+        }
       }
     }
 
@@ -539,7 +535,7 @@ export const processIntent = async (
       console.dir(result, { depth: null })
     }
 
-    return result as IntentResult
+    return result
   } catch (error: any) {
     console.error(
       `${ts()} Bundle ${bundleLabel}: Submission/Execution failed`,
