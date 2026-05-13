@@ -502,7 +502,7 @@ export const processIntent = async (
         const txReceipt = await publicClient.getTransactionReceipt({
           hash: op.hash as Hex,
         })
-        ;(op as any).gasUsed = txReceipt.gasUsed
+        op.gasUsed = txReceipt.gasUsed
         // Use the latest on-chain timestamp as the fill timestamp
         const block = await publicClient.getBlock({
           blockNumber: txReceipt.blockNumber,

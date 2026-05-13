@@ -45,12 +45,10 @@ export type IntentResult = {
   accountAddress: string
   operations: {
     chain: number
-    items: {
-      status: string
-      failureReason?: string
-      txHash?: string
-      timestamp?: number
-    }[]
+    status: string
+    failureReason?: string
+    txHash?: string
+    timestamp?: number
   }[]
   label?: string
   [key: string]: any
@@ -58,13 +56,12 @@ export type IntentResult = {
 
 /** Flatten all operations from an IntentResult into a list with chainId. */
 export function getAllOperations(result: IntentResult) {
-  return result.operations.flatMap((chainOps) =>
-    chainOps.items.map((item) => ({
-      hash: item.txHash,
-      chainId: chainOps.chain,
-      item,
-    })),
-  )
+  return result.operations.map((operation) => ({
+    hash: operation.txHash,
+    chainId: operation.chain,
+    operation,
+    gasUsed: undefined as bigint | undefined,
+  }))
 }
 
 export type OrderPath = {
