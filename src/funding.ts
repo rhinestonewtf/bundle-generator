@@ -12,7 +12,7 @@ import {
 } from 'viem'
 import { arbitrum, base, mainnet } from 'viem/chains'
 import type { SourceTokens } from './types.js'
-import { getChain } from './utils/chains.js'
+import { getEvmChain } from './utils/chains.js'
 
 // Hardcoded address + balance slot table for local-testnet funding only.
 // LOCAL_TESTNET=true reaches here; nothing else needs these. Add chains/tokens
@@ -71,7 +71,7 @@ const findEntryByAddress = (chainId: number, tokenAddress: Address) => {
 
 async function handleSourceTokensWithSymbols(
   account: Address,
-  chain: ReturnType<typeof getChain>,
+  chain: Chain,
   testClient: ReturnType<typeof createTestClient>,
   sourceToken: string,
 ) {
@@ -102,7 +102,7 @@ async function handleSourceTokensWithSymbols(
 
 async function handleSourceTokensWithAmount(
   account: Address,
-  chain: ReturnType<typeof getChain>,
+  chain: Chain,
   testClient: ReturnType<typeof createTestClient>,
   sourceToken: { chain: { id: number }; address: string; amount?: string },
 ) {
@@ -149,7 +149,7 @@ export const fundAccount = async ({
   if (process.env.LOCAL_TESTNET?.toString() !== 'true') return
 
   for (const sourceChain of sourceChains) {
-    const chain = getChain(sourceChain)
+    const chain = getEvmChain(sourceChain)
     console.log('Funding on %s for %s', chain.name, account)
     const testClient = createTestClient({
       chain,

@@ -27,7 +27,6 @@ export const main = async () => {
   const accountType = parseAccountType()
   const rhinestoneAccount = await createRhinestoneAccount(
     environmentString,
-    undefined,
     accountType,
   )
 
