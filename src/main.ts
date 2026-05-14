@@ -3,6 +3,7 @@ import {
   type AuxiliaryFunds,
   type PreparedQuotes,
   RhinestoneSDK,
+  type Transaction,
 } from '@rhinestone/sdk'
 import {
   type Address,
@@ -24,7 +25,12 @@ import {
   type ParsedToken,
   type SourceAssets,
 } from './types.js'
-import { getChain, getChainById } from './utils/chains.js'
+import {
+  getChain,
+  getChainById,
+  getEvmChain,
+  isNonEvmChain,
+} from './utils/chains.js'
 import { getEnvironment } from './utils/environments.js'
 import { convertTokenAmount, getDecimals } from './utils/tokens.js'
 
@@ -144,7 +150,6 @@ const extractFundingTokens = (sourceAssets: SourceAssets): string[] => {
 
 export const createRhinestoneAccount = async (
   environmentString: string,
-  featureFlags?: string,
   accountType: 'smart' | 'eoa' = 'smart',
 ) => {
   const owner = privateKeyToAccount(process.env.OWNER_PRIVATE_KEY! as Hex)
@@ -153,7 +158,6 @@ export const createRhinestoneAccount = async (
     apiKey: environment.apiKey,
     endpointUrl: environment.url,
     useDevContracts: environment.useDevContracts,
-    ...(featureFlags && { headers: { 'x-feature-flags': featureFlags } }),
   })
 
   if (accountType === 'eoa') {
@@ -233,7 +237,7 @@ export const processIntent = async (
   const targetChain = getChain(intent.targetChain)
   const sourceChains =
     intent.sourceChains.length > 0
-      ? intent.sourceChains.map((chain) => getChain(chain))
+      ? intent.sourceChains.map((chain) => getEvmChain(chain))
       : []
 
   // fund the account
@@ -388,8 +392,13 @@ export const processIntent = async (
       : {}),
   }
 
-  const preparedTransaction =
-    await rhinestoneAccount.prepareTransaction(transactionDetails)
+  // SDK's `Transaction` is a discriminated union (SameChain | CrossChainEvm |
+  // CrossChainNonEvm) keyed on the `targetChain` / `tokenRequests` shape.
+  // The intent JSON we read is permissive and chain-agnostic, so we build a
+  // single shape and let the SDK route it at runtime.
+  const preparedTransaction = await rhinestoneAccount.prepareTransaction(
+    transactionDetails as Transaction,
+  )
 
   const prepareEndTime = Date.now()
   console.log(
@@ -494,7 +503,9 @@ export const processIntent = async (
     const allOps = getAllOperations(result)
     let fillTimestamp = executionEndTime
     for (const op of allOps) {
-      if (!isSimulate && op.hash) {
+      // Non-EVM chains have no viem RPC — skip receipt enrichment there.
+      // Bundle status tracking for non-EVM dests is tracked separately (RHI-3797).
+      if (!isSimulate && op.hash && !isNonEvmChain(op.chainId)) {
         const publicClient = createPublicClient({
           chain: getChainById(op.chainId),
           transport: http(),
@@ -541,5 +552,9 @@ export const processIntent = async (
       `${ts()} Bundle ${bundleLabel}: Submission/Execution failed`,
       error?.response?.data ?? error,
     )
+    if (error?.issues) {
+      console.error(`${ts()} Bundle ${bundleLabel}: issues:`)
+      console.dir(error.issues, { depth: null })
+    }
   }
 }

@@ -43,7 +43,6 @@ export const main = async () => {
   const accountType = parseAccountType()
   const rhinestoneAccount = await createRhinestoneAccount(
     environmentString,
-    undefined,
     accountType,
   )
 
@@ -60,9 +59,8 @@ export const main = async () => {
     portfolio.forEach((token) => {
       console.log(`   ${token.symbol}: (${token.chains.length} chain(s))`)
       token.chains.forEach((chain) => {
-        const chainBalance = chain.locked + chain.unlocked
-        if (chainBalance === 0n) return
-        const chainFormatted = formatUnits(chainBalance, chain.decimals)
+        if (chain.amount === 0n) return
+        const chainFormatted = formatUnits(chain.amount, chain.decimals)
         const chainInfo = getChainById(chain.chain)
         const chainName = chainInfo?.name || `Chain ${chain.chain}`
         console.log(`     └─ ${chainName}: ${chainFormatted}`)

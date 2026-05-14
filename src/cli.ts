@@ -410,7 +410,6 @@ export const getReplayParams = async () => {
     '--async',
     '--mode',
     '--env',
-    '--feature-flags',
     '--account-type',
     '--quote',
   ])
@@ -541,11 +540,6 @@ export const getReplayParams = async () => {
 
   const verbose = args.includes('--verbose')
 
-  const isFeatureFlagsSet = args.includes('--feature-flags')
-  const featureFlags = isFeatureFlagsSet
-    ? args[args.indexOf('--feature-flags') + 1]
-    : process.env.FEATURE_FLAGS
-
   const accountType = parseAccountType()
 
   const isQuoteSet = args.includes('--quote')
@@ -567,7 +561,6 @@ export const getReplayParams = async () => {
     environment,
     executionMode,
     verbose,
-    featureFlags,
     accountType,
     quoteSelection,
   }
