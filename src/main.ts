@@ -355,7 +355,12 @@ export const processIntent = async (
     ? intent.tokenRecipient.slice(0, 6)
     : 'self'
 
-  const bundleLabel = `${sourceAssetsLabel} > ${targetAssetsLabel}${intent.settlementLayers?.length ? ` via ${intent.settlementLayers.join()}` : ''}${intent.sponsored ? ' sponsored' : ''} to ${recipientLabel}`
+  const settlementLayersLabel = intent.settlementLayers
+    ? 'include' in intent.settlementLayers
+      ? ` via ${intent.settlementLayers.include.join()}`
+      : ` excluding ${intent.settlementLayers.exclude.join()}`
+    : ''
+  const bundleLabel = `${sourceAssetsLabel} > ${targetAssetsLabel}${settlementLayersLabel}${intent.sponsored ? ' sponsored' : ''} to ${recipientLabel}`
 
   console.log(`${ts()} Bundle ${bundleLabel}: Starting transaction process`)
 
@@ -382,7 +387,7 @@ export const processIntent = async (
     tokenRequests,
     sponsored: intent.sponsored,
     ...(resolvedSourceAssets ? { sourceAssets: resolvedSourceAssets } : {}),
-    ...(intent.settlementLayers?.length > 0
+    ...(intent.settlementLayers
       ? { settlementLayers: intent.settlementLayers }
       : {}),
     ...(intent.recipient ? { recipient: intent.recipient as Address } : {}),

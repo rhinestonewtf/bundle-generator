@@ -14,6 +14,7 @@ const KNOWN_DECIMALS: Record<string, number> = {
   WETH: 18,
   USDC: 6,
   USDT: 6,
+  USDT0: 6,
 }
 
 // Non-EVM token decimals — keyed by NON_EVM_CHAINS key, then mint/contract

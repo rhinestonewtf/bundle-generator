@@ -1,3 +1,4 @@
+import type { SettlementLayerFilter } from '@rhinestone/sdk'
 import type { Address } from 'abitype'
 
 export type Token = {
@@ -30,14 +31,14 @@ export type Intent = {
   sourceAssets?: SourceAssets
   tokenRecipient: string
   recipient?: string
-  settlementLayers: string[]
+  settlementLayers?: SettlementLayerFilter
   sponsored: boolean
   destinationOps?: boolean
   feeAsset?: string
   auxiliaryFunds?: Record<string, Record<string, string>>
 }
 
-export type TokenSymbol = 'ETH' | 'WETH' | 'USDC' | 'USDT'
+export type TokenSymbol = 'ETH' | 'WETH' | 'USDC' | 'USDT' | 'USDT0'
 
 /** Matches the blanc API response shape from the orchestrator / SDK. */
 export type IntentResult = {
