@@ -1,22 +1,86 @@
 import * as fs from 'node:fs'
 import path from 'node:path'
 import { checkbox, confirm, input, select } from '@inquirer/prompts'
+import type { SettlementLayer } from '@rhinestone/sdk'
 import { type Address, type Chain, type Hex, isAddress, parseUnits } from 'viem'
 import { privateKeyToAccount } from 'viem/accounts'
 import * as viemChains from 'viem/chains'
 import type { Intent } from './types.js'
 import { getDecimals } from './utils/tokens.js'
 
+// Mirrors the SDK's internal cross-chain layer list, which isn't exported as a
+// runtime value. Keep in sync with @rhinestone/sdk's KNOWN_SETTLEMENT_LAYERS.
+const KNOWN_SETTLEMENT_LAYERS = [
+  'ACROSS',
+  'ECO',
+  'RELAY',
+  'OFT',
+  'NEAR',
+  'RHINO',
+  'CCTP',
+] as const satisfies readonly SettlementLayer[]
+
+const isKnownSettlementLayer = (v: unknown): v is SettlementLayer =>
+  typeof v === 'string' &&
+  (KNOWN_SETTLEMENT_LAYERS as readonly string[]).includes(v)
+
+// A raw array of layer names is the historical (buggy) shape: the SDK silently
+// treats it as `{ exclude: undefined }` and matches all layers. Reject it so the
+// trap can't be reintroduced.
+const validateSettlementLayers = (raw: unknown, context: string): void => {
+  if (raw === undefined) return
+  if (raw === null || typeof raw !== 'object' || Array.isArray(raw)) {
+    throw new Error(
+      `${context}: invalid \`settlementLayers\` shape — expected \`{ "include": [...] }\` or \`{ "exclude": [...] }\` (or omit the field), got ${JSON.stringify(raw)}.`,
+    )
+  }
+  const hasInclude = 'include' in raw
+  const hasExclude = 'exclude' in raw
+  if (hasInclude === hasExclude) {
+    throw new Error(
+      `${context}: \`settlementLayers\` must specify exactly one of \`include\` or \`exclude\`.`,
+    )
+  }
+  const key = hasInclude ? 'include' : 'exclude'
+  const values = (raw as Record<string, unknown>)[key]
+  if (!Array.isArray(values) || values.length === 0) {
+    throw new Error(
+      `${context}: \`settlementLayers.${key}\` must be a non-empty array.`,
+    )
+  }
+  for (const v of values) {
+    if (!isKnownSettlementLayer(v)) {
+      throw new Error(
+        `${context}: unknown settlement layer \`${String(v)}\` in \`settlementLayers.${key}\`. Known: ${KNOWN_SETTLEMENT_LAYERS.join(', ')}.`,
+      )
+    }
+  }
+}
+
+const validateIntent = (intent: unknown, context: string): void => {
+  if (!intent || typeof intent !== 'object') {
+    throw new Error(`${context}: intent must be an object.`)
+  }
+  validateSettlementLayers(
+    (intent as { settlementLayers?: unknown }).settlementLayers,
+    context,
+  )
+}
+
 const readIntentFile = (filePath: string) => {
   try {
     const data = fs.readFileSync(filePath, 'utf-8')
-    return JSON.parse(data)
+    const parsed = JSON.parse(data)
+    const intents: unknown[] = parsed?.intentList ?? [parsed]
+    for (let i = 0; i < intents.length; i++) {
+      validateIntent(intents[i], `${filePath}[${i}]`)
+    }
+    return parsed
   } catch (error) {
-    const message =
-      error instanceof SyntaxError
-        ? `Invalid JSON in ${filePath}: ${error.message}`
-        : `Failed to read ${filePath}: ${error}`
-    throw new Error(message)
+    if (error instanceof SyntaxError) {
+      throw new Error(`Invalid JSON in ${filePath}: ${error.message}`)
+    }
+    throw error
   }
 }
 
@@ -64,6 +128,7 @@ export const collectUserInput = async (): Promise<{
       { name: 'WETH', value: 'WETH' },
       { name: 'USDC', value: 'USDC' },
       { name: 'USDT', value: 'USDT' },
+      { name: 'USDT0', value: 'USDT0' },
       { name: 'Arbitrary token', value: 'Arbitrary token' },
     ],
     validate: (choices) => {
@@ -116,6 +181,7 @@ export const collectUserInput = async (): Promise<{
       { name: 'WETH', value: 'WETH' },
       { name: 'USDC', value: 'USDC' },
       { name: 'USDT', value: 'USDT' },
+      { name: 'USDT0', value: 'USDT0' },
       { name: 'Arbitrary token', value: 'Arbitrary token' },
     ],
     validate: (choices) => {
@@ -183,6 +249,7 @@ export const collectUserInput = async (): Promise<{
             { name: 'WETH', value: 'WETH' },
             { name: 'USDC', value: 'USDC' },
             { name: 'USDT', value: 'USDT' },
+            { name: 'USDT0', value: 'USDT0' },
           ],
         })
         if (tokensForChain.length > 0) {
@@ -365,7 +432,13 @@ export const collectUserInput = async (): Promise<{
       ...(sourceAssetsConfig ? { sourceAssets: sourceAssetsConfig } : {}),
       tokenRecipient,
       ...(recipient ? { recipient } : {}),
-      settlementLayers,
+      ...(settlementLayers.length > 0
+        ? {
+            settlementLayers: {
+              include: settlementLayers as SettlementLayer[],
+            },
+          }
+        : {}),
       sponsored,
       ...(feeAsset ? { feeAsset } : {}),
     },
