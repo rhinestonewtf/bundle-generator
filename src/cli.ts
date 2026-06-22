@@ -465,6 +465,78 @@ export const parseAccountType = (): 'smart' | 'eoa' => {
   return accountType as 'smart' | 'eoa'
 }
 
+const VALID_ENVIRONMENTS = ['prod', 'dev', 'local'] as const
+type EnvironmentValue = (typeof VALID_ENVIRONMENTS)[number]
+
+const isEnvironmentValue = (v: string): v is EnvironmentValue =>
+  (VALID_ENVIRONMENTS as readonly string[]).includes(v)
+
+const getFlagValue = (flag: string): string | undefined => {
+  const args = process.argv
+  const idx = args.indexOf(flag)
+  if (idx === -1) return undefined
+  return args[idx + 1]
+}
+
+/**
+ * Resolve the target environment from the `--env` flag, falling back to an
+ * interactive prompt when the flag is absent. Exits with a clear error if the
+ * flag is set to an unknown value so non-interactive runs fail fast.
+ */
+export const parseEnvironment = async (): Promise<string> => {
+  if (process.argv.includes('--env')) {
+    const value = getFlagValue('--env')
+    if (!value || !isEnvironmentValue(value)) {
+      console.error(
+        `Error: --env must be one of ${VALID_ENVIRONMENTS.join(', ')}, got '${value ?? ''}'`,
+      )
+      process.exit(1)
+    }
+    return value
+  }
+
+  return select({
+    message: 'Select the environment to use',
+    choices: [
+      { name: 'Prod', value: 'prod' },
+      { name: 'Dev', value: 'dev' },
+      { name: 'Local', value: 'local' },
+    ],
+  })
+}
+
+const VALID_NETWORK_TYPES = ['mainnet', 'testnet'] as const
+type NetworkTypeValue = (typeof VALID_NETWORK_TYPES)[number]
+
+const isNetworkTypeValue = (v: string): v is NetworkTypeValue =>
+  (VALID_NETWORK_TYPES as readonly string[]).includes(v)
+
+/**
+ * Resolve the network type from the `--network` flag, falling back to an
+ * interactive prompt when the flag is absent. Exits with a clear error if the
+ * flag is set to an unknown value so non-interactive runs fail fast.
+ */
+export const parseNetworkType = async (): Promise<'mainnet' | 'testnet'> => {
+  if (process.argv.includes('--network')) {
+    const value = getFlagValue('--network')
+    if (!value || !isNetworkTypeValue(value)) {
+      console.error(
+        `Error: --network must be one of ${VALID_NETWORK_TYPES.join(', ')}, got '${value ?? ''}'`,
+      )
+      process.exit(1)
+    }
+    return value
+  }
+
+  return select({
+    message: 'Select the network type',
+    choices: [
+      { name: 'Mainnet', value: 'mainnet' },
+      { name: 'Testnet', value: 'testnet' },
+    ],
+  })
+}
+
 export const showUserAccount = async (address: string) => {
   console.log(
     `To use your account, you'll need to fund it on the relevant source chain(s). Your account address is ${address}`,
@@ -581,20 +653,7 @@ export const getReplayParams = async () => {
     }
   }
 
-  const isEnvSet = args.includes('--env')
-  let environment: string
-  if (isEnvSet) {
-    environment = args[args.indexOf('--env') + 1]
-  } else {
-    environment = await select({
-      message: 'Select the environment to use',
-      choices: [
-        { name: 'Prod', value: 'prod' },
-        { name: 'Dev', value: 'dev' },
-        { name: 'Local', value: 'local' },
-      ],
-    })
-  }
+  const environment = await parseEnvironment()
 
   const isExecutionModeSet = args.includes('--mode')
   let executionMode: string

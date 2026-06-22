@@ -24,13 +24,36 @@ Set the API key for your target environment in `.env`. The owner private key is 
 
 ## Commands
 
-### `pnpm address`
+### `pnpm address [options]`
 
 Prints the smart account address.
 
-### `pnpm balance`
+| Option | Description |
+|---|---|
+| `--env <prod\|dev\|local>` | Set environment (prompts if omitted) |
+| `--account-type <smart\|eoa>` | Set account type (defaults to `smart`) |
+
+```sh
+pnpm address                                  # interactive
+pnpm address --env prod                        # non-interactive
+pnpm address --env dev --account-type eoa
+```
+
+### `pnpm balance [options]`
 
 Shows token balances across all supported chains.
+
+| Option | Description |
+|---|---|
+| `--env <prod\|dev\|local>` | Set environment (prompts if omitted) |
+| `--network <mainnet\|testnet>` | Set network type (prompts if omitted) |
+| `--account-type <smart\|eoa>` | Set account type (defaults to `smart`) |
+
+```sh
+pnpm balance                                       # interactive
+pnpm balance --env prod --network mainnet           # non-interactive
+pnpm balance --env dev --network testnet --account-type eoa
+```
 
 ### `pnpm new`
 
