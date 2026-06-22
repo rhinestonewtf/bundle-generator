@@ -1,44 +1,15 @@
-import { select } from '@inquirer/prompts'
 import { config } from 'dotenv'
 import { formatUnits } from 'viem'
-import { parseAccountType } from './cli.js'
+import { parseAccountType, parseEnvironment, parseNetworkType } from './cli.js'
 import { createRhinestoneAccount } from './main.js'
 import { getChainById } from './utils/chains.js'
 
 config()
 
 export const main = async () => {
-  const environmentString = await select({
-    message: 'Select the environments to use',
-    choices: [
-      {
-        name: 'Prod',
-        value: 'prod',
-      },
-      {
-        name: 'Dev',
-        value: 'dev',
-      },
-      {
-        name: 'Local',
-        value: 'local',
-      },
-    ],
-  })
+  const environmentString = await parseEnvironment()
 
-  const networkType = await select({
-    message: 'Select the network type',
-    choices: [
-      {
-        name: 'Mainnet',
-        value: 'mainnet',
-      },
-      {
-        name: 'Testnet',
-        value: 'testnet',
-      },
-    ],
-  })
+  const networkType = await parseNetworkType()
 
   const accountType = parseAccountType()
   const rhinestoneAccount = await createRhinestoneAccount(
