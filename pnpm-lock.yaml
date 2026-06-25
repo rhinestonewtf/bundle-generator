@@ -12,8 +12,8 @@ importers:
         specifier: ^7.4.1
         version: 7.8.4(@types/node@22.18.1)
       '@rhinestone/sdk':
-        specifier: 2.0.0-beta.19
-        version: 2.0.0-beta.19(typescript@5.9.2)(viem@2.45.0(typescript@5.9.2))
+        specifier: 2.0.0-beta.30
+        version: 2.0.0-beta.30(typescript@5.9.2)(viem@2.45.0(typescript@5.9.2))
       abitype:
         specifier: ^1.0.8
         version: 1.1.0(typescript@5.9.2)
@@ -401,8 +401,8 @@ packages:
     resolution: {integrity: sha512-jCs9ldd7NwzpgXDIf6P3+NrHh9/sD6CQdxHyjQI+h/6rDNo88ypBxxz45UDuZHz9r3tNz7N/VInSVoVdtXEI4A==}
     engines: {node: ^14.21.3 || >=16}
 
-  '@rhinestone/sdk@2.0.0-beta.19':
-    resolution: {integrity: sha512-wJDpI53mPTvJ6IdQGpR+4g+WBN8OYmDIZ0YE423FJhmwN4VHCxDJsjMWnE/XjxhppjqFxkiaXGAE3QLWa5ElcQ==}
+  '@rhinestone/sdk@2.0.0-beta.30':
+    resolution: {integrity: sha512-LaPqMiXT3JTgNBggNM6SuAOINif6Lu5nFMzuebztI9EMzTtvWbR7P4s7iKyhb+wEbFzt7JAOebtYZRFGgQhdhQ==}
     peerDependencies:
       express: '>=4'
       jose: '>=5.0.0'
@@ -413,8 +413,8 @@ packages:
       jose:
         optional: true
 
-  '@rhinestone/shared-configs@1.5.1':
-    resolution: {integrity: sha512-RtbhW8oQPZeipov1NF3pd4tXvR+C5cac7yhYC0pd2aoE3iBb53U256yvmfyAJ9/s9E0UauT1sNFC/LrLJC+uvA==}
+  '@rhinestone/shared-configs@1.6.7':
+    resolution: {integrity: sha512-QV3ofrvc5kJpysk/g3mTE2WgMutmCdEu4kWNjMMbrDPVWe2QQDEiKpfi34YmFg8UoF6HULbmNUbhn/BniO0Xgw==}
     peerDependencies:
       typescript: ^5
       viem: ^2.40.1
@@ -845,15 +845,15 @@ snapshots:
 
   '@noble/hashes@1.8.0': {}
 
-  '@rhinestone/sdk@2.0.0-beta.19(typescript@5.9.2)(viem@2.45.0(typescript@5.9.2))':
+  '@rhinestone/sdk@2.0.0-beta.30(typescript@5.9.2)(viem@2.45.0(typescript@5.9.2))':
     dependencies:
-      '@rhinestone/shared-configs': 1.5.1(typescript@5.9.2)(viem@2.45.0(typescript@5.9.2))
+      '@rhinestone/shared-configs': 1.6.7(typescript@5.9.2)(viem@2.45.0(typescript@5.9.2))
       solady: 0.1.26
       viem: 2.45.0(typescript@5.9.2)
     transitivePeerDependencies:
       - typescript
 
-  '@rhinestone/shared-configs@1.5.1(typescript@5.9.2)(viem@2.45.0(typescript@5.9.2))':
+  '@rhinestone/shared-configs@1.6.7(typescript@5.9.2)(viem@2.45.0(typescript@5.9.2))':
     dependencies:
       typescript: 5.9.2
       viem: 2.45.0(typescript@5.9.2)
