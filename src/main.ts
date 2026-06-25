@@ -29,6 +29,7 @@ import {
   getChain,
   getChainById,
   getEvmChain,
+  getLocalForkRpcUrl,
   isNonEvmChain,
 } from './utils/chains.js'
 import { getEnvironment } from './utils/environments.js'
@@ -521,11 +522,20 @@ export const processIntent = async (
       // Non-EVM chains have no viem RPC — skip receipt enrichment there.
       // Bundle status tracking for non-EVM dests is tracked separately (RHI-3797).
       if (!isSimulate && op.hash && !isNonEvmChain(op.chainId)) {
+        // Against the local stack, on-chain reads must hit the anvil fork RPC,
+        // not viem's default public mainnet RPC — otherwise a tx that only
+        // exists on the fork is "not found". Use waitForTransactionReceipt so
+        // receipt enrichment doesn't race the block (the intent already reached
+        // a terminal state via waitForExecution above).
+        const forkRpcUrl =
+          environmentString === 'local'
+            ? getLocalForkRpcUrl(op.chainId)
+            : undefined
         const publicClient = createPublicClient({
           chain: getChainById(op.chainId),
-          transport: http(),
+          transport: forkRpcUrl ? http(forkRpcUrl) : http(),
         })
-        const txReceipt = await publicClient.getTransactionReceipt({
+        const txReceipt = await publicClient.waitForTransactionReceipt({
           hash: op.hash as Hex,
         })
         op.gasUsed = txReceipt.gasUsed
