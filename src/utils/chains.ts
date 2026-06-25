@@ -65,3 +65,21 @@ export const getChainById = (chainId: number): Chain => {
   }
   return chain as Chain
 }
+
+// Local anvil fork RPC endpoints, keyed by chainId. Ports follow the e2e stack
+// convention (chains exposed on 30001-30008). Used so on-chain reads (e.g.
+// receipt enrichment) hit the local fork instead of viem's default public
+// mainnet RPC — otherwise a tx that only exists on the fork is "not found".
+const LOCAL_FORK_RPC_BY_CHAIN_ID: Record<number, string> = {
+  1: 'http://localhost:30001', // mainnet
+  42161: 'http://localhost:30002', // arbitrum
+  8453: 'http://localhost:30003', // base
+  137: 'http://localhost:30004', // polygon
+  146: 'http://localhost:30005', // sonic
+  10: 'http://localhost:30006', // optimism
+  100: 'http://localhost:30007', // gnosis
+  9745: 'http://localhost:30008', // plasma
+}
+
+export const getLocalForkRpcUrl = (chainId: number): string | undefined =>
+  LOCAL_FORK_RPC_BY_CHAIN_ID[chainId]
