@@ -360,7 +360,10 @@ export const processIntent = async (
       ? ` via ${intent.settlementLayers.include.join()}`
       : ` excluding ${intent.settlementLayers.exclude.join()}`
     : ''
-  const bundleLabel = `${sourceAssetsLabel} > ${targetAssetsLabel}${settlementLayersLabel}${intent.sponsored ? ' sponsored' : ''} to ${recipientLabel}`
+  const appFeeLabel = intent.appFees
+    ? ` +${intent.appFees.feeBps}bps appFee`
+    : ''
+  const bundleLabel = `${sourceAssetsLabel} > ${targetAssetsLabel}${settlementLayersLabel}${intent.sponsored ? ' sponsored' : ''}${appFeeLabel} to ${recipientLabel}`
 
   console.log(`${ts()} Bundle ${bundleLabel}: Starting transaction process`)
 
@@ -392,6 +395,7 @@ export const processIntent = async (
       : {}),
     ...(intent.recipient ? { recipient: intent.recipient as Address } : {}),
     ...(intent.feeAsset ? { feeAsset: intent.feeAsset } : {}),
+    ...(intent.appFees ? { appFees: intent.appFees } : {}),
     ...(resolvedAuxiliaryFunds
       ? { auxiliaryFunds: resolvedAuxiliaryFunds }
       : {}),
@@ -426,6 +430,12 @@ export const processIntent = async (
       console.log(
         `${ts()} Bundle ${bundleLabel}: [verbose] ${marker} [${i}] ${quote.settlementLayer} (intentId=${quote.intentId}, fillTime=${quote.estimatedFillTime.seconds}s, fees=$${quote.cost.fees.total.usd})`,
       )
+      console.log(
+        `${ts()} Bundle ${bundleLabel}: [verbose] app fee: $${quote.cost.fees.breakdown.app?.usd ?? 0}`,
+      )
+      if (quote.appFee?.length) {
+        console.dir({ appFee: quote.appFee }, { depth: null })
+      }
       const {
         signData: _signData,
         tokenRequirements: _tokenRequirements,

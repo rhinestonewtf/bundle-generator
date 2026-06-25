@@ -1,12 +1,17 @@
 import * as fs from 'node:fs'
 import path from 'node:path'
 import { checkbox, confirm, input, select } from '@inquirer/prompts'
-import type { SettlementLayer } from '@rhinestone/sdk'
-import { type Address, type Chain, type Hex, isAddress, parseUnits } from 'viem'
+import type { SettlementLayerFilter } from '@rhinestone/sdk'
+import { type Chain, type Hex, isAddress, parseUnits } from 'viem'
 import { privateKeyToAccount } from 'viem/accounts'
 import * as viemChains from 'viem/chains'
 import type { Intent } from './types.js'
 import { getDecimals } from './utils/tokens.js'
+
+type IncludeSettlementLayer = Extract<
+  SettlementLayerFilter,
+  { include: unknown }
+>['include'][number]
 
 // Mirrors the SDK's internal cross-chain layer list, which isn't exported as a
 // runtime value. Keep in sync with @rhinestone/sdk's KNOWN_SETTLEMENT_LAYERS.
@@ -18,9 +23,9 @@ const KNOWN_SETTLEMENT_LAYERS = [
   'NEAR',
   'RHINO',
   'CCTP',
-] as const satisfies readonly SettlementLayer[]
+] as const satisfies readonly IncludeSettlementLayer[]
 
-const isKnownSettlementLayer = (v: unknown): v is SettlementLayer =>
+const isKnownSettlementLayer = (v: unknown): v is IncludeSettlementLayer =>
   typeof v === 'string' &&
   (KNOWN_SETTLEMENT_LAYERS as readonly string[]).includes(v)
 
@@ -364,6 +369,11 @@ export const collectUserInput = async (): Promise<{
       'Fee asset token symbol or address (optional, e.g. USDC, ETH, or 0x...)',
   })
 
+  const appFeeBpsInput = await input({
+    message: 'App fee basis points (optional, e.g. 100 for 1%)',
+  })
+  const appFeeBps = appFeeBpsInput ? Number(appFeeBpsInput) : 0
+
   const recipient = await input({
     message: 'Recipient address for the orchestrator (optional, address)',
   })
@@ -435,12 +445,13 @@ export const collectUserInput = async (): Promise<{
       ...(settlementLayers.length > 0
         ? {
             settlementLayers: {
-              include: settlementLayers as SettlementLayer[],
+              include: settlementLayers as IncludeSettlementLayer[],
             },
           }
         : {}),
       sponsored,
       ...(feeAsset ? { feeAsset } : {}),
+      ...(appFeeBps > 0 ? { appFees: { feeBps: appFeeBps } } : {}),
     },
     saveAsFileName,
     environment,

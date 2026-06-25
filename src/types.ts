@@ -1,4 +1,4 @@
-import type { SettlementLayerFilter } from '@rhinestone/sdk'
+import type { AppFeeRate, SettlementLayerFilter } from '@rhinestone/sdk'
 import type { Address } from 'abitype'
 
 export type Token = {
@@ -35,6 +35,7 @@ export type Intent = {
   sponsored: boolean
   destinationOps?: boolean
   feeAsset?: string
+  appFees?: AppFeeRate
   auxiliaryFunds?: Record<string, Record<string, string>>
 }
 
