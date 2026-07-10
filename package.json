@@ -8,6 +8,7 @@
     "replay": "tsx src/existing-intent.ts",
     "address": "tsx src/get-address.ts",
     "balance": "tsx src/get-balance.ts",
+    "app-fee-balance": "tsx src/get-app-fee-balance.ts",
     "lint": "biome lint .",
     "lint:fix": "biome lint --write .",
     "format": "biome format .",
@@ -20,7 +21,7 @@
   "license": "ISC",
   "dependencies": {
     "@inquirer/prompts": "^7.4.1",
-    "@rhinestone/sdk": "2.0.0-beta.30",
+    "@rhinestone/sdk": "2.0.0-beta.38",
     "abitype": "^1.0.8",
     "dotenv": "^16.5.0",
     "tsx": "^4.19.4",
