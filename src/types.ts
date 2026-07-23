@@ -1,4 +1,18 @@
 import type { AppFeeRate, SettlementLayerFilter } from '@rhinestone/sdk'
+
+/** Rate for the Rhinestone protocol fee (RHI-4904). Defined locally until the
+ * dep bumps to an SDK release exporting `ProtocolFeeRate`. */
+export type ProtocolFeeRate = { feeBps: number }
+
+/** Object form of the SDK's `Sponsorship`: per-category sponsorship flags,
+ * including the sponsorable Rhinestone protocol fee (RHI-4904). */
+export type SponsorshipSettings = {
+  gas: boolean
+  bridging: boolean
+  swaps: boolean
+  protocolFees?: boolean
+}
+
 import type { Address } from 'abitype'
 
 export type Token = {
@@ -32,10 +46,11 @@ export type Intent = {
   tokenRecipient: string
   recipient?: string
   settlementLayers?: SettlementLayerFilter
-  sponsored: boolean
+  sponsored: boolean | SponsorshipSettings
   destinationOps?: boolean
   feeAsset?: string
   appFees?: AppFeeRate
+  protocolFees?: ProtocolFeeRate
   auxiliaryFunds?: Record<string, Record<string, string>>
 }
 

@@ -364,7 +364,19 @@ export const processIntent = async (
   const appFeeLabel = intent.appFees
     ? ` +${intent.appFees.feeBps}bps appFee`
     : ''
-  const bundleLabel = `${sourceAssetsLabel} > ${targetAssetsLabel}${settlementLayersLabel}${intent.sponsored ? ' sponsored' : ''}${appFeeLabel} to ${recipientLabel}`
+  const protocolFeeLabel = intent.protocolFees
+    ? ` +${intent.protocolFees.feeBps}bps protocolFee`
+    : ''
+  const sponsoredLabel =
+    typeof intent.sponsored === 'object'
+      ? ` sponsored(${Object.entries(intent.sponsored)
+          .filter(([, v]) => v)
+          .map(([k]) => k)
+          .join(',')})`
+      : intent.sponsored
+        ? ' sponsored'
+        : ''
+  const bundleLabel = `${sourceAssetsLabel} > ${targetAssetsLabel}${settlementLayersLabel}${sponsoredLabel}${appFeeLabel}${protocolFeeLabel} to ${recipientLabel}`
 
   console.log(`${ts()} Bundle ${bundleLabel}: Starting transaction process`)
 
@@ -397,6 +409,7 @@ export const processIntent = async (
     ...(intent.recipient ? { recipient: intent.recipient as Address } : {}),
     ...(intent.feeAsset ? { feeAsset: intent.feeAsset } : {}),
     ...(intent.appFees ? { appFees: intent.appFees } : {}),
+    ...(intent.protocolFees ? { protocolFees: intent.protocolFees } : {}),
     ...(resolvedAuxiliaryFunds
       ? { auxiliaryFunds: resolvedAuxiliaryFunds }
       : {}),
@@ -433,6 +446,17 @@ export const processIntent = async (
       )
       console.log(
         `${ts()} Bundle ${bundleLabel}: [verbose] app fee: $${quote.cost.fees.breakdown.app?.usd ?? 0}`,
+      )
+      // `protocol` / `sponsorSurcharge` land in the generated wire types when
+      // the SDK regenerates against the orchestrator's RHI-4904 OpenAPI;
+      // widen locally until the dep bump.
+      const breakdown = quote.cost.fees
+        .breakdown as typeof quote.cost.fees.breakdown & {
+        protocol?: { usd: number; sponsored: boolean }
+        sponsorSurcharge?: { usd: number; sponsored: boolean }
+      }
+      console.log(
+        `${ts()} Bundle ${bundleLabel}: [verbose] protocol fee: $${breakdown.protocol?.usd ?? 0} (sponsored: ${breakdown.protocol?.sponsored ?? false}) | sponsor surcharge: $${breakdown.sponsorSurcharge?.usd ?? 0}`,
       )
       const {
         signData: _signData,

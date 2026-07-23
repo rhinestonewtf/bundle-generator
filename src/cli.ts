@@ -374,6 +374,21 @@ export const collectUserInput = async (): Promise<{
   })
   const appFeeBps = appFeeBpsInput ? Number(appFeeBpsInput) : 0
 
+  const protocolFeeBpsInput = await input({
+    message: 'Rhinestone protocol fee basis points (optional, e.g. 35)',
+  })
+  const protocolFeeBps = protocolFeeBpsInput ? Number(protocolFeeBpsInput) : 0
+  const sponsorProtocolFee =
+    protocolFeeBps > 0 && sponsored
+      ? await select({
+          message: 'Sponsor the protocol fee (charge it to the sponsor)?',
+          choices: [
+            { name: 'Yes', value: true },
+            { name: 'No', value: false },
+          ],
+        })
+      : false
+
   const recipient = await input({
     message: 'Recipient address for the orchestrator (optional, address)',
   })
@@ -449,9 +464,14 @@ export const collectUserInput = async (): Promise<{
             },
           }
         : {}),
-      sponsored,
+      sponsored: sponsorProtocolFee
+        ? { gas: true, bridging: true, swaps: true, protocolFees: true }
+        : sponsored,
       ...(feeAsset ? { feeAsset } : {}),
       ...(appFeeBps > 0 ? { appFees: { feeBps: appFeeBps } } : {}),
+      ...(protocolFeeBps > 0
+        ? { protocolFees: { feeBps: protocolFeeBps } }
+        : {}),
     },
     saveAsFileName,
     environment,
