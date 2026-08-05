@@ -30,6 +30,12 @@ type DestinationChainWithId = NonEvmChain & { id: number }
 // RELAY, NEAR, RHINO and CCTP reject the route outright with
 // UNSUPPORTED_HYPERCORE_DESTINATION because they deliver bare USDC and would
 // strand it on HyperEVM. Leaving the filter open makes the whole intent fail.
+//
+// WARNING: delivery lands in the recipient's PERP MARGIN account, not their spot
+// balance. `CoreDepositWallet.depositFor`'s `destinationDex` defaults to the perp
+// dex, and the only lever (`tokenRequests[].balance`) is silently dropped by the
+// SDK — so there is currently no way to reach spot from here, and nothing errors.
+// Verify with `clearinghouseState` (perp), not `spotClearinghouseState`. RHI-5510.
 export const NON_EVM_CHAINS: Record<string, DestinationChainWithId> = {
   solana: { ...solanaMainnet, id: 792703809 },
   tron: { ...tronMainnet, id: 728126428 },
