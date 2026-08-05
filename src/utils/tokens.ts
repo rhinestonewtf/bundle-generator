@@ -29,6 +29,15 @@ const NON_EVM_TOKEN_DECIMALS_BY_NAME: Record<string, Record<string, number>> = {
   tron: {
     TR7NHqjeKQxGTCi8q8ZY4pL8otSzgjLj6t: 6, // USDT
   },
+  // HyperCore is listed for a different reason than Solana/Tron: its token IS a
+  // queryable EVM ERC20 (the HyperEVM one — the registry gives chain 1337 and
+  // chain 999 the same USDC address). But its synthetic id 1337 collides with
+  // viem's `localhost` chain, so letting the address path fall through to
+  // `getChainById(1337)` would build a client against 127.0.0.1:8545 and hang
+  // rather than fail usefully. Resolving from this table avoids that entirely.
+  hypercore: {
+    '0xb88339CB7199b77E23DB6E890353E22632Ba630f': 6, // USDC
+  },
 }
 
 const NON_EVM_TOKEN_DECIMALS: Record<

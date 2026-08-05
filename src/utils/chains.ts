@@ -1,4 +1,9 @@
-import { type NonEvmChain, solanaMainnet, tronMainnet } from '@rhinestone/sdk'
+import {
+  hyperCoreMainnet,
+  type NonEvmChain,
+  solanaMainnet,
+  tronMainnet,
+} from '@rhinestone/sdk'
 import type { Chain } from 'viem'
 import * as viemChains from 'viem/chains'
 
@@ -10,13 +15,29 @@ import * as viemChains from 'viem/chains'
 // id registry (`fromCaip2` in @rhinestone/sdk/dist/.../caip2.js).
 type DestinationChainWithId = NonEvmChain & { id: number }
 
+// HyperCore's synthetic id is 1337 (the SDK's `fromCaip2('hypercore:mainnet')`),
+// which the orchestrator maps to 999 for settlement.
+//
+// Unlike Solana and Tron it is EVM-*addressed* — the SDK's `isNonEvmChainId(1337)`
+// is false — so it belongs here only for the name→descriptor lookup, and NOT in
+// NON_EVM_CHAIN_IDS below, whose consumer (`isNonEvmChain`) means "not
+// EVM-addressed" and gates the EVM-only paths (anvil funding, EVM source-chain
+// lists). Enumerating NON_EVM_CHAINS to build that set would silently pull
+// HyperCore into it.
+//
+// An intent targeting HyperCore must also restrict `settlementLayers` to ACROSS
+// and/or ECO. Only those run the on-chain core-deposit that credits Core spot;
+// RELAY, NEAR, RHINO and CCTP reject the route outright with
+// UNSUPPORTED_HYPERCORE_DESTINATION because they deliver bare USDC and would
+// strand it on HyperEVM. Leaving the filter open makes the whole intent fail.
 export const NON_EVM_CHAINS: Record<string, DestinationChainWithId> = {
   solana: { ...solanaMainnet, id: 792703809 },
   tron: { ...tronMainnet, id: 728126428 },
+  hypercore: { ...hyperCoreMainnet, id: 1337 },
 }
 
 export const NON_EVM_CHAIN_IDS: ReadonlySet<number> = new Set(
-  Object.values(NON_EVM_CHAINS).map((c) => c.id),
+  [NON_EVM_CHAINS.solana, NON_EVM_CHAINS.tron].map((c) => c.id),
 )
 
 export const isNonEvmChain = (chainId: number): boolean =>
