@@ -282,8 +282,13 @@ export const processIntent = async (
   const canBuildErc20Transfer = (token: ParsedToken) =>
     token.amount !== undefined &&
     (token.symbol === 'ETH' || token.address !== undefined)
+  // Descriptor-addressed destinations (Solana, Tron, HyperCore) are
+  // solver-mediated: the SDK rejects an intent that carries destination calls for
+  // them, so emit none regardless of `destinationOps`. Without this, the only
+  // thing standing between a descriptor target and a pre-route failure is the
+  // caller remembering `destinationOps: false` in the fixture.
   const calls =
-    intent.destinationOps === false
+    intent.destinationOps === false || isNonEvmChain(targetChain.id)
       ? []
       : targetTokens.length && targetTokens.every(canBuildErc20Transfer)
         ? targetTokens.map((token: ParsedToken) => {

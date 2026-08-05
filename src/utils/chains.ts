@@ -1,4 +1,9 @@
-import { type NonEvmChain, solanaMainnet, tronMainnet } from '@rhinestone/sdk'
+import {
+  hyperCoreMainnet,
+  type NonEvmChain,
+  solanaMainnet,
+  tronMainnet,
+} from '@rhinestone/sdk'
 import type { Chain } from 'viem'
 import * as viemChains from 'viem/chains'
 
@@ -10,15 +15,43 @@ import * as viemChains from 'viem/chains'
 // id registry (`fromCaip2` in @rhinestone/sdk/dist/.../caip2.js).
 type DestinationChainWithId = NonEvmChain & { id: number }
 
+// HyperCore's synthetic id is 1337 (the SDK's `fromCaip2('hypercore:mainnet')`),
+// which the orchestrator maps to 999 for settlement.
+//
+// It belongs in NON_EVM_CHAIN_IDS below with Solana and Tron, even though the
+// SDK's own `isNonEvmChainId(1337)` is false because HyperCore is EVM-*addressed*.
+// The two predicates answer different questions and only one of them is ours:
+// this set gates the paths that need a real viem `Chain` + RPC, and HyperCore is
+// a virtual chain with neither. Worse, 1337 collides with viem's `localhost`, so
+// excluding it doesn't fail loudly — it builds a client against 127.0.0.1:8545.
+// Do not "correct" this to match the SDK.
+//
+// An intent targeting HyperCore must also restrict `settlementLayers` to ACROSS
+// and/or ECO. Only those run the on-chain core-deposit that credits Core spot;
+// RELAY, NEAR, RHINO and CCTP reject the route outright with
+// UNSUPPORTED_HYPERCORE_DESTINATION because they deliver bare USDC and would
+// strand it on HyperEVM. Leaving the filter open makes the whole intent fail.
+//
+// WARNING: delivery lands in the recipient's PERP MARGIN account, not their spot
+// balance. `CoreDepositWallet.depositFor`'s `destinationDex` defaults to the perp
+// dex, and the only lever (`tokenRequests[].balance`) is silently dropped by the
+// SDK — so there is currently no way to reach spot from here, and nothing errors.
+// Verify with `clearinghouseState` (perp), not `spotClearinghouseState`. RHI-5510.
 export const NON_EVM_CHAINS: Record<string, DestinationChainWithId> = {
   solana: { ...solanaMainnet, id: 792703809 },
   tron: { ...tronMainnet, id: 728126428 },
+  hypercore: { ...hyperCoreMainnet, id: 1337 },
 }
 
 export const NON_EVM_CHAIN_IDS: ReadonlySet<number> = new Set(
   Object.values(NON_EVM_CHAINS).map((c) => c.id),
 )
 
+/**
+ * True for a descriptor-addressed destination — one the SDK targets by `caip2`
+ * rather than a viem `Chain`. These have no viem RPC, so callers must skip
+ * receipt/block enrichment, and the SDK rejects destination *calls* on them.
+ */
 export const isNonEvmChain = (chainId: number): boolean =>
   NON_EVM_CHAIN_IDS.has(chainId)
 
