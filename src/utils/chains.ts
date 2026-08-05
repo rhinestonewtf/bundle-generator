@@ -18,12 +18,13 @@ type DestinationChainWithId = NonEvmChain & { id: number }
 // HyperCore's synthetic id is 1337 (the SDK's `fromCaip2('hypercore:mainnet')`),
 // which the orchestrator maps to 999 for settlement.
 //
-// Unlike Solana and Tron it is EVM-*addressed* — the SDK's `isNonEvmChainId(1337)`
-// is false — so it belongs here only for the name→descriptor lookup, and NOT in
-// NON_EVM_CHAIN_IDS below, whose consumer (`isNonEvmChain`) means "not
-// EVM-addressed" and gates the EVM-only paths (anvil funding, EVM source-chain
-// lists). Enumerating NON_EVM_CHAINS to build that set would silently pull
-// HyperCore into it.
+// It belongs in NON_EVM_CHAIN_IDS below with Solana and Tron, even though the
+// SDK's own `isNonEvmChainId(1337)` is false because HyperCore is EVM-*addressed*.
+// The two predicates answer different questions and only one of them is ours:
+// this set gates the paths that need a real viem `Chain` + RPC, and HyperCore is
+// a virtual chain with neither. Worse, 1337 collides with viem's `localhost`, so
+// excluding it doesn't fail loudly — it builds a client against 127.0.0.1:8545.
+// Do not "correct" this to match the SDK.
 //
 // An intent targeting HyperCore must also restrict `settlementLayers` to ACROSS
 // and/or ECO. Only those run the on-chain core-deposit that credits Core spot;
@@ -43,9 +44,14 @@ export const NON_EVM_CHAINS: Record<string, DestinationChainWithId> = {
 }
 
 export const NON_EVM_CHAIN_IDS: ReadonlySet<number> = new Set(
-  [NON_EVM_CHAINS.solana, NON_EVM_CHAINS.tron].map((c) => c.id),
+  Object.values(NON_EVM_CHAINS).map((c) => c.id),
 )
 
+/**
+ * True for a descriptor-addressed destination — one the SDK targets by `caip2`
+ * rather than a viem `Chain`. These have no viem RPC, so callers must skip
+ * receipt/block enrichment, and the SDK rejects destination *calls* on them.
+ */
 export const isNonEvmChain = (chainId: number): boolean =>
   NON_EVM_CHAIN_IDS.has(chainId)
 
