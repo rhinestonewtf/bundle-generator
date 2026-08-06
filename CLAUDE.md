@@ -57,7 +57,8 @@ pnpm new                  # interactive: build, save and run a new intent
 pnpm replay               # replay saved intents from intents/
 pnpm app-fee-balance
 
-pnpm check                # biome lint + format — the only quality gate
+pnpm typecheck            # tsc --noEmit
+pnpm check                # biome lint + format
 pnpm check:fix
 ```
 
@@ -96,9 +97,25 @@ Every command takes `--env <prod|dev|local>` and prompts if omitted.
   SDK's list, which isn't exported as a runtime value. A layer added to
   `@rhinestone/sdk` is rejected here until this array is updated.
 - **There is no CI.** The repo has no `.github/` directory at all — no build, no
-  typecheck, no test on a pull request. `pnpm check` locally is the entire
-  quality gate, and `tsc` is never run in isolation (`tsx` transpiles without
-  type-checking), so a type error can be merged and only surfaces at runtime.
+  typecheck, no test on a pull request. `pnpm check` + `pnpm typecheck` locally
+  are the entire quality gate, and `tsx` transpiles without type-checking, so a
+  type error can be merged and only surfaces at runtime.
+- **The account address derives from the account descriptor, so the SDK's
+  default account version is load-bearing.** `createRhinestoneAccount` pins
+  `nexus 1.2.1`; SDK v2 moved that default up from 1.2.0 and silently re-derived
+  every account to a new address, which surfaces as `No balances available` on
+  an account that is provably funded on-chain. Changing it means migrating the
+  float first — and the *old* account has to sign that, so the pin moves last.
+- **SDK v2 rejects token symbols** (`normalizeTokenAddress` wants a hex address
+  on every EVM chain) and `GET /chains` can't fill the gap — it reports
+  `supportedTokens: 'all'` for most chains. Intent files stay symbol-based;
+  `src/utils/registry.ts` resolves them from the chain-facts artifact at
+  runtime, deliberately unpinned so a new chain needs no dependency bump.
+- **Neither "it errored" nor "it submitted" tells you whether an intent
+  settled.** Receipt enrichment runs after `waitForExecution` on viem's default
+  public RPC, so a lagging RPC throws `BlockNotFoundError` on a completed
+  intent; conversely a submitted intent can still end `FAILED`/`EXPIRED`. Read
+  `sdk.getIntentStatus(intentId)`, or the chain.
 - **`intents/` is gitignored.** Saved intents never leave your machine, so
   "replay the intent from that bug" means someone has to paste the JSON. Keep
   reproductions in the ticket, not just on disk.

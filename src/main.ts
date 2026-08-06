@@ -24,6 +24,7 @@ import {
   type IntentResult,
   type ParsedToken,
   type SourceAssets,
+  type SourceTokens,
 } from './types.js'
 import {
   getChain,
@@ -31,9 +32,16 @@ import {
   getEvmChain,
   getLocalForkRpcUrl,
   isNonEvmChain,
+  SDK_RPC_OVERRIDES,
+  toSdkDestinationChain,
 } from './utils/chains.js'
 import { getEnvironment } from './utils/environments.js'
-import { convertTokenAmount, getDecimals } from './utils/tokens.js'
+import { loadRegistry } from './utils/registry.js'
+import {
+  convertTokenAmount,
+  getDecimals,
+  resolveTokenAddress,
+} from './utils/tokens.js'
 
 export function ts() {
   return new Date().toISOString().replace(/T/, ' ').replace(/\..+/, '')
@@ -56,16 +64,70 @@ const logTimingSummary = (
   )
 }
 
-const resolveSourceAssets = async (sourceAssets: SourceAssets) => {
-  // Format 1: string[] → SimpleTokenList, pass as-is
+/**
+ * Expand a plain symbol list into a per-chain address map.
+ *
+ * Deliberately NOT the SDK's flat `SimpleTokenList`, even though that is the
+ * shape a bare list maps onto: `adaptSourceAssets` only sends `chainIds`
+ * alongside `tokens` when `sourceChains` is set, so an unscoped list arrives as
+ * a bare `{ tokens: [...] }` that the orchestrator matches against nothing —
+ * answering `No balances available` on a provably funded account. Under
+ * beta.38 that same field carried *symbols* and matched globally; v2's switch
+ * to addresses is what made the unscoped form unusable. A per-chain map is
+ * scoped by construction, so it behaves the same with or without `sourceChains`.
+ */
+const expandSymbolList = async (
+  symbols: string[],
+  sourceChainIds: number[],
+  targetChainId: number,
+): Promise<Record<number, string[]>> => {
+  const registry = await loadRegistry()
+  // With no explicit `sourceChains`, fall back to every chain that can actually
+  // *be* a source: EVM only, and on the same side of the mainnet/testnet split
+  // as the target. Handing the orchestrator a virtual chain here is a hard 400
+  // (`Unsupported chain id in access list: 1337`), not a skipped entry.
+  const chainIds =
+    sourceChainIds.length > 0
+      ? sourceChainIds
+      : registry.sourceChainIds(registry.isTestnet(targetChainId))
+  const chainTokenMap: Record<number, string[]> = {}
+  for (const chainId of chainIds) {
+    const tokens = symbols.flatMap((symbolOrAddress) => {
+      const entry = registry.resolveToken(chainId, symbolOrAddress)
+      return entry ? [entry.address] : []
+    })
+    if (tokens.length > 0) chainTokenMap[chainId] = tokens
+  }
+  if (Object.keys(chainTokenMap).length === 0) {
+    throw new Error(
+      `None of [${symbols.join(', ')}] resolve on any source chain (facts v${registry.version}).`,
+    )
+  }
+  return chainTokenMap
+}
+
+// SDK v2 takes addresses throughout `sourceAssets` — `SimpleTokenList` is
+// `Address[]`, `ChainTokenMap` is `Record<chainId, Address[]>`, and
+// `ExactInputConfig.address` is an `Address`. Intent files stay symbol-based,
+// so every shape is resolved here.
+const resolveSourceAssets = async (
+  sourceAssets: SourceAssets,
+  sourceChainIds: number[],
+  targetChainId: number,
+) => {
+  // Format 1: a plain symbol list → per-chain map (see expandSymbolList).
   if (
     Array.isArray(sourceAssets) &&
     sourceAssets.every((item) => typeof item === 'string')
   ) {
-    return sourceAssets as string[]
+    return expandSymbolList(
+      sourceAssets as string[],
+      sourceChainIds,
+      targetChainId,
+    )
   }
 
-  // Format 3: ExactInputConfig[] → resolve chain names and amounts
+  // Format 3: ExactInputConfig[] → resolve chain names, token addresses, amounts
   if (Array.isArray(sourceAssets)) {
     const configs = sourceAssets as {
       chain: string
@@ -77,7 +139,10 @@ const resolveSourceAssets = async (sourceAssets: SourceAssets) => {
       const chain = getChain(config.chain)
       const entry: { chain: typeof chain; address: string; amount?: bigint } = {
         chain,
-        address: config.token,
+        address: await resolveTokenAddress({
+          tokenSymbolOrAddress: config.token,
+          chainId: chain.id,
+        }),
       }
       if (config.amount) {
         const decimals = await getDecimals({
@@ -95,9 +160,47 @@ const resolveSourceAssets = async (sourceAssets: SourceAssets) => {
   const chainTokenMap: Record<number, string[]> = {}
   for (const [chainName, tokens] of Object.entries(sourceAssets)) {
     const chain = getChain(chainName)
-    chainTokenMap[chain.id] = tokens
+    chainTokenMap[chain.id] = await Promise.all(
+      tokens.map((token) =>
+        resolveTokenAddress({ tokenSymbolOrAddress: token, chainId: chain.id }),
+      ),
+    )
   }
   return chainTokenMap
+}
+
+/**
+ * The legacy `sourceTokens` field, resolved to addresses for SDK v2. Kept
+ * separate from `resolveSourceAssets` because its object form is keyed by a
+ * bare `{ id }` rather than a chain name.
+ */
+const resolveLegacySourceTokens = async (
+  sourceTokens: SourceTokens,
+  sourceChainIds: number[],
+  targetChainId: number,
+) => {
+  if (sourceTokens.every((token) => typeof token === 'string')) {
+    return expandSymbolList(
+      sourceTokens as string[],
+      sourceChainIds,
+      targetChainId,
+    )
+  }
+
+  const entries = sourceTokens as {
+    chain: { id: number }
+    address: string
+    amount?: string
+  }[]
+  return Promise.all(
+    entries.map(async (entry) => ({
+      ...entry,
+      address: await resolveTokenAddress({
+        tokenSymbolOrAddress: entry.address,
+        chainId: entry.chain.id,
+      }),
+    })),
+  )
 }
 
 /** Resolve human-friendly auxiliaryFunds to SDK format. Keys must be addresses. */
@@ -159,6 +262,7 @@ export const createRhinestoneAccount = async (
     apiKey: environment.apiKey,
     endpointUrl: environment.url,
     useDevContracts: environment.useDevContracts,
+    provider: { type: 'custom', urls: SDK_RPC_OVERRIDES },
   })
 
   if (accountType === 'eoa') {
@@ -175,6 +279,17 @@ export const createRhinestoneAccount = async (
       type: 'ecdsa' as const,
       accounts: [owner],
     },
+    // Pinned explicitly rather than left to the SDK default, because the
+    // account address is derived from this descriptor: SDK v2 moved the default
+    // from Nexus 1.2.0 to 1.2.1, which silently re-derives every account to a
+    // new address and shows up as `No balances available` on an account that is
+    // provably funded on-chain. Naming the version means the next default bump
+    // is a visible diff here, not a stranded test account.
+    //
+    // Test float was migrated 1.2.0 → 1.2.1 on 2026-08-06:
+    //   prod 0x5893b690…291CF → 0x5F52cca9…2446c
+    //   dev  0x4326Ae48…1a428 → 0x23c66979…2A4CE
+    account: { type: 'nexus' as const, version: '1.2.1' as const },
   })
 }
 
@@ -264,6 +379,10 @@ export const processIntent = async (
       ...(isAddress(targetToken.symbol)
         ? { address: targetToken.symbol as Address }
         : {}),
+      resolvedAddress: await resolveTokenAddress({
+        tokenSymbolOrAddress: targetToken.symbol,
+        chainId: targetChain.id,
+      }),
     }
 
     if (targetToken.amount) {
@@ -312,17 +431,15 @@ export const processIntent = async (
             },
           ]
 
-  // prepare the token requests. SDK accepts symbol or address here, so pass
-  // the user's string through untouched.
+  // prepare the token requests. SDK v2 requires a hex address on EVM chains
+  // (symbols are rejected outright), so use the registry-resolved address.
   const tokenRequests = targetTokens.map((token: ParsedToken) => {
+    const address = (token.resolvedAddress ?? token.symbol) as Address
     if (token.amount) {
-      return {
-        address: token.symbol as Address,
-        amount: token.amount,
-      }
+      return { address, amount: token.amount }
     }
 
-    return { address: token.symbol as Address }
+    return { address }
   })
 
   // prepare the source assets label
@@ -379,9 +496,17 @@ export const processIntent = async (
 
   // resolve source assets: prefer sourceAssets over sourceTokens
   const resolvedSourceAssets = intent.sourceAssets
-    ? await resolveSourceAssets(intent.sourceAssets)
+    ? await resolveSourceAssets(
+        intent.sourceAssets,
+        sourceChains.map((chain) => chain.id),
+        targetChain.id,
+      )
     : intent.sourceTokens?.length
-      ? intent.sourceTokens
+      ? await resolveLegacySourceTokens(
+          intent.sourceTokens,
+          sourceChains.map((chain) => chain.id),
+          targetChain.id,
+        )
       : undefined
 
   // resolve auxiliary funds if provided
@@ -391,7 +516,7 @@ export const processIntent = async (
 
   const transactionDetails = {
     sourceChains: sourceChains.length > 0 ? sourceChains : undefined,
-    targetChain,
+    targetChain: toSdkDestinationChain(targetChain),
     calls,
     tokenRequests,
     sponsored: intent.sponsored,

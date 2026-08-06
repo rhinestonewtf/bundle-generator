@@ -7,7 +7,8 @@ import {
   parseUnits,
 } from 'viem'
 import type { Token } from '../types.js'
-import { getChainById, NON_EVM_CHAINS } from './chains.js'
+import { getChainById, isNonEvmChain, NON_EVM_CHAINS } from './chains.js'
+import { loadRegistry } from './registry.js'
 
 const KNOWN_DECIMALS: Record<string, number> = {
   ETH: 18,
@@ -78,10 +79,15 @@ export const getDecimals = async ({
     )
   }
   if (!isAddress(tokenSymbolOrAddress)) {
+    // The registry is authoritative and per-chain (USDC is 6 decimals almost
+    // everywhere, but the table below is a guess and the registry is not).
+    const registry = await loadRegistry()
+    const entry = registry.resolveToken(chainId, tokenSymbolOrAddress)
+    if (entry && entry.decimals >= 0) return entry.decimals
     const known = KNOWN_DECIMALS[tokenSymbolOrAddress.toUpperCase()]
     if (known !== undefined) return known
     throw new Error(
-      `Unknown symbol '${tokenSymbolOrAddress}'. Pass an address or use one of: ${Object.keys(KNOWN_DECIMALS).join(', ')}`,
+      `Unknown symbol '${tokenSymbolOrAddress}' on chain ${chainId}. Pass an address, or use a symbol the chain registry knows for that chain.`,
     )
   }
   const cacheKey = `${chainId}:${tokenSymbolOrAddress.toLowerCase()}`
@@ -98,6 +104,48 @@ export const getDecimals = async ({
   })
   decimalsCache.set(cacheKey, decimals)
   return decimals
+}
+
+/**
+ * Turn a user-supplied token string into the hex address SDK v2 requires.
+ *
+ * v2's `normalizeTokenAddress` rejects symbols on every EVM chain, so this is
+ * the boundary where the intent files' human-friendly `"USDC"` becomes an
+ * address. Only chains whose tokens are genuinely opaque identifiers — Solana
+ * mints, Tron contracts — are passed through untouched.
+ *
+ * That question is asked of the registry's VM type and NOT of `isNonEvmChain`,
+ * because the two disagree on HyperCore and only one of them is about token
+ * addressing. `isNonEvmChain(1337)` is true (HyperCore has no viem chain and no
+ * RPC, which is what that predicate guards), but its tokens are ordinary
+ * HyperEVM ERC20s and SDK v2 parses `hypercore:mainnet` as EVM-settled id 1337
+ * — so a symbol here dies at `Expected a token address on EVM chain 1337`,
+ * before routing. The artifact says `vmType: 'evm'` for 1337 and `svm`/`tvm`
+ * for Solana/Tron, which is exactly the distinction needed.
+ */
+export const resolveTokenAddress = async ({
+  tokenSymbolOrAddress,
+  chainId,
+}: {
+  tokenSymbolOrAddress: string
+  chainId: number
+}): Promise<string> => {
+  if (isAddress(tokenSymbolOrAddress)) return tokenSymbolOrAddress
+
+  const registry = await loadRegistry()
+  const vmType = registry.getVmType(chainId)
+  // Unlisted chain: fall back to the local set so Solana/Tron still pass
+  // through if the artifact ever stops describing them.
+  const opaqueTokenIds = vmType ? vmType !== 'evm' : isNonEvmChain(chainId)
+  if (opaqueTokenIds) return tokenSymbolOrAddress
+
+  const entry = registry.resolveToken(chainId, tokenSymbolOrAddress)
+  if (!entry) {
+    throw new Error(
+      `Cannot resolve token '${tokenSymbolOrAddress}' on chain ${chainId}: the chain registry (facts v${registry.version}) lists no such symbol there. Pass the token address instead.`,
+    )
+  }
+  return entry.address
 }
 
 export const convertTokenAmount = async ({
