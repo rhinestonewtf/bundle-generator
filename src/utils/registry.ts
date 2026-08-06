@@ -63,6 +63,12 @@ export type Registry = {
   /** Whether the artifact marks this chain as a testnet. Unknown ids read as mainnet. */
   isTestnet: (chainId: number) => boolean
   /**
+   * The chain's VM per the artifact (`evm` / `svm` / `tvm`), or undefined if it
+   * isn't listed. This is the only reliable answer to "are this chain's token
+   * identifiers hex addresses?" — see `resolveTokenAddress`.
+   */
+  getVmType: (chainId: number) => string | undefined
+  /**
    * Resolve a user-supplied token string on a chain. An address passes through
    * (looked up for decimals when known); a symbol is matched case-insensitively.
    */
@@ -81,11 +87,13 @@ const buildRegistry = (artifact: FactsArtifact): Registry => {
   const chainIdByName = new Map<string, number>()
   const evmChains = new Map<number, { testnet: boolean }>()
   const testnetChainIds = new Set<number>()
+  const vmTypeByChain = new Map<number, string>()
 
   for (const [key, chain] of Object.entries(artifact.chains)) {
     const chainId = Number(key)
     if (!Number.isFinite(chainId)) continue
     chainIdByName.set(normalizeName(chain.name), chainId)
+    vmTypeByChain.set(chainId, chain.vmType)
     if (chain.network === 'testnet') testnetChainIds.add(chainId)
     if (chain.vmType === 'evm' && chain.caip2.startsWith('eip155:')) {
       evmChains.set(chainId, { testnet: chain.network === 'testnet' })
@@ -119,6 +127,7 @@ const buildRegistry = (artifact: FactsArtifact): Registry => {
         .filter(([, meta]) => meta.testnet === testnet)
         .map(([chainId]) => chainId),
     isTestnet: (chainId) => testnetChainIds.has(chainId),
+    getVmType: (chainId) => vmTypeByChain.get(chainId),
     resolveToken: (chainId, symbolOrAddress) => {
       const tokens = tokensByChain.get(chainId) ?? []
       if (isAddress(symbolOrAddress)) {

@@ -111,8 +111,17 @@ export const getDecimals = async ({
  *
  * v2's `normalizeTokenAddress` rejects symbols on every EVM chain, so this is
  * the boundary where the intent files' human-friendly `"USDC"` becomes an
- * address. Non-EVM destinations are passed through untouched — the SDK forwards
- * their mint/contract identifiers verbatim.
+ * address. Only chains whose tokens are genuinely opaque identifiers — Solana
+ * mints, Tron contracts — are passed through untouched.
+ *
+ * That question is asked of the registry's VM type and NOT of `isNonEvmChain`,
+ * because the two disagree on HyperCore and only one of them is about token
+ * addressing. `isNonEvmChain(1337)` is true (HyperCore has no viem chain and no
+ * RPC, which is what that predicate guards), but its tokens are ordinary
+ * HyperEVM ERC20s and SDK v2 parses `hypercore:mainnet` as EVM-settled id 1337
+ * — so a symbol here dies at `Expected a token address on EVM chain 1337`,
+ * before routing. The artifact says `vmType: 'evm'` for 1337 and `svm`/`tvm`
+ * for Solana/Tron, which is exactly the distinction needed.
  */
 export const resolveTokenAddress = async ({
   tokenSymbolOrAddress,
@@ -122,9 +131,14 @@ export const resolveTokenAddress = async ({
   chainId: number
 }): Promise<string> => {
   if (isAddress(tokenSymbolOrAddress)) return tokenSymbolOrAddress
-  if (isNonEvmChain(chainId)) return tokenSymbolOrAddress
 
   const registry = await loadRegistry()
+  const vmType = registry.getVmType(chainId)
+  // Unlisted chain: fall back to the local set so Solana/Tron still pass
+  // through if the artifact ever stops describing them.
+  const opaqueTokenIds = vmType ? vmType !== 'evm' : isNonEvmChain(chainId)
+  if (opaqueTokenIds) return tokenSymbolOrAddress
+
   const entry = registry.resolveToken(chainId, tokenSymbolOrAddress)
   if (!entry) {
     throw new Error(
