@@ -55,6 +55,20 @@ export const NON_EVM_CHAIN_IDS: ReadonlySet<number> = new Set(
 export const isNonEvmChain = (chainId: number): boolean =>
   NON_EVM_CHAIN_IDS.has(chainId)
 
+/**
+ * Strip the shimmed `id` before handing a destination to the SDK. v2 types the
+ * destination as `Chain | NonEvmChain` and `NonEvmChain` has **no** `id`, so the
+ * presence of one is what makes it take the EVM path — and for HyperCore that
+ * lands on the 1337 trap described above.
+ */
+export const toSdkDestinationChain = (
+  chain: Chain | DestinationChainWithId,
+): Chain | NonEvmChain => {
+  if (!isNonEvmChain(chain.id)) return chain as Chain
+  const { id: _id, ...descriptor } = chain as DestinationChainWithId
+  return descriptor
+}
+
 // viem re-exports some non-Chain values (e.g. defineChain). Guard the
 // .name / .id access so the find() doesn't throw on those.
 const isViemChain = (value: unknown): value is Chain => {
@@ -97,6 +111,21 @@ export const getChainById = (chainId: number): Chain => {
     throw new Error(`Chain with id ${chainId} is not supported.`)
   }
   return chain as Chain
+}
+
+/**
+ * Per-chain RPC overrides handed to the SDK as `provider: { type: 'custom' }`.
+ *
+ * The 1337-is-viem's-`localhost` collision documented on NON_EVM_CHAINS above
+ * exists inside the SDK too: v2's own id↔caip2 table calls HyperCore 1337 and
+ * resolves it through viem, so any RPC-needing step on a HyperCore destination
+ * goes to `127.0.0.1:8545` and fails with `ECONNREFUSED` — which reads as a
+ * broken local environment, not a chain-resolution bug. HyperEVM is the right
+ * answer: it is what the orchestrator settles HyperCore on, and the registry
+ * gives 999 and 1337 the same USDC address.
+ */
+export const SDK_RPC_OVERRIDES: Record<number, string> = {
+  1337: viemChains.hyperEvm.rpcUrls.default.http[0],
 }
 
 // Local anvil fork RPC endpoints, keyed by chainId. Ports follow the e2e stack

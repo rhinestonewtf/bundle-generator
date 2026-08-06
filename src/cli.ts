@@ -126,7 +126,10 @@ export const collectUserInput = async (): Promise<{
     choices,
   })
 
-  const targetTokens = await checkbox({
+  // Widened to string[]: the "Arbitrary token" entry is replaced in place with
+  // a user-supplied address below, which @inquirer/prompts v8's literal-union
+  // return type would otherwise reject.
+  const targetTokens: string[] = await checkbox({
     message: 'Select tokens to transfer on the target chain',
     choices: [
       { name: 'ETH', value: 'ETH' },
@@ -179,7 +182,8 @@ export const collectUserInput = async (): Promise<{
     choices,
   })
 
-  const sourceTokens = await checkbox({
+  // Widened to string[] for the same reason as targetTokens above.
+  const sourceTokens: string[] = await checkbox({
     message: 'Select source tokens to use (optional)',
     choices: [
       { name: 'ETH', value: 'ETH' },

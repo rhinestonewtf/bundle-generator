@@ -7,7 +7,8 @@ import {
   parseUnits,
 } from 'viem'
 import type { Token } from '../types.js'
-import { getChainById, NON_EVM_CHAINS } from './chains.js'
+import { getChainById, isNonEvmChain, NON_EVM_CHAINS } from './chains.js'
+import { loadRegistry } from './registry.js'
 
 const KNOWN_DECIMALS: Record<string, number> = {
   ETH: 18,
@@ -78,10 +79,15 @@ export const getDecimals = async ({
     )
   }
   if (!isAddress(tokenSymbolOrAddress)) {
+    // The registry is authoritative and per-chain (USDC is 6 decimals almost
+    // everywhere, but the table below is a guess and the registry is not).
+    const registry = await loadRegistry()
+    const entry = registry.resolveToken(chainId, tokenSymbolOrAddress)
+    if (entry && entry.decimals >= 0) return entry.decimals
     const known = KNOWN_DECIMALS[tokenSymbolOrAddress.toUpperCase()]
     if (known !== undefined) return known
     throw new Error(
-      `Unknown symbol '${tokenSymbolOrAddress}'. Pass an address or use one of: ${Object.keys(KNOWN_DECIMALS).join(', ')}`,
+      `Unknown symbol '${tokenSymbolOrAddress}' on chain ${chainId}. Pass an address, or use a symbol the chain registry knows for that chain.`,
     )
   }
   const cacheKey = `${chainId}:${tokenSymbolOrAddress.toLowerCase()}`
@@ -98,6 +104,34 @@ export const getDecimals = async ({
   })
   decimalsCache.set(cacheKey, decimals)
   return decimals
+}
+
+/**
+ * Turn a user-supplied token string into the hex address SDK v2 requires.
+ *
+ * v2's `normalizeTokenAddress` rejects symbols on every EVM chain, so this is
+ * the boundary where the intent files' human-friendly `"USDC"` becomes an
+ * address. Non-EVM destinations are passed through untouched — the SDK forwards
+ * their mint/contract identifiers verbatim.
+ */
+export const resolveTokenAddress = async ({
+  tokenSymbolOrAddress,
+  chainId,
+}: {
+  tokenSymbolOrAddress: string
+  chainId: number
+}): Promise<string> => {
+  if (isAddress(tokenSymbolOrAddress)) return tokenSymbolOrAddress
+  if (isNonEvmChain(chainId)) return tokenSymbolOrAddress
+
+  const registry = await loadRegistry()
+  const entry = registry.resolveToken(chainId, tokenSymbolOrAddress)
+  if (!entry) {
+    throw new Error(
+      `Cannot resolve token '${tokenSymbolOrAddress}' on chain ${chainId}: the chain registry (facts v${registry.version}) lists no such symbol there. Pass the token address instead.`,
+    )
+  }
+  return entry.address
 }
 
 export const convertTokenAmount = async ({

@@ -11,6 +11,14 @@ export type ParsedToken = {
   symbol: string
   /** Set only when `symbol` is an address; needed to build destination ERC20 transfer calls. */
   address?: Address
+  /**
+   * The address handed to the SDK. Always set on EVM chains — SDK v2 rejects
+   * symbols in `tokenRequests` — and resolved from the chain registry when the
+   * user gave a symbol. Deliberately separate from `address`: that one still
+   * means "the user supplied an address", which is what decides whether a real
+   * destination ERC20 transfer is built or a no-op call.
+   */
+  resolvedAddress?: string
   amount?: bigint
 }
 
