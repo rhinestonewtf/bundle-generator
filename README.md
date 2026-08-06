@@ -96,7 +96,7 @@ Intents are stored in `intents/*.json`. A file contains either a single intent o
 | `sourceChains` | `string[]` | yes | Source chain names (can be empty for auto-routing) |
 | `sourceTokens` | `string[] \| object[]` | yes | Source tokens (symbols or `{ chain, address, amount }` objects) |
 | `tokenRecipient` | `string` | yes | Address to receive tokens on target chain |
-| `settlementLayers` | `string[]` | yes | Settlement layers (`"ACROSS"`, `"ECO"`, `"RELAY"`, or `[]`) |
+| `settlementLayers` | `{ include: string[] } \| { exclude: string[] }` | no | Restrict the layers considered. Exactly one of `include`/`exclude`, non-empty. Known: `ACROSS`, `ECO`, `RELAY`, `OFT`, `NEAR`, `RHINO`, `CCTP`. Omit for no restriction — a bare array is rejected (see below) |
 | `sponsored` | `boolean` | yes | Whether the intent is sponsored |
 | `sourceAssets` | see below | no | Source asset configuration (overrides `sourceTokens` for routing) |
 | `recipient` | `string` | no | Recipient address for the orchestrator |
@@ -146,7 +146,7 @@ Specifies off-chain balances (e.g. exchange accounts) that the route-finder can 
     "sourceAssets": { "Base": ["WETH", "USDC"] },
     "tokenRecipient": "0x...",
     "recipient": "0x...",
-    "settlementLayers": ["ACROSS"],
+    "settlementLayers": { "include": ["ACROSS"] },
     "sponsored": false,
     "feeAsset": "USDC",
     "auxiliaryFunds": { "ArbitrumOne": { "0xaf88d065e77c8cC2239327C5EDb3A432268e5831": "500" } }
