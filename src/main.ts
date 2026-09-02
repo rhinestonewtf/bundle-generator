@@ -228,6 +228,29 @@ const resolveAuxiliaryFunds = async (
   return result
 }
 
+/**
+ * An empty `sourceAssets` means "not specified", never "consider no assets".
+ *
+ * Both shapes it can take are truthy when empty, so a plain
+ * `intent.sourceAssets ? ... : fallback` takes the first branch and never
+ * reaches the documented `sourceTokens` fallback. Neither resulting failure
+ * names the fixture as the cause:
+ *
+ *   []  is vacuously a symbol list, so it reaches `expandSymbolList` and
+ *       throws "None of [] resolve on any source chain (facts vX)", which
+ *       reads as a chain-registry problem.
+ *   {}  resolves to an empty chain->token map, which the orchestrator treats
+ *       as NO constraint rather than an empty one, so the intent is planned
+ *       against every balance the fixture meant to exclude -- including the
+ *       destination's own, which then refuses it as ALREADY_FUNDED.
+ */
+const presentSourceAssets = (
+  sourceAssets: SourceAssets | undefined,
+): SourceAssets | undefined =>
+  sourceAssets && Object.keys(sourceAssets).length > 0
+    ? sourceAssets
+    : undefined
+
 /** Extract token symbols from sourceAssets for local testnet funding */
 const extractFundingTokens = (sourceAssets: SourceAssets): string[] => {
   // string[] format: tokens are already symbols
@@ -358,10 +381,11 @@ export const processIntent = async (
 
   // fund the account
   const accountAddress = rhinestoneAccount.getAddress()
+  const sourceAssets = presentSourceAssets(intent.sourceAssets)
   const fundingTokens = intent.sourceTokens?.length
     ? intent.sourceTokens
-    : intent.sourceAssets
-      ? extractFundingTokens(intent.sourceAssets)
+    : sourceAssets
+      ? extractFundingTokens(sourceAssets)
       : []
   await fundAccount({
     account: accountAddress,
@@ -495,9 +519,9 @@ export const processIntent = async (
   console.log(`${ts()} Bundle ${bundleLabel}: [1/4] Preparing transaction...`)
 
   // resolve source assets: prefer sourceAssets over sourceTokens
-  const resolvedSourceAssets = intent.sourceAssets
+  const resolvedSourceAssets = sourceAssets
     ? await resolveSourceAssets(
-        intent.sourceAssets,
+        sourceAssets,
         sourceChains.map((chain) => chain.id),
         targetChain.id,
       )
