@@ -98,24 +98,24 @@ const buildRegistry = (artifact: FactsArtifact): Registry => {
     if (chain.vmType === 'evm' && chain.caip2.startsWith('eip155:')) {
       evmChains.set(chainId, { testnet: chain.network === 'testnet' })
     }
-    // Only EVM chains carry hex addresses we can hand to the SDK; Solana/Tron
-    // token identifiers are passed through untouched by `normalizeTokenAddress`.
-    const tokens = (chain.tokens ?? []).flatMap<RegistryToken>((token) =>
-      isAddress(token.address)
-        ? [
-            {
-              symbol: token.symbol,
-              // Lowercased on purpose. The artifact publishes checksummed
-              // addresses; the orchestrator echoes and matches lowercase, and
-              // its `sourceAssets.tokens` filter is compared as a raw string —
-              // so a checksummed address matches no balance and comes back as
-              // `No balances available` on a demonstrably funded account.
-              address: token.address.toLowerCase() as Address,
-              decimals: token.decimals,
-            },
-          ]
-        : [],
-    )
+    // Every chain's tokens, not just the EVM ones. Dropping a non-EVM token
+    // left its chain with an empty list, so `resolveToken` could not turn a
+    // symbol into an address there and an intent had to name the raw
+    // identifier — a base58 mint or a Soroban contract — where an EVM intent
+    // says "USDC".
+    const tokens = (chain.tokens ?? []).map<RegistryToken>((token) => ({
+      symbol: token.symbol,
+      // Case-folded for hex ONLY. The artifact publishes checksummed EVM
+      // addresses; the orchestrator echoes and matches lowercase, and its
+      // `sourceAssets.tokens` filter is compared as a raw string — so a
+      // checksummed address matches no balance and comes back as `No balances
+      // available` on a demonstrably funded account. A base58 mint or a base32
+      // strkey is CASE-SENSITIVE and folding it corrupts the identifier.
+      address: (isAddress(token.address)
+        ? token.address.toLowerCase()
+        : token.address) as Address,
+      decimals: token.decimals,
+    }))
     tokensByChain.set(chainId, tokens)
   }
 
