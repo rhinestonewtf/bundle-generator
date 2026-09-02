@@ -18,16 +18,16 @@ const KNOWN_DECIMALS: Record<string, number> = {
   USDT0: 6,
 }
 
-// Non-EVM token decimals — keyed by NON_EVM_CHAINS key, then mint/contract
-// address. SPL mints (base58) and Tron T-prefix addresses can't be queried
-// via viem, so we hardcode the handful we use in test intents. Case-sensitive
-// — the orchestrator and SDK both treat these as opaque strings.
-// Decimals per non-EVM chain, keyed by BOTH the token's own identifier and its
-// symbol. The symbol entries are not redundant: without them a symbol falls
-// through to the global `KNOWN_DECIMALS` guess, which is a per-chain question
-// answered globally — right for Solana and Tron by luck, and wrong for Stellar,
-// whose USDC is SEVEN decimals. Guessing 6 there asks for a tenth of the
-// intended amount and nothing raises.
+// Non-EVM token decimals — keyed by NON_EVM_CHAINS key, then by BOTH the
+// token's own identifier and its symbol. These identifiers can't be queried
+// via viem, so the handful used in test intents is hardcoded. Case-sensitive:
+// the orchestrator and SDK treat them as opaque strings.
+//
+// The symbol entries are not redundant. Without them a symbol falls through to
+// the global `KNOWN_DECIMALS` guess, which answers a per-chain question
+// globally — right for Solana and Tron by luck, and wrong for Stellar, whose
+// USDC is SEVEN decimals. Guessing 6 there asks for a tenth of the intended
+// amount and nothing raises.
 const NON_EVM_TOKEN_DECIMALS_BY_NAME: Record<string, Record<string, number>> = {
   solana: {
     EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v: 6, // USDC
@@ -159,7 +159,23 @@ export const resolveTokenAddress = async ({
   // Unlisted chain: fall back to the local set so Solana/Tron still pass
   // through if the artifact ever stops describing them.
   const opaqueTokenIds = vmType ? vmType !== 'evm' : isNonEvmChain(chainId)
-  if (opaqueTokenIds) return tokenSymbolOrAddress
+  if (opaqueTokenIds) {
+    // A symbol is still resolvable on these chains — the registry knows that
+    // USDC on Stellar is a Soroban contract. Resolve it so an intent can say
+    // "USDC" here as it does on EVM; the orchestrator rejects the bare symbol
+    // as a token address, so passing it through unconditionally made the
+    // symbol form silently unusable.
+    const known = registry.resolveToken(chainId, tokenSymbolOrAddress)
+    if (
+      known &&
+      known.symbol.toUpperCase() === tokenSymbolOrAddress.toUpperCase()
+    ) {
+      return known.address
+    }
+    // Not a symbol the registry knows: it is the chain-native identifier
+    // already, and those are opaque to us.
+    return tokenSymbolOrAddress
+  }
 
   const entry = registry.resolveToken(chainId, tokenSymbolOrAddress)
   if (!entry) {
