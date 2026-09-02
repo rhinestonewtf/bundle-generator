@@ -12,8 +12,8 @@ importers:
         specifier: ^8.5.2
         version: 8.5.2(@types/node@26.1.2)
       '@rhinestone/sdk':
-        specifier: 2.2.1
-        version: 2.2.1(viem@2.55.11(typescript@7.0.2))
+        specifier: 2.8.0
+        version: 2.8.0(viem@2.55.11(typescript@7.0.2))
       abitype:
         specifier: ^1.3.0
         version: 1.3.0(typescript@7.0.2)
@@ -405,8 +405,8 @@ packages:
     resolution: {integrity: sha512-jCs9ldd7NwzpgXDIf6P3+NrHh9/sD6CQdxHyjQI+h/6rDNo88ypBxxz45UDuZHz9r3tNz7N/VInSVoVdtXEI4A==}
     engines: {node: ^14.21.3 || >=16}
 
-  '@rhinestone/sdk@2.2.1':
-    resolution: {integrity: sha512-pWSmq8KZqxqZVPYe3ydw+I48SD2UdIFyIN8CZGPORrGrBYAt9WBBYPR3PkyKuKTNdkcSUaFOvJntVCC15J8vew==}
+  '@rhinestone/sdk@2.8.0':
+    resolution: {integrity: sha512-CPuVbYIjfiR+hKV6KFNgNSQMKDxxcBXILdg14OAYNQ4PROfgu5gauCcrDphxuiXJ0WLJSt5eJsED+DUJJpfFhQ==}
     peerDependencies:
       express: '>=4'
       jose: '>=5.0.0'
@@ -913,7 +913,7 @@ snapshots:
 
   '@noble/hashes@1.8.0': {}
 
-  '@rhinestone/sdk@2.2.1(viem@2.55.11(typescript@7.0.2))':
+  '@rhinestone/sdk@2.8.0(viem@2.55.11(typescript@7.0.2))':
     dependencies:
       viem: 2.55.11(typescript@7.0.2)
 

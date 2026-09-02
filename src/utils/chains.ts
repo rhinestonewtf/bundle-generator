@@ -1,7 +1,8 @@
 import {
-  hyperCoreMainnet,
+  hyperCoreSpot,
   type NonEvmChain,
   solanaMainnet,
+  stellarMainnet,
   tronMainnet,
 } from '@rhinestone/sdk'
 import type { Chain } from 'viem'
@@ -15,32 +16,34 @@ import * as viemChains from 'viem/chains'
 // id registry (`fromCaip2` in @rhinestone/sdk/dist/.../caip2.js).
 type DestinationChainWithId = NonEvmChain & { id: number }
 
-// HyperCore's synthetic id is 1337 (the SDK's `fromCaip2('hypercore:mainnet')`),
-// which the orchestrator maps to 999 for settlement.
+// `hypercore` names the SPOT venue (`hypercore:spot`, synthetic id 1337001),
+// which is the only HyperCore account this product delivers to. The name is
+// kept so existing intent files keep resolving, and it is now the venue they
+// meant: `hypercore:mainnet` (1337) is the Core L1 where deposits originate,
+// not an addressable target, and targeting it landed the delivery in the
+// recipient's PERP MARGIN with nothing raised. Verify a HyperCore delivery
+// with `spotClearinghouseState`.
 //
-// It belongs in NON_EVM_CHAIN_IDS below with Solana and Tron, even though the
-// SDK's own `isNonEvmChainId(1337)` is false because HyperCore is EVM-*addressed*.
-// The two predicates answer different questions and only one of them is ours:
-// this set gates the paths that need a real viem `Chain` + RPC, and HyperCore is
-// a virtual chain with neither. Worse, 1337 collides with viem's `localhost`, so
-// excluding it doesn't fail loudly — it builds a client against 127.0.0.1:8545.
-// Do not "correct" this to match the SDK.
+// `hypercore:perp` is deliberately absent. `/chains` reports it
+// `destination: false`, so an intent naming it can only ever be refused — a
+// key that always fails is worse than no key.
+//
+// These belong in NON_EVM_CHAIN_IDS below with Solana, Tron and Stellar even
+// though the SDK's own `isNonEvmChainId` is false for HyperCore, which is
+// EVM-*addressed*. The two predicates answer different questions and only one
+// is ours: this set gates paths needing a real viem `Chain` + RPC, and
+// HyperCore is a virtual chain with neither. Do not "correct" it to match.
 //
 // An intent targeting HyperCore must also restrict `settlementLayers` to ACROSS
 // and/or ECO. Only those run the on-chain core-deposit that credits Core spot;
 // RELAY, NEAR, RHINO and CCTP reject the route outright with
 // UNSUPPORTED_HYPERCORE_DESTINATION because they deliver bare USDC and would
 // strand it on HyperEVM. Leaving the filter open makes the whole intent fail.
-//
-// WARNING: delivery lands in the recipient's PERP MARGIN account, not their spot
-// balance. `CoreDepositWallet.depositFor`'s `destinationDex` defaults to the perp
-// dex, and the only lever (`tokenRequests[].balance`) is silently dropped by the
-// SDK — so there is currently no way to reach spot from here, and nothing errors.
-// Verify with `clearinghouseState` (perp), not `spotClearinghouseState`. RHI-5510.
 export const NON_EVM_CHAINS: Record<string, DestinationChainWithId> = {
   solana: { ...solanaMainnet, id: 792703809 },
   tron: { ...tronMainnet, id: 728126428 },
-  hypercore: { ...hyperCoreMainnet, id: 1337 },
+  stellar: { ...stellarMainnet, id: 1500148 },
+  hypercore: { ...hyperCoreSpot, id: 1337001 },
 }
 
 export const NON_EVM_CHAIN_IDS: ReadonlySet<number> = new Set(
@@ -116,16 +119,21 @@ export const getChainById = (chainId: number): Chain => {
 /**
  * Per-chain RPC overrides handed to the SDK as `provider: { type: 'custom' }`.
  *
- * The 1337-is-viem's-`localhost` collision documented on NON_EVM_CHAINS above
- * exists inside the SDK too: v2's own id↔caip2 table calls HyperCore 1337 and
- * resolves it through viem, so any RPC-needing step on a HyperCore destination
- * goes to `127.0.0.1:8545` and fails with `ECONNREFUSED` — which reads as a
- * broken local environment, not a chain-resolution bug. HyperEVM is the right
- * answer: it is what the orchestrator settles HyperCore on, and the registry
- * gives 999 and 1337 the same USDC address.
+ * Every HyperCore wire id needs one: the SDK counts them all as EVM-compatible
+ * (`toEvmChainReference` accepts them because HyperCore is EVM-*addressed*),
+ * but none has a viem chain to get an RPC from. HyperEVM is the right answer —
+ * it is what the orchestrator settles HyperCore on, and the registry gives 999
+ * and the HyperCore ids the same USDC address.
+ *
+ * All three ids, not just the venue we target: `1337` is the Core L1 and can
+ * still come back in a response we parse. It is also viem's `localhost`, so on
+ * that id a miss does not fail loudly — it dials `127.0.0.1:8545` and reads as
+ * a broken local environment rather than a chain-resolution bug.
  */
 export const SDK_RPC_OVERRIDES: Record<number, string> = {
-  1337: viemChains.hyperEvm.rpcUrls.default.http[0],
+  1337: viemChains.hyperEvm.rpcUrls.default.http[0], // hypercore:mainnet (L1)
+  1337001: viemChains.hyperEvm.rpcUrls.default.http[0], // hypercore:spot
+  1337002: viemChains.hyperEvm.rpcUrls.default.http[0], // hypercore:perp
 }
 
 // Local anvil fork RPC endpoints, keyed by chainId. Ports follow the e2e stack
