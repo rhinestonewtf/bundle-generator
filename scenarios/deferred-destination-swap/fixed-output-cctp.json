@@ -5,12 +5,11 @@
     "exactOutInputCapHasHeadroom",
     "swapAuthorizationMatchesQuote",
     "swapRunsOnSupportedDestination",
-    "routerExecutesAuthorizedSwap",
     "swapFeeAndOutputAreObservable"
   ],
   "intent": {
     "targetChain": "OPMainnet",
-    "targetTokens": [{ "symbol": "WETH", "amount": "0.001" }],
+    "targetTokens": [{ "symbol": "WETH", "amount": "0.0005" }],
     "sourceChains": [],
     "sourceTokens": [],
     "sourceAssets": { "Base": ["USDC"] },

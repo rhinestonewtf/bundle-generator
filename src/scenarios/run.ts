@@ -9,9 +9,9 @@ import {
 import type { Intent } from '../types.js'
 import {
   CHECKS,
-  exitCodeForOutcomes,
   type CheckContext,
   type CheckOutcome,
+  exitCodeForOutcomes,
 } from './checks.js'
 
 config()
@@ -63,7 +63,6 @@ const parseScenario = (filePath: string): Scenario => {
   const scenarioIntent = intent as Intent
   return { description, checks, intent: scenarioIntent }
 }
-
 
 type ScenarioError = { status?: number; code?: string; message: string }
 

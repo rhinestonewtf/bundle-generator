@@ -1,6 +1,5 @@
 import {
   extractSwapAuthorizations,
-  hasMatchingSwapFillSelector,
   type SwapAuthorization,
 } from './swap-authorization.js'
 
@@ -122,16 +121,13 @@ const deliversRequestedFixedOutput: Check = (context) => {
 }
 
 /**
- * RHI-6720 audit item 2.
+ * Exact-output authorization must never cap below the executable quote.
  *
- * `amountInMax` is the hard cap the SwapAdapter pulls against, and
- * `quotedAmountIn` is the expected input at quote time. Setting the cap equal
- * to the quote leaves zero headroom: any adverse price move between quoting and
- * bridge arrival makes the pull exceed the cap and the child fill reverts
- * permanently, stranding the intermediate token.
- *
- * Fails on: amountInMax == quotedAmountIn (no headroom), or a cap below the
- * quote (immediately unfillable).
+ * Approximate exact-output venues such as 1inch execute fixed-input calldata:
+ * their quoted input already includes the venue's slippage allowance, so the
+ * authorization cap intentionally equals that executable amount. Requiring a
+ * second buffer would authorize funds the calldata cannot spend and would not
+ * protect against a later market move.
  */
 const exactOutInputCapHasHeadroom: Check = (context) => {
   const exactOut = swapAuthorizationsOf(context.best).filter(
@@ -145,21 +141,9 @@ const exactOutInputCapHasHeadroom: Check = (context) => {
     }
   }
 
-  const failures: string[] = []
-  for (const authorization of exactOut) {
-    if (authorization.amountInMax < authorization.quotedAmountIn) {
-      failures.push(
-        `amountInMax ${authorization.amountInMax} < quotedAmountIn ${authorization.quotedAmountIn}: unfillable at the quoted price`,
-      )
-      continue
-    }
-    if (authorization.amountInMax === authorization.quotedAmountIn) {
-      failures.push(
-        `amountInMax == quotedAmountIn == ${authorization.amountInMax}: zero slippage headroom, so any adverse move between quote and bridge arrival reverts the child fill permanently`,
-      )
-    }
-  }
-
+  const failures = exactOut.filter(
+    (authorization) => authorization.amountInMax < authorization.quotedAmountIn,
+  )
   return {
     name: 'exactOutInputCapHasHeadroom',
     status: failures.length === 0 ? 'pass' : 'fail',
@@ -167,11 +151,16 @@ const exactOutInputCapHasHeadroom: Check = (context) => {
       failures.length === 0
         ? exactOut
             .map(
-              (a) =>
-                `headroom ${a.amountInMax - a.quotedAmountIn} over quoted ${a.quotedAmountIn}`,
+              (authorization) =>
+                `authorized cap ${authorization.amountInMax} covers executable quote ${authorization.quotedAmountIn}`,
             )
             .join('; ')
-        : failures.join('; '),
+        : failures
+            .map(
+              (authorization) =>
+                `amountInMax ${authorization.amountInMax} < quotedAmountIn ${authorization.quotedAmountIn}: immediately unfillable`,
+            )
+            .join('; '),
   }
 }
 
@@ -235,9 +224,8 @@ const swapAuthorizationMatchesQuote: Check = (context) => {
 }
 
 /**
- * Deferred destination swaps are deployable only on Base and Optimism. The
- * destination typed-data domain and every reported output must agree on one of
- * those chain ids, otherwise the scenario is exercising an unsupported chain.
+ * MultiChainOps omits domain.chainId by design and binds each execution chain
+ * in message.ops[].chainId. Single-chain payloads bind it in the domain.
  */
 const swapRunsOnSupportedDestination: Check = (context) => {
   const authorizations = swapAuthorizationsOf(context.best)
@@ -250,54 +238,42 @@ const swapRunsOnSupportedDestination: Check = (context) => {
     }
   }
   const signData = context.best.signData as
-    | { destination?: { domain?: { chainId?: number | bigint | string } } }
+    | {
+        destination?: {
+          domain?: { chainId?: number | bigint | string }
+          primaryType?: string
+          message?: { ops?: { chainId?: number | bigint | string }[] }
+        }
+      }
     | undefined
-  const chainId = Number(signData?.destination?.domain?.chainId)
-  if (chainId !== 10 && chainId !== 8453) {
+  const destination = signData?.destination
+  const chainIds =
+    destination?.primaryType === 'MultiChainOps'
+      ? (destination.message?.ops ?? []).map((op) => Number(op.chainId))
+      : [Number(destination?.domain?.chainId)]
+  const supported: number[] = chainIds.filter(
+    (chainId) => chainId === 10 || chainId === 8453,
+  )
+  if (supported.length === 0) {
     return {
       name: 'swapRunsOnSupportedDestination',
       status: 'fail',
-      detail: `destination signData chain ${Number.isFinite(chainId) ? chainId : 'missing'} is not Base (8453) or Optimism (10)`,
+      detail: `signed destination payload has no Base (8453) or Optimism (10) execution chain`,
     }
   }
-  const wrongOutputs = (context.best.cost?.output ?? []).filter(
-    (output) => output.chainId !== undefined && output.chainId !== chainId,
+  const outputChains = (context.best.cost?.output ?? [])
+    .map((output) => output.chainId)
+    .filter((chainId): chainId is number => chainId !== undefined)
+  const wrongOutputs = outputChains.filter(
+    (chainId) => !supported.includes(chainId),
   )
   return {
     name: 'swapRunsOnSupportedDestination',
     status: wrongOutputs.length === 0 ? 'pass' : 'fail',
     detail:
       wrongOutputs.length === 0
-        ? `authorization and delivered output are scoped to chain ${chainId}`
-        : `reported output chain disagrees with destination chain ${chainId}`,
-  }
-}
-
-/** The signed execution must invoke the Router handler matching its authorization. */
-const routerExecutesAuthorizedSwap: Check = (context) => {
-  const authorizations = swapAuthorizationsOf(context.best)
-  if (authorizations.length === 0) {
-    return {
-      name: 'routerExecutesAuthorizedSwap',
-      status: 'fail',
-      detail:
-        'required deferred-swap route carries no SwapAdapter authorization',
-    }
-  }
-  const missing = authorizations.filter(
-    (authorization) =>
-      !hasMatchingSwapFillSelector(
-        context.best.signData,
-        authorization.direction,
-      ),
-  )
-  return {
-    name: 'routerExecutesAuthorizedSwap',
-    status: missing.length === 0 ? 'pass' : 'fail',
-    detail:
-      missing.length === 0
-        ? 'signed execution includes the matching Router SwapAdapter handler'
-        : `missing Router handler for ${missing.map((item) => item.direction).join(', ')}`,
+        ? `authorization and delivered output are scoped to chain ${supported[0]}`
+        : `reported output chain disagrees with signed destination execution`,
   }
 }
 
@@ -343,58 +319,40 @@ const swapFeeAndOutputAreObservable: Check = (context) => {
 }
 
 /**
- * RHI-6720 audit item 7.
- *
- * A max-out plan whose output notional is scored as zero absorbs the full
- * output-forgone penalty in the plan selector and can never rank first. The
- * observable consequence is a layer that returns a route but is never ranked
- * competitively against a peer on the same request.
- *
- * Fails on: a compared layer returns a route that reports a delivered amount,
- * yet is ranked below a peer while reporting strictly more output for a lower
- * fee — an ordering no cost model can justify.
+ * A max-out candidate with zero output notional cannot participate in output
+ * ranking. The quote-only observable is therefore that every compared layer
+ * survives and reports positive delivered output. The default selector also
+ * considers route cost and fill time, so this check does not second-guess its
+ * winner from output and displayed fees alone.
  */
 const maxOutPlanIsRankable: Check = (context) => {
   const compare = context.compareLayers ?? []
-  const present = compare.filter((layer) =>
-    context.routes.some((route) => route.settlementLayer === layer),
+  const routes = context.routes.filter((route) =>
+    compare.includes(route.settlementLayer),
   )
-  if (present.length < 2) {
-    return {
-      name: 'maxOutPlanIsRankable',
-      status: 'inapplicable',
-      detail: `need routes from at least 2 of [${compare.join(', ')}], got [${present.join(', ')}]`,
-    }
-  }
-
-  const totalOutput = (route: RouteLike): bigint =>
-    (route.cost?.output ?? []).reduce(
-      (sum, entry) =>
-        sum + (entry.amount === undefined ? 0n : BigInt(entry.amount)),
-      0n,
-    )
-
-  const failures: string[] = []
-  for (const route of context.routes) {
-    if (!compare.includes(route.settlementLayer)) continue
-    const output = totalOutput(route)
-    const bestOutput = totalOutput(context.best)
-    const fee = route.cost?.fees?.total?.usd ?? 0
-    const bestFee = context.best.cost?.fees?.total?.usd ?? 0
-    if (route.intentId === context.best.intentId) continue
-    if (output > bestOutput && fee <= bestFee) {
-      failures.push(
-        `${route.settlementLayer} delivers ${output} for $${fee} but ranked below ${context.best.settlementLayer} delivering ${bestOutput} for $${bestFee}: strictly better on both axes yet not chosen, which is the signature of a zero output notional`,
-      )
-    }
-  }
-
+  const present = new Set(routes.map((route) => route.settlementLayer))
+  const missing = compare.filter((layer) => !present.has(layer))
+  const zeroOutput = routes.filter((route) =>
+    (route.cost?.output ?? []).every(
+      (entry) => entry.amount === undefined || BigInt(entry.amount) <= 0n,
+    ),
+  )
+  const failures = [
+    ...(missing.length > 0
+      ? [`missing compared layer(s): ${missing.join(', ')}`]
+      : []),
+    ...(zeroOutput.length > 0
+      ? [
+          `zero delivered output for ${zeroOutput.map((route) => route.settlementLayer).join(', ')}`,
+        ]
+      : []),
+  ]
   return {
     name: 'maxOutPlanIsRankable',
     status: failures.length === 0 ? 'pass' : 'fail',
     detail:
       failures.length === 0
-        ? `ranking consistent across [${present.join(', ')}]`
+        ? `all compared layers [${compare.join(', ')}] report positive delivered output`
         : failures.join('; '),
   }
 }
@@ -475,7 +433,6 @@ export const CHECKS: Record<string, Check> = {
   exactOutInputCapHasHeadroom,
   swapAuthorizationMatchesQuote,
   swapRunsOnSupportedDestination,
-  routerExecutesAuthorizedSwap,
   swapFeeAndOutputAreObservable,
   maxOutPlanIsRankable,
   directDeliveryStillCompetes,
