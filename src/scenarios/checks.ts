@@ -46,6 +46,8 @@ export type CheckOutcome = {
 }
 
 type Check = (context: CheckContext) => CheckOutcome
+export const exitCodeForOutcomes = (outcomes: CheckOutcome[]): number =>
+  outcomes.some((outcome) => outcome.status !== 'pass') ? 1 : 0
 
 const swapAuthorizationsOf = (route: RouteLike): SwapAuthorization[] =>
   route.signData === undefined ? [] : extractSwapAuthorizations(route.signData)
@@ -53,13 +55,14 @@ const swapAuthorizationsOf = (route: RouteLike): SwapAuthorization[] =>
 /**
  * RHI-6720 audit item 1.
  *
- * For an exact-out destination swap the authorization enforces `amountOut`
- * on-chain: `handleFill_swapAdapter_exactOut` delivers exactly that or reverts.
- * The quote must therefore promise the user no less than what the chain will
- * enforce. If the quoted delivery is the authorized amount minus a swap fee,
- * the user was quoted a number the fill can never produce.
+ * For an exact-out destination swap, the authorization's `amountOut`, the
+ * quote's reported delivery, and the fixture's requested raw amount describe
+ * the same user-visible output. The check must compare all three: internal
+ * agreement between the quote and authorization is insufficient when both
+ * silently promise less than the user requested.
  *
- * Fails on: quoted delivered output < authorized `amountOut`.
+ * Fails when the requested amount is absent, the authorization differs from
+ * it, or the quote reports less than it.
  */
 const deliversRequestedFixedOutput: Check = (context) => {
   const authorizations = swapAuthorizationsOf(context.best)
@@ -71,10 +74,23 @@ const deliversRequestedFixedOutput: Check = (context) => {
       detail: 'required exact-out route carries no SwapAdapter authorization',
     }
   }
+  if (context.requestedOutputAmount === null) {
+    return {
+      name: 'deliversRequestedFixedOutput',
+      status: 'fail',
+      detail: 'fixed-output check requires one requested output amount',
+    }
+  }
 
   const outputs = context.best.cost?.output ?? []
   const failures: string[] = []
+  const requested = context.requestedOutputAmount
   for (const authorization of exactOut) {
+    if (authorization.amountOut !== requested) {
+      failures.push(
+        `authorized amountOut ${authorization.amountOut} != requested output ${requested} for ${authorization.tokenOut}`,
+      )
+    }
     const matching = outputs.find(
       (entry) =>
         typeof entry.tokenAddress === 'string' &&
@@ -88,9 +104,9 @@ const deliversRequestedFixedOutput: Check = (context) => {
       continue
     }
     const quoted = BigInt(matching.amount)
-    if (quoted < authorization.amountOut) {
+    if (quoted < requested) {
       failures.push(
-        `quoted delivery ${quoted} < on-chain authorized amountOut ${authorization.amountOut} for ${authorization.tokenOut}: the fill enforces the larger figure, so the quote under-reports delivery by ${authorization.amountOut - quoted}`,
+        `quoted delivery ${quoted} < requested output ${requested} for ${authorization.tokenOut}`,
       )
     }
   }
@@ -100,7 +116,7 @@ const deliversRequestedFixedOutput: Check = (context) => {
     status: failures.length === 0 ? 'pass' : 'fail',
     detail:
       failures.length === 0
-        ? `quoted delivery >= authorized amountOut across ${exactOut.length} authorization(s)`
+        ? `authorization and quoted delivery preserve requested output ${requested} across ${exactOut.length} authorization(s)`
         : failures.join('; '),
   }
 }

@@ -373,7 +373,11 @@ const pickQuote = async (
 export const buildTransactionDetails = async (
   intent: Intent,
   rhinestoneAccount: RhinestoneAccount,
-): Promise<{ transactionDetails: Transaction; bundleLabel: string }> => {
+): Promise<{
+  transactionDetails: Transaction
+  bundleLabel: string
+  requestedOutputAmount: bigint | null
+}> => {
   // get the target chain and source chains
   const targetChain = getChain(intent.targetChain)
   const sourceChains =
@@ -420,6 +424,10 @@ export const buildTransactionDetails = async (
 
     targetTokens.push(parsed)
   }
+  const requestedOutputAmount =
+    targetTokens.length === 1 && targetTokens[0].amount !== undefined
+      ? targetTokens[0].amount
+      : null
 
   // prepare the calls for the target chain. Build a real ERC20 transfer only
   // when the user gave an address; symbol-only intents fall through to a
@@ -559,6 +567,7 @@ export const buildTransactionDetails = async (
   return {
     transactionDetails: transactionDetails as Transaction,
     bundleLabel,
+    requestedOutputAmount,
   }
 }
 

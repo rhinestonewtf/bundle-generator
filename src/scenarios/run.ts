@@ -7,7 +7,12 @@ import {
   ts,
 } from '../main.js'
 import type { Intent } from '../types.js'
-import { CHECKS, type CheckContext, type CheckOutcome } from './checks.js'
+import {
+  CHECKS,
+  exitCodeForOutcomes,
+  type CheckContext,
+  type CheckOutcome,
+} from './checks.js'
 
 config()
 
@@ -59,19 +64,6 @@ const parseScenario = (filePath: string): Scenario => {
   return { description, checks, intent: scenarioIntent }
 }
 
-/**
- * The requested output in raw units, or null when the intent asks to max out.
- * Checks that reason about exact-out behaviour need to distinguish the two.
- */
-const requestedOutputAmountOf = (intent: Intent): bigint | null => {
-  const amounts = intent.targetTokens
-    .map((token) => token.amount)
-    .filter((amount): amount is string => typeof amount === 'string')
-  if (amounts.length !== 1) return null
-  // Fixture amounts are human-denominated ("0.001"); the raw figure comes from
-  // the route response itself, so only presence matters here.
-  return amounts[0].length > 0 ? 1n : null
-}
 
 type ScenarioError = { status?: number; code?: string; message: string }
 
@@ -100,10 +92,8 @@ const runScenario = async (
   console.log(`${ts()} [${name}] ${scenario.description}`)
 
   const account = await createRhinestoneAccount(environment)
-  const { transactionDetails } = await buildTransactionDetails(
-    scenario.intent,
-    account,
-  )
+  const { transactionDetails, requestedOutputAmount } =
+    await buildTransactionDetails(scenario.intent, account)
 
   let context: CheckContext
   try {
@@ -115,7 +105,7 @@ const runScenario = async (
     context = {
       routes: all,
       best,
-      requestedOutputAmount: requestedOutputAmountOf(scenario.intent),
+      requestedOutputAmount,
       ...(scenario.intent.settlementLayers &&
       'include' in scenario.intent.settlementLayers
         ? { compareLayers: scenario.intent.settlementLayers.include }
@@ -132,7 +122,7 @@ const runScenario = async (
     context = {
       routes: [],
       best: { intentId: '', settlementLayer: '' },
-      requestedOutputAmount: requestedOutputAmountOf(scenario.intent),
+      requestedOutputAmount,
       error: errorContext,
     }
   }
@@ -191,9 +181,7 @@ const main = async () => {
   console.log(
     `${ts()} ${passed.length} passed, ${failed.length} failed, ${skipped.length} inapplicable`,
   )
-  if (failed.length > 0) {
-    process.exitCode = 1
-  }
+  process.exitCode = exitCodeForOutcomes(outcomes)
 }
 
 main().catch((error) => {
