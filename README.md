@@ -83,6 +83,32 @@ pnpm replay my-intent --quote ECO                   # force ECO settlement
 pnpm replay my-intent --quote interactive           # pick from a list
 ```
 
+### `pnpm scenarios [filter]`
+
+Routes every scenario in `scenarios/deferred-destination-swap/` and asserts
+properties of the returned quotes. Unlike `pnpm replay`, this exits non-zero
+when an assertion fails, so it works as a check rather than a log.
+
+A scenario is a JSON file with `description`, `checks` (names of assertions in
+`src/scenarios/checks.ts`), and `intent` (the ordinary intent format below). An
+unknown check name is a hard error — a typo cannot silently reduce a scenario
+to "no assertions ran".
+
+The assertions decode the SwapAdapter authorization calldata carried in each
+route's `signData`, which is where the destination swap's on-chain economic
+bounds live (`amountInMax`, `quotedAmountIn`, `amountOut`, `orderRef`). That
+makes the quote's promise checkable against what the fill will actually
+enforce, without a live contract.
+
+`SCENARIO_ENV` selects the orchestrator (default `dev`). The optional filter is
+a substring match on the file name.
+
+```sh
+pnpm scenarios                       # all scenarios against dev
+pnpm scenarios fixed-output          # just the exact-out CCTP scenario
+SCENARIO_ENV=local pnpm scenarios    # against a local orchestrator
+```
+
 ## Intent JSON format
 
 Intents are stored in `intents/*.json`. A file contains either a single intent object or `{ "intentList": [...] }`.

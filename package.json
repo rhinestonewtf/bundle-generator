@@ -7,6 +7,7 @@
     "new": "tsx src/new-intent.ts",
     "replay": "tsx src/existing-intent.ts",
     "address": "tsx src/get-address.ts",
+    "scenarios": "tsx src/scenarios/run.ts",
     "balance": "tsx src/get-balance.ts",
     "app-fee-balance": "tsx src/get-app-fee-balance.ts",
     "typecheck": "tsc --noEmit",

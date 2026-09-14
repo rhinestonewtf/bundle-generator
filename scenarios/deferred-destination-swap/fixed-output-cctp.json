@@ -1,0 +1,21 @@
+{
+  "description": "Exact-out deferred destination swap over CCTP on Optimism. Bridge carries USDC; SwapAdapter converts it to WETH and the quote exposes delivered output and swap fee.",
+  "checks": [
+    "deliversRequestedFixedOutput",
+    "exactOutInputCapHasHeadroom",
+    "swapAuthorizationMatchesQuote",
+    "swapRunsOnSupportedDestination",
+    "routerExecutesAuthorizedSwap",
+    "swapFeeAndOutputAreObservable"
+  ],
+  "intent": {
+    "targetChain": "OPMainnet",
+    "targetTokens": [{ "symbol": "WETH", "amount": "0.001" }],
+    "sourceChains": [],
+    "sourceTokens": [],
+    "sourceAssets": { "Base": ["USDC"] },
+    "settlementLayers": { "include": ["CCTP"] },
+    "sponsored": false,
+    "destinationOps": false
+  }
+}
