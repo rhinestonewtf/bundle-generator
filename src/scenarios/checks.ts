@@ -36,6 +36,13 @@ export type CheckContext = {
   compareLayers?: string[]
   /** Set when the orchestrator rejected the request outright. */
   error?: { status?: number; code?: string; message: string }
+  /** Submit-time Router/on-chain simulation result for the selected route. */
+  simulation?:
+    | { status: 'passed'; intentId: string }
+    | {
+        status: 'failed'
+        error: { status?: number; code?: string; message: string }
+      }
 }
 
 export type CheckOutcome = {
@@ -48,6 +55,37 @@ type Check = (context: CheckContext) => CheckOutcome
 export const exitCodeForOutcomes = (outcomes: CheckOutcome[]): number =>
   outcomes.some((outcome) => outcome.status !== 'pass') ? 1 : 0
 
+/**
+ * Signing plus dry-run submission exercises POST /intents, Router payload
+ * construction, SwapAdapter dispatch and on-chain simulation without broadcast.
+ */
+const simulationSucceeds: Check = (context) => {
+  if (context.routes.length === 0) {
+    return {
+      name: 'simulationSucceeds',
+      status: 'inapplicable',
+      detail: 'no returned route to simulate',
+    }
+  }
+  if (!context.simulation) {
+    return {
+      name: 'simulationSucceeds',
+      status: 'fail',
+      detail: 'selected route was not submitted with internal_dryRun',
+    }
+  }
+  return context.simulation.status === 'passed'
+    ? {
+        name: 'simulationSucceeds',
+        status: 'pass',
+        detail: `selected route passed submit-time simulation without broadcast (intent ${context.simulation.intentId})`,
+      }
+    : {
+        name: 'simulationSucceeds',
+        status: 'fail',
+        detail: `selected route dry-run failed: ${context.simulation.error.message}`,
+      }
+}
 const swapAuthorizationsOf = (route: RouteLike): SwapAuthorization[] =>
   route.signData === undefined ? [] : extractSwapAuthorizations(route.signData)
 
@@ -429,6 +467,7 @@ const declinesCleanlyOrPricesByAddress: Check = (context) => {
 }
 
 export const CHECKS: Record<string, Check> = {
+  simulationSucceeds,
   deliversRequestedFixedOutput,
   exactOutInputCapHasHeadroom,
   swapAuthorizationMatchesQuote,

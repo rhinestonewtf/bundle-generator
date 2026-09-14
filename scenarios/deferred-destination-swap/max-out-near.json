@@ -4,7 +4,8 @@
     "maxOutPlanIsRankable",
     "swapAuthorizationMatchesQuote",
     "swapRunsOnSupportedDestination",
-    "swapFeeAndOutputAreObservable"
+    "swapFeeAndOutputAreObservable",
+    "simulationSucceeds"
   ],
   "compareLayers": ["NEAR", "CCTP"],
   "intent": {

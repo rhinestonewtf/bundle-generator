@@ -101,10 +101,30 @@ const runScenario = async (
     console.log(
       `${ts()} [${name}] ${all.length} route(s); best ${best.settlementLayer}`,
     )
+    let simulation: CheckContext['simulation']
+    try {
+      const signed = await account.signTransaction(prepared, {
+        intentId: best.intentId,
+      })
+      const submitted = await account.submitTransaction(signed, {
+        internal_dryRun: true,
+      })
+      simulation = { status: 'passed', intentId: submitted.id }
+      console.log(
+        `${ts()} [${name}] ${best.settlementLayer} dry-run passed; intent ${submitted.id}`,
+      )
+    } catch (error) {
+      const simulationError = toErrorContext(error)
+      simulation = { status: 'failed', error: simulationError }
+      console.log(
+        `${ts()} [${name}] ${best.settlementLayer} dry-run failed: ${simulationError.message}`,
+      )
+    }
     context = {
       routes: all,
       best,
       requestedOutputAmount,
+      simulation,
       ...(scenario.intent.settlementLayers &&
       'include' in scenario.intent.settlementLayers
         ? { compareLayers: scenario.intent.settlementLayers.include }
@@ -115,9 +135,8 @@ const runScenario = async (
     console.log(
       `${ts()} [${name}] route request failed: ${errorContext.message}`,
     )
-    // A rejected request is data, not a harness failure: several audit items
-    // are precisely about WHICH rejection the orchestrator produces. The checks
-    // decide whether this particular refusal is acceptable.
+    // A rejected quote request is data. Simulation applies only after a route
+    // exists, so refusal scenarios remain quote-only.
     context = {
       routes: [],
       best: { intentId: '', settlementLayer: '' },

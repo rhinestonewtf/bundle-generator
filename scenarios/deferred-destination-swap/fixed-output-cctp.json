@@ -5,7 +5,8 @@
     "exactOutInputCapHasHeadroom",
     "swapAuthorizationMatchesQuote",
     "swapRunsOnSupportedDestination",
-    "swapFeeAndOutputAreObservable"
+    "swapFeeAndOutputAreObservable",
+    "simulationSucceeds"
   ],
   "intent": {
     "targetChain": "OPMainnet",
