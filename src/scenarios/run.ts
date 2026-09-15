@@ -1,6 +1,7 @@
 import fs from 'node:fs'
 import path from 'node:path'
 import { config } from 'dotenv'
+import { validateIntent } from '../cli.js'
 import {
   buildTransactionDetails,
   createRhinestoneAccount,
@@ -59,8 +60,7 @@ const parseScenario = (filePath: string): Scenario => {
   if (typeof intent !== 'object' || intent === null || Array.isArray(intent)) {
     throw new Error(`${filePath}: 'intent' must be a JSON object`)
   }
-  // The fixture format is the CLI's own permissive intent shape, validated by
-  // the SDK at route time; re-validating it here would fork that contract.
+  validateIntent(intent, `${filePath}.intent`)
   const scenarioIntent = intent as Intent
   return { description, checks, intent: scenarioIntent }
 }

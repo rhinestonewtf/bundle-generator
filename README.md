@@ -122,7 +122,7 @@ Intents are stored in `intents/*.json`. A file contains either a single intent o
 | `sourceChains` | `string[]` | yes | Source chain names (can be empty for auto-routing) |
 | `sourceTokens` | `string[] \| object[]` | yes | Source tokens (symbols or `{ chain, address, amount }` objects) |
 | `tokenRecipient` | `string` | yes | Address to receive tokens on target chain |
-| `settlementLayers` | `{ include: string[] } \| { exclude: string[] }` | no | Restrict the layers considered. Exactly one of `include`/`exclude`, non-empty. Known: `ACROSS`, `ECO`, `RELAY`, `OFT`, `NEAR`, `RHINO`, `CCTP`. Omit for no restriction — a bare array is rejected (see below) |
+| `settlementLayers` | `{ include: string[] } \| { exclude: string[] }` | no | Restrict the layers considered. Exactly one of `include`/`exclude`, non-empty. Known: `ACROSS`, `ECO`, `RELAY`, `OFT`, `NEAR`, `RHINO`, `CCTP`, `LZ`. Omit for no restriction — a bare array is rejected (see below) |
 | `sponsored` | `boolean` | yes | Whether the intent is sponsored |
 | `sourceAssets` | see below | no | Source asset configuration (overrides `sourceTokens` for routing) |
 | `recipient` | `string` | no | Recipient address for the orchestrator |

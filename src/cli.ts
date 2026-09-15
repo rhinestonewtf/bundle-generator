@@ -23,6 +23,7 @@ const KNOWN_SETTLEMENT_LAYERS = [
   'NEAR',
   'RHINO',
   'CCTP',
+  'LZ',
 ] as const satisfies readonly IncludeSettlementLayer[]
 
 const isKnownSettlementLayer = (v: unknown): v is IncludeSettlementLayer =>
@@ -62,7 +63,7 @@ const validateSettlementLayers = (raw: unknown, context: string): void => {
   }
 }
 
-const validateIntent = (intent: unknown, context: string): void => {
+export const validateIntent = (intent: unknown, context: string): void => {
   if (!intent || typeof intent !== 'object') {
     throw new Error(`${context}: intent must be an object.`)
   }
