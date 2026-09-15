@@ -377,6 +377,7 @@ export const buildTransactionDetails = async (
   transactionDetails: Transaction
   bundleLabel: string
   requestedOutputAmount: bigint | null
+  targetChainId: number
 }> => {
   // get the target chain and source chains
   const targetChain = getChain(intent.targetChain)
@@ -568,6 +569,7 @@ export const buildTransactionDetails = async (
     transactionDetails: transactionDetails as Transaction,
     bundleLabel,
     requestedOutputAmount,
+    targetChainId: targetChain.id,
   }
 }
 

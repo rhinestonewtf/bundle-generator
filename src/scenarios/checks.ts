@@ -32,6 +32,8 @@ export type CheckContext = {
   best: RouteLike
   /** Requested output in raw token units; null for a max-out request. */
   requestedOutputAmount: bigint | null
+  /** Destination chain resolved from the scenario intent. */
+  targetChainId: number
   /** Layers the scenario wants compared, when it pins a ranking property. */
   compareLayers?: string[]
   /** Set when the orchestrator rejected the request outright. */
@@ -264,6 +266,9 @@ const swapAuthorizationMatchesQuote: Check = (context) => {
 /**
  * MultiChainOps omits domain.chainId by design and binds each execution chain
  * in message.ops[].chainId. Single-chain payloads bind it in the domain.
+ * The signed execution and reported output must match the scenario's requested
+ * destination exactly; accepting any generally supported chain would hide a
+ * source/destination placement regression.
  */
 const swapRunsOnSupportedDestination: Check = (context) => {
   const authorizations = swapAuthorizationsOf(context.best)
@@ -285,33 +290,28 @@ const swapRunsOnSupportedDestination: Check = (context) => {
       }
     | undefined
   const destination = signData?.destination
-  const chainIds =
+  const signedChainIds =
     destination?.primaryType === 'MultiChainOps'
       ? (destination.message?.ops ?? []).map((op) => Number(op.chainId))
       : [Number(destination?.domain?.chainId)]
-  const supported: number[] = chainIds.filter(
-    (chainId) => chainId === 10 || chainId === 8453,
-  )
-  if (supported.length === 0) {
+  if (!signedChainIds.includes(context.targetChainId)) {
     return {
       name: 'swapRunsOnSupportedDestination',
       status: 'fail',
-      detail: `signed destination payload has no Base (8453) or Optimism (10) execution chain`,
+      detail: `signed destination payload targets [${signedChainIds.join(', ')}], expected chain ${context.targetChainId}`,
     }
   }
-  const outputChains = (context.best.cost?.output ?? [])
-    .map((output) => output.chainId)
-    .filter((chainId): chainId is number => chainId !== undefined)
-  const wrongOutputs = outputChains.filter(
-    (chainId) => !supported.includes(chainId),
+  const wrongOutputs = (context.best.cost?.output ?? []).filter(
+    (output) =>
+      output.chainId !== undefined && output.chainId !== context.targetChainId,
   )
   return {
     name: 'swapRunsOnSupportedDestination',
     status: wrongOutputs.length === 0 ? 'pass' : 'fail',
     detail:
       wrongOutputs.length === 0
-        ? `authorization and delivered output are scoped to chain ${supported[0]}`
-        : `reported output chain disagrees with signed destination execution`,
+        ? `signed execution and delivered output target requested chain ${context.targetChainId}`
+        : `reported output chain disagrees with requested destination ${context.targetChainId}`,
   }
 }
 

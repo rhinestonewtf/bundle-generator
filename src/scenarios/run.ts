@@ -91,7 +91,7 @@ const runScenario = async (
   console.log(`${ts()} [${name}] ${scenario.description}`)
 
   const account = await createRhinestoneAccount(environment)
-  const { transactionDetails, requestedOutputAmount } =
+  const { transactionDetails, requestedOutputAmount, targetChainId } =
     await buildTransactionDetails(scenario.intent, account)
 
   let context: CheckContext
@@ -124,6 +124,7 @@ const runScenario = async (
       routes: all,
       best,
       requestedOutputAmount,
+      targetChainId,
       simulation,
       ...(scenario.intent.settlementLayers &&
       'include' in scenario.intent.settlementLayers
@@ -141,6 +142,7 @@ const runScenario = async (
       routes: [],
       best: { intentId: '', settlementLayer: '' },
       requestedOutputAmount,
+      targetChainId,
       error: errorContext,
     }
   }
