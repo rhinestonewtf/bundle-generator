@@ -180,6 +180,36 @@ export const extractSwapAuthorizations = (
   return authorizations
 }
 
+type DestinationSignData = {
+  domain?: { chainId?: number | bigint | string }
+  primaryType?: string
+  message?: {
+    ops?: {
+      chainId?: number | bigint | string
+      op?: unknown
+    }[]
+  }
+}
+
+/** SwapAdapter authorizations nested in the signed operation for one chain. */
+export const extractSwapAuthorizationsForChain = (
+  signData: unknown,
+  chainId: number,
+): SwapAuthorization[] => {
+  if (!signData || typeof signData !== 'object') return []
+  if (!('destination' in signData)) return []
+  const destination = signData.destination
+  if (!destination || typeof destination !== 'object') return []
+  const typedDestination = destination as DestinationSignData
+  if (typedDestination.primaryType === 'MultiChainOps') {
+    return (typedDestination.message?.ops ?? [])
+      .filter((entry) => Number(entry.chainId) === chainId)
+      .flatMap((entry) => extractSwapAuthorizations(entry.op))
+  }
+  if (Number(typedDestination.domain?.chainId) !== chainId) return []
+  return extractSwapAuthorizations(typedDestination.message)
+}
+
 /** Whether signData commits to the Router entry point matching the swap direction. */
 export const hasMatchingSwapFillSelector = (
   signData: unknown,

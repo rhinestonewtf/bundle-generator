@@ -13,6 +13,7 @@ import {
   type CheckOutcome,
   exitCodeForOutcomes,
 } from './checks.js'
+import { toErrorContext } from './error-context.js'
 
 config()
 
@@ -62,24 +63,6 @@ const parseScenario = (filePath: string): Scenario => {
   // the SDK at route time; re-validating it here would fork that contract.
   const scenarioIntent = intent as Intent
   return { description, checks, intent: scenarioIntent }
-}
-
-type ScenarioError = { status?: number; code?: string; message: string }
-
-/**
- * HTTP status and error code are what several audit items turn on (a clean
- * decline vs. an unguarded 500), and the SDK surfaces them as untyped extra
- * properties on a plain `Error`.
- */
-const toErrorContext = (error: unknown): ScenarioError => {
-  if (!(error instanceof Error)) return { message: String(error) }
-  const status = 'status' in error ? error.status : undefined
-  const code = 'code' in error ? error.code : undefined
-  return {
-    ...(typeof status === 'number' ? { status } : {}),
-    ...(typeof code === 'string' ? { code } : {}),
-    message: error.message,
-  }
 }
 
 const runScenario = async (

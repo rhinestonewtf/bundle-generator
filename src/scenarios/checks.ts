@@ -1,5 +1,6 @@
 import {
   extractSwapAuthorizations,
+  extractSwapAuthorizationsForChain,
   type SwapAuthorization,
 } from './swap-authorization.js'
 
@@ -271,34 +272,15 @@ const swapAuthorizationMatchesQuote: Check = (context) => {
  * source/destination placement regression.
  */
 const swapRunsOnSupportedDestination: Check = (context) => {
-  const authorizations = swapAuthorizationsOf(context.best)
-  if (authorizations.length === 0) {
+  const destinationAuthorizations = extractSwapAuthorizationsForChain(
+    context.best.signData,
+    context.targetChainId,
+  )
+  if (destinationAuthorizations.length === 0) {
     return {
       name: 'swapRunsOnSupportedDestination',
       status: 'fail',
-      detail:
-        'required deferred-swap route carries no SwapAdapter authorization',
-    }
-  }
-  const signData = context.best.signData as
-    | {
-        destination?: {
-          domain?: { chainId?: number | bigint | string }
-          primaryType?: string
-          message?: { ops?: { chainId?: number | bigint | string }[] }
-        }
-      }
-    | undefined
-  const destination = signData?.destination
-  const signedChainIds =
-    destination?.primaryType === 'MultiChainOps'
-      ? (destination.message?.ops ?? []).map((op) => Number(op.chainId))
-      : [Number(destination?.domain?.chainId)]
-  if (!signedChainIds.includes(context.targetChainId)) {
-    return {
-      name: 'swapRunsOnSupportedDestination',
-      status: 'fail',
-      detail: `signed destination payload targets [${signedChainIds.join(', ')}], expected chain ${context.targetChainId}`,
+      detail: `requested destination chain ${context.targetChainId} carries no SwapAdapter authorization`,
     }
   }
   const wrongOutputs = (context.best.cost?.output ?? []).filter(
@@ -310,7 +292,7 @@ const swapRunsOnSupportedDestination: Check = (context) => {
     status: wrongOutputs.length === 0 ? 'pass' : 'fail',
     detail:
       wrongOutputs.length === 0
-        ? `signed execution and delivered output target requested chain ${context.targetChainId}`
+        ? `${destinationAuthorizations.length} authorization(s) and delivered output target requested chain ${context.targetChainId}`
         : `reported output chain disagrees with requested destination ${context.targetChainId}`,
   }
 }
