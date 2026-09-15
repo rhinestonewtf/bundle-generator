@@ -62,7 +62,8 @@ pnpm check                # biome lint + format
 pnpm check:fix
 ```
 
-Every command takes `--env <prod|dev|local>` and prompts if omitted.
+Every command except `pnpm new` takes `--env <prod|dev|local>` and prompts if
+omitted; `pnpm new` always prompts.
 
 ## Key files
 
@@ -79,20 +80,18 @@ Every command takes `--env <prod|dev|local>` and prompts if omitted.
 ## Gotchas
 
 - **`--mode execute` against `--env prod` spends real money on mainnet.** It
-  signs with `OWNER_PRIVATE_KEY` and submits. Use `--mode simulate` or
-  `--mode route` when you only want to see what the orchestrator would do, and
-  double-check `--env` before every prod run — the env prompt is skipped
-  whenever `--env` is passed.
+  signs with `OWNER_PRIVATE_KEY` and submits. Use `--mode route` when you only
+  want to see what the orchestrator would do — `--mode simulate` submits a dry
+  run, which the orchestrator 403s unless the API key has the relayer scope —
+  and double-check `--env` before every prod run: `pnpm replay` skips the env
+  prompt whenever `--env` is passed.
 - **This repo is also cloned as `simulation-tests`.** There is no
   `rhinestonewtf/simulation-tests` repo; local checkouts and notes calling it
   "sim-tests" or "simulation-tests" point at *this* remote. Confirm with
   `git remote -v` before concluding a change is missing.
 - **`settlementLayers` is `{ include: [...] }` or `{ exclude: [...] }`, never a
-  bare array.** A raw array is the historical shape and the SDK silently treats
-  it as `{ exclude: undefined }`, matching *every* layer — so an intent that
-  looks pinned to ACROSS would quietly run on any layer. `cli.ts` rejects the
-  array shape outright so the trap can't come back. Exactly one of
-  `include`/`exclude`, non-empty.
+  bare array.** The SDK's `SettlementLayerFilter` has no array form, so
+  `cli.ts` rejects one outright. Exactly one of `include`/`exclude`, non-empty.
 - **`KNOWN_SETTLEMENT_LAYERS` in `cli.ts` is a hand-maintained mirror** of the
   SDK's list, which isn't exported as a runtime value. A layer added to
   `@rhinestone/sdk` is rejected here until this array is updated.
