@@ -1,6 +1,7 @@
 import {
   extractSwapAuthorizations,
   extractSwapAuthorizationsForChain,
+  hasMatchingSwapFillSelectorForChain,
   type SwapAuthorization,
 } from './swap-authorization.js'
 
@@ -39,13 +40,15 @@ export type CheckContext = {
   compareLayers?: string[]
   /** Set when the orchestrator rejected the request outright. */
   error?: { status?: number; code?: string; message: string }
-  /** Submit-time Router/on-chain simulation result for the selected route. */
-  simulation?:
+  /** Submit-time simulation results keyed by route intent ID. */
+  simulations?: Record<
+    string,
     | { status: 'passed'; intentId: string }
     | {
         status: 'failed'
         error: { status?: number; code?: string; message: string }
       }
+  >
 }
 
 export type CheckOutcome = {
@@ -63,31 +66,29 @@ export const exitCodeForOutcomes = (outcomes: CheckOutcome[]): number =>
  * construction, SwapAdapter dispatch and on-chain simulation without broadcast.
  */
 const simulationSucceeds: Check = (context) => {
-  if (context.routes.length === 0) {
+  const routes = context.compareLayers
+    ? context.routes.filter((route) =>
+        context.compareLayers?.includes(route.settlementLayer),
+      )
+    : [context.best]
+  if (routes.length === 0) {
     return {
       name: 'simulationSucceeds',
       status: 'inapplicable',
       detail: 'no returned route to simulate',
     }
   }
-  if (!context.simulation) {
-    return {
-      name: 'simulationSucceeds',
-      status: 'fail',
-      detail: 'selected route was not submitted with internal_dryRun',
-    }
+  const failures = routes.filter(
+    (route) => context.simulations?.[route.intentId]?.status !== 'passed',
+  )
+  return {
+    name: 'simulationSucceeds',
+    status: failures.length === 0 ? 'pass' : 'fail',
+    detail:
+      failures.length === 0
+        ? `${routes.map((route) => route.settlementLayer).join(', ')} route(s) passed submit-time simulation without broadcast`
+        : `dry-run failed or missing for ${failures.map((route) => route.settlementLayer).join(', ')}`,
   }
-  return context.simulation.status === 'passed'
-    ? {
-        name: 'simulationSucceeds',
-        status: 'pass',
-        detail: `selected route passed submit-time simulation without broadcast (intent ${context.simulation.intentId})`,
-      }
-    : {
-        name: 'simulationSucceeds',
-        status: 'fail',
-        detail: `selected route dry-run failed: ${context.simulation.error.message}`,
-      }
 }
 const swapAuthorizationsOf = (route: RouteLike): SwapAuthorization[] =>
   route.signData === undefined ? [] : extractSwapAuthorizations(route.signData)
@@ -252,6 +253,17 @@ const swapAuthorizationMatchesQuote: Check = (context) => {
         )
       }
     }
+    if (
+      !hasMatchingSwapFillSelectorForChain(
+        context.best.signData,
+        context.targetChainId,
+        authorization.direction,
+      )
+    ) {
+      failures.push(
+        `missing destination Router handler for ${authorization.direction} authorization`,
+      )
+    }
   }
 
   return {
@@ -351,28 +363,46 @@ const maxOutPlanIsRankable: Check = (context) => {
     compare.includes(route.settlementLayer),
   )
   const present = new Set(routes.map((route) => route.settlementLayer))
-  const missing = compare.filter((layer) => !present.has(layer))
-  const zeroOutput = routes.filter((route) =>
-    (route.cost?.output ?? []).every(
-      (entry) => entry.amount === undefined || BigInt(entry.amount) <= 0n,
-    ),
-  )
-  const failures = [
-    ...(missing.length > 0
-      ? [`missing compared layer(s): ${missing.join(', ')}`]
-      : []),
-    ...(zeroOutput.length > 0
-      ? [
-          `zero delivered output for ${zeroOutput.map((route) => route.settlementLayer).join(', ')}`,
-        ]
-      : []),
-  ]
+  const failures = compare
+    .filter((layer) => !present.has(layer))
+    .map((layer) => `missing compared layer: ${layer}`)
+  for (const route of routes) {
+    const outputPositive = (route.cost?.output ?? []).some(
+      (entry) => entry.amount !== undefined && BigInt(entry.amount) > 0n,
+    )
+    const authorizations = extractSwapAuthorizationsForChain(
+      route.signData,
+      context.targetChainId,
+    )
+    if (!outputPositive)
+      failures.push(`${route.settlementLayer} reports zero delivered output`)
+    if (authorizations.length === 0) {
+      failures.push(
+        `${route.settlementLayer} carries no destination SwapAdapter authorization`,
+      )
+      continue
+    }
+    if (
+      authorizations.some(
+        (authorization) =>
+          !hasMatchingSwapFillSelectorForChain(
+            route.signData,
+            context.targetChainId,
+            authorization.direction,
+          ),
+      )
+    ) {
+      failures.push(
+        `${route.settlementLayer} is missing its matching Router handler`,
+      )
+    }
+  }
   return {
     name: 'maxOutPlanIsRankable',
     status: failures.length === 0 ? 'pass' : 'fail',
     detail:
       failures.length === 0
-        ? `all compared layers [${compare.join(', ')}] report positive delivered output`
+        ? `all compared layers [${compare.join(', ')}] carry executable destination swaps with positive output`
         : failures.join('; '),
   }
 }

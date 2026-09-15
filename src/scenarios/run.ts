@@ -84,35 +84,50 @@ const runScenario = async (
     console.log(
       `${ts()} [${name}] ${all.length} route(s); best ${best.settlementLayer}`,
     )
-    let simulation: CheckContext['simulation']
-    try {
-      const signed = await account.signTransaction(prepared, {
-        intentId: best.intentId,
-      })
-      const submitted = await account.submitTransaction(signed, {
-        internal_dryRun: true,
-      })
-      simulation = { status: 'passed', intentId: submitted.id }
-      console.log(
-        `${ts()} [${name}] ${best.settlementLayer} dry-run passed; intent ${submitted.id}`,
-      )
-    } catch (error) {
-      const simulationError = toErrorContext(error)
-      simulation = { status: 'failed', error: simulationError }
-      console.log(
-        `${ts()} [${name}] ${best.settlementLayer} dry-run failed: ${simulationError.message}`,
-      )
+    const compareLayers =
+      scenario.intent.settlementLayers &&
+      'include' in scenario.intent.settlementLayers
+        ? scenario.intent.settlementLayers.include
+        : undefined
+    const routesToSimulate = compareLayers
+      ? all.filter((route) =>
+          compareLayers.some((layer) => layer === route.settlementLayer),
+        )
+      : [best]
+    const simulations: NonNullable<CheckContext['simulations']> = {}
+    for (const route of routesToSimulate) {
+      try {
+        const signed = await account.signTransaction(prepared, {
+          intentId: route.intentId,
+        })
+        const submitted = await account.submitTransaction(signed, {
+          internal_dryRun: true,
+        })
+        simulations[route.intentId] = {
+          status: 'passed',
+          intentId: submitted.id,
+        }
+        console.log(
+          `${ts()} [${name}] ${route.settlementLayer} dry-run passed; intent ${submitted.id}`,
+        )
+      } catch (error) {
+        const simulationError = toErrorContext(error)
+        simulations[route.intentId] = {
+          status: 'failed',
+          error: simulationError,
+        }
+        console.log(
+          `${ts()} [${name}] ${route.settlementLayer} dry-run failed: ${simulationError.message}`,
+        )
+      }
     }
     context = {
       routes: all,
       best,
       requestedOutputAmount,
       targetChainId,
-      simulation,
-      ...(scenario.intent.settlementLayers &&
-      'include' in scenario.intent.settlementLayers
-        ? { compareLayers: scenario.intent.settlementLayers.include }
-        : {}),
+      simulations,
+      ...(compareLayers ? { compareLayers } : {}),
     }
   } catch (error) {
     const errorContext = toErrorContext(error)

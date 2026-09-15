@@ -210,16 +210,37 @@ export const extractSwapAuthorizationsForChain = (
   return extractSwapAuthorizations(typedDestination.message)
 }
 
-/** Whether signData commits to the Router entry point matching the swap direction. */
-export const hasMatchingSwapFillSelector = (
+const destinationPayloadForChain = (
   signData: unknown,
+  chainId: number,
+): unknown => {
+  if (!signData || typeof signData !== 'object') return undefined
+  if (!('destination' in signData)) return undefined
+  const destination = signData.destination
+  if (!destination || typeof destination !== 'object') return undefined
+  const typedDestination = destination as DestinationSignData
+  if (typedDestination.primaryType === 'MultiChainOps') {
+    return typedDestination.message?.ops?.find(
+      (entry) => Number(entry.chainId) === chainId,
+    )?.op
+  }
+  return Number(typedDestination.domain?.chainId) === chainId
+    ? typedDestination.message
+    : undefined
+}
+
+/** Whether one chain's signed operation invokes the matching Router handler. */
+export const hasMatchingSwapFillSelectorForChain = (
+  signData: unknown,
+  chainId: number,
   direction: SwapAuthorization['direction'],
 ): boolean => {
   const candidates: string[] = []
-  collectHexStrings(signData, candidates)
+  collectHexStrings(destinationPayloadForChain(signData, chainId), candidates)
   const selector =
     direction === 'exact-in' ? EXACT_IN_FILL_SELECTOR : EXACT_OUT_FILL_SELECTOR
   return candidates.some((candidate) =>
     candidate.toLowerCase().includes(selector.slice(2)),
   )
 }
+
