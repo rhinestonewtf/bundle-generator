@@ -1,0 +1,21 @@
+{
+  "description": "Exact-in/max-out deferred destination swap on OP Mainnet where NEAR competes with CCTP. The chosen swap route must carry coherent authorization and expose delivered output and swap fee.",
+  "checks": [
+    "maxOutPlanIsRankable",
+    "swapAuthorizationMatchesQuote",
+    "swapRunsOnSupportedDestination",
+    "swapFeeAndOutputAreObservable",
+    "simulationSucceeds"
+  ],
+  "compareLayers": ["NEAR", "CCTP"],
+  "intent": {
+    "targetChain": "OPMainnet",
+    "targetTokens": [{ "symbol": "WETH" }],
+    "sourceChains": [],
+    "sourceTokens": [],
+    "sourceAssets": { "Base": ["USDC"] },
+    "settlementLayers": { "include": ["NEAR", "CCTP"] },
+    "sponsored": false,
+    "destinationOps": false
+  }
+}

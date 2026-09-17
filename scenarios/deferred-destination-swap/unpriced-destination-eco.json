@@ -1,0 +1,16 @@
+{
+  "description": "Off-registry destination token on an ECO-only route. Pins RHI-6720 audit item 3: the gate must decide on the token ADDRESS, not its symbol string, and must decline cleanly rather than 500 with TOKEN_PRICE_MISSING when the deferred swap is not actually taken.",
+  "checks": ["declinesCleanlyOrPricesByAddress"],
+  "intent": {
+    "targetChain": "OPMainnet",
+    "targetTokens": [
+      { "symbol": "0x4200000000000000000000000000000000000042", "amount": "1" }
+    ],
+    "sourceChains": [],
+    "sourceTokens": [],
+    "sourceAssets": { "Base": ["USDC"] },
+    "settlementLayers": { "include": ["ECO"] },
+    "sponsored": false,
+    "destinationOps": false
+  }
+}

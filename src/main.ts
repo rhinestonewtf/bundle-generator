@@ -361,17 +361,24 @@ const pickQuote = async (
   return match
 }
 
-export const processIntent = async (
+/**
+ * Turns an intent fixture into the SDK `Transaction` the orchestrator is asked
+ * to route, funding the account first when `LOCAL_TESTNET` is set.
+ *
+ * Exported because the scenario harness needs the exact transaction
+ * `processIntent` would send. A second assembly path would let the two drift,
+ * and a scenario routing something subtly different from the CLI proves
+ * nothing about the CLI.
+ */
+export const buildTransactionDetails = async (
   intent: Intent,
-  environmentString: string,
-  executionMode: string,
-  existingAccount?: RhinestoneAccount,
-  verbose?: boolean,
-  quoteSelection: string = 'best',
-): Promise<IntentResult | undefined> => {
-  const rhinestoneAccount =
-    existingAccount ?? (await createRhinestoneAccount(environmentString))
-
+  rhinestoneAccount: RhinestoneAccount,
+): Promise<{
+  transactionDetails: Transaction
+  bundleLabel: string
+  requestedOutputAmount: bigint | null
+  targetChainId: number
+}> => {
   // get the target chain and source chains
   const targetChain = getChain(intent.targetChain)
   const sourceChains =
@@ -418,6 +425,10 @@ export const processIntent = async (
 
     targetTokens.push(parsed)
   }
+  const requestedOutputAmount =
+    targetTokens.length === 1 && targetTokens[0].amount !== undefined
+      ? targetTokens[0].amount
+      : null
 
   // prepare the calls for the target chain. Build a real ERC20 transfer only
   // when the user gave an address; symbol-only intents fall through to a
@@ -512,12 +523,6 @@ export const processIntent = async (
     : ''
   const bundleLabel = `${sourceAssetsLabel} > ${targetAssetsLabel}${settlementLayersLabel}${intent.sponsored ? ' sponsored' : ''}${appFeeLabel} to ${recipientLabel}`
 
-  console.log(`${ts()} Bundle ${bundleLabel}: Starting transaction process`)
-
-  // ----- Phase 1: Prepare transaction
-  const prepareStartTime = Date.now()
-  console.log(`${ts()} Bundle ${bundleLabel}: [1/4] Preparing transaction...`)
-
   // resolve source assets: prefer sourceAssets over sourceTokens
   const resolvedSourceAssets = sourceAssets
     ? await resolveSourceAssets(
@@ -560,9 +565,38 @@ export const processIntent = async (
   // CrossChainNonEvm) keyed on the `targetChain` / `tokenRequests` shape.
   // The intent JSON we read is permissive and chain-agnostic, so we build a
   // single shape and let the SDK route it at runtime.
-  const preparedTransaction = await rhinestoneAccount.prepareTransaction(
-    transactionDetails as Transaction,
+  return {
+    transactionDetails: transactionDetails as Transaction,
+    bundleLabel,
+    requestedOutputAmount,
+    targetChainId: targetChain.id,
+  }
+}
+
+export const processIntent = async (
+  intent: Intent,
+  environmentString: string,
+  executionMode: string,
+  existingAccount?: RhinestoneAccount,
+  verbose?: boolean,
+  quoteSelection: string = 'best',
+): Promise<IntentResult | undefined> => {
+  const rhinestoneAccount =
+    existingAccount ?? (await createRhinestoneAccount(environmentString))
+
+  const { transactionDetails, bundleLabel } = await buildTransactionDetails(
+    intent,
+    rhinestoneAccount,
   )
+
+  console.log(`${ts()} Bundle ${bundleLabel}: Starting transaction process`)
+
+  // ----- Phase 1: Prepare transaction
+  const prepareStartTime = Date.now()
+  console.log(`${ts()} Bundle ${bundleLabel}: [1/4] Preparing transaction...`)
+
+  const preparedTransaction =
+    await rhinestoneAccount.prepareTransaction(transactionDetails)
 
   const prepareEndTime = Date.now()
   console.log(
