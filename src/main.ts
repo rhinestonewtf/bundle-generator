@@ -422,9 +422,14 @@ export const processIntent = async (
   // prepare the calls for the target chain. Build a real ERC20 transfer only
   // when the user gave an address; symbol-only intents fall through to a
   // no-op call (the orchestrator's routing is what we're testing).
+  // Native is the registry's address(0) on every EVM chain, not just ETH: it
+  // needs a value transfer, since transfer() on address(0) is a silent no-op.
+  const isNative = (token: ParsedToken) =>
+    token.symbol === 'ETH' ||
+    (token.address ?? token.resolvedAddress)?.toLowerCase() === zeroAddress
   const canBuildErc20Transfer = (token: ParsedToken) =>
     token.amount !== undefined &&
-    (token.symbol === 'ETH' || token.address !== undefined)
+    (isNative(token) || token.address !== undefined)
   // Descriptor-addressed destinations (Solana, Tron, HyperCore) are
   // solver-mediated: the SDK rejects an intent that carries destination calls for
   // them, so emit none regardless of `destinationOps`. Without this, the only
@@ -436,16 +441,15 @@ export const processIntent = async (
       : targetTokens.length && targetTokens.every(canBuildErc20Transfer)
         ? targetTokens.map((token: ParsedToken) => {
             return {
-              to: token.symbol === 'ETH' ? target : (token.address as Address),
-              value: token.symbol === 'ETH' ? token.amount : 0n,
-              data:
-                token.symbol === 'ETH'
-                  ? ('0x' as Hex)
-                  : encodeFunctionData({
-                      abi: erc20Abi,
-                      functionName: 'transfer',
-                      args: [target, token.amount!],
-                    }),
+              to: isNative(token) ? target : (token.address as Address),
+              value: isNative(token) ? token.amount : 0n,
+              data: isNative(token)
+                ? ('0x' as Hex)
+                : encodeFunctionData({
+                    abi: erc20Abi,
+                    functionName: 'transfer',
+                    args: [target, token.amount!],
+                  }),
             }
           })
         : [
