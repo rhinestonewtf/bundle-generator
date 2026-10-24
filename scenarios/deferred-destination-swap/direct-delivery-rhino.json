@@ -1,0 +1,14 @@
+{
+  "description": "Requests a token the bridge can deliver natively. Pins RHI-6720 audit item 5: a bridge that can deliver the requested token directly must still compete as its no-swap defaultPrepare plan, rather than being replaced by bridge-USDC + destination DEX swap.",
+  "checks": ["directDeliveryStillCompetes", "simulationSucceeds"],
+  "intent": {
+    "targetChain": "OPMainnet",
+    "targetTokens": [{ "symbol": "USDT", "amount": "1" }],
+    "sourceChains": [],
+    "sourceTokens": [],
+    "sourceAssets": { "Base": ["USDC"] },
+    "settlementLayers": { "include": ["RHINO"] },
+    "sponsored": false,
+    "destinationOps": false
+  }
+}

@@ -83,6 +83,32 @@ pnpm replay my-intent --quote ECO                   # force ECO settlement
 pnpm replay my-intent --quote interactive           # pick from a list
 ```
 
+### `pnpm scenarios [filter]`
+
+Routes every scenario in `scenarios/deferred-destination-swap/` and asserts
+properties of the returned quotes. Unlike `pnpm replay`, this exits non-zero
+when an assertion fails, so it works as a check rather than a log.
+
+A scenario is a JSON file with `description`, `checks` (names of assertions in
+`src/scenarios/checks.ts`), and `intent` (the ordinary intent format below). An
+unknown check name is a hard error — a typo cannot silently reduce a scenario
+to "no assertions ran".
+
+The assertions decode the SwapAdapter authorization calldata carried in each
+route's `signData`, which is where the destination swap's on-chain economic
+bounds live (`amountInMax`, `quotedAmountIn`, `amountOut`, `orderRef`). That
+makes the quote's promise checkable against what the fill will actually
+enforce, without a live contract.
+
+`SCENARIO_ENV` selects the orchestrator (default `dev`). The optional filter is
+a substring match on the file name.
+
+```sh
+pnpm scenarios                       # all scenarios against dev
+pnpm scenarios fixed-output          # just the exact-out CCTP scenario
+SCENARIO_ENV=local pnpm scenarios    # against a local orchestrator
+```
+
 ## Intent JSON format
 
 Intents are stored in `intents/*.json`. A file contains either a single intent object or `{ "intentList": [...] }`.
@@ -96,7 +122,7 @@ Intents are stored in `intents/*.json`. A file contains either a single intent o
 | `sourceChains` | `string[]` | yes | Source chain names (can be empty for auto-routing) |
 | `sourceTokens` | `string[] \| object[]` | yes | Source tokens (symbols or `{ chain, address, amount }` objects) |
 | `tokenRecipient` | `string` | yes | Address to receive tokens on target chain |
-| `settlementLayers` | `{ include: string[] } \| { exclude: string[] }` | no | Restrict the layers considered. Exactly one of `include`/`exclude`, non-empty. Known: `ACROSS`, `ECO`, `RELAY`, `OFT`, `NEAR`, `RHINO`, `CCTP`. Omit for no restriction — a bare array is rejected (see below) |
+| `settlementLayers` | `{ include: string[] } \| { exclude: string[] }` | no | Restrict the layers considered. Exactly one of `include`/`exclude`, non-empty. Known: `ACROSS`, `ECO`, `RELAY`, `OFT`, `NEAR`, `RHINO`, `CCTP`, `LZ`. Omit for no restriction — a bare array is rejected (see below) |
 | `sponsored` | `boolean` | yes | Whether the intent is sponsored |
 | `sourceAssets` | see below | no | Source asset configuration (overrides `sourceTokens` for routing) |
 | `recipient` | `string` | no | Recipient address for the orchestrator |

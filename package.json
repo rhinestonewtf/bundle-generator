@@ -7,6 +7,7 @@
     "new": "tsx src/new-intent.ts",
     "replay": "tsx src/existing-intent.ts",
     "address": "tsx src/get-address.ts",
+    "scenarios": "tsx src/scenarios/run.ts",
     "balance": "tsx src/get-balance.ts",
     "app-fee-balance": "tsx src/get-app-fee-balance.ts",
     "typecheck": "tsc --noEmit",
@@ -22,7 +23,7 @@
   "license": "ISC",
   "dependencies": {
     "@inquirer/prompts": "^8.5.2",
-    "@rhinestone/sdk": "2.8.0",
+    "@rhinestone/sdk": "2.16.1",
     "abitype": "^1.3.0",
     "dotenv": "^17.4.2",
     "tsx": "^4.23.9",

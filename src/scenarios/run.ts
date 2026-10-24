@@ -1,0 +1,208 @@
+import fs from 'node:fs'
+import path from 'node:path'
+import { config } from 'dotenv'
+import { validateIntent } from '../cli.js'
+import {
+  buildTransactionDetails,
+  createRhinestoneAccount,
+  ts,
+} from '../main.js'
+import type { Intent } from '../types.js'
+import {
+  CHECKS,
+  type CheckContext,
+  type CheckOutcome,
+  exitCodeForOutcomes,
+} from './checks.js'
+import { toErrorContext } from './error-context.js'
+
+config()
+
+const SCENARIO_DIR = path.join('scenarios', 'deferred-destination-swap')
+
+/**
+ * A scenario file: an intent the orchestrator must route, plus the names of the
+ * checks its route response has to satisfy. `checks` names keys of `CHECKS`;
+ * an unknown name is a hard error rather than a silent skip, so a typo cannot
+ * quietly reduce a scenario to "no assertions ran".
+ */
+type Scenario = {
+  description: string
+  checks: string[]
+  intent: Intent
+}
+
+const parseScenario = (filePath: string): Scenario => {
+  const raw: unknown = JSON.parse(fs.readFileSync(filePath, 'utf8'))
+  if (typeof raw !== 'object' || raw === null || Array.isArray(raw)) {
+    throw new Error(`${filePath}: scenario must be a JSON object`)
+  }
+  const description = 'description' in raw ? raw.description : undefined
+  const checks = 'checks' in raw ? raw.checks : undefined
+  const intent = 'intent' in raw ? raw.intent : undefined
+  if (typeof description !== 'string' || description.length === 0) {
+    throw new Error(`${filePath}: 'description' must be a non-empty string`)
+  }
+  if (
+    !Array.isArray(checks) ||
+    checks.length === 0 ||
+    !checks.every((name): name is string => typeof name === 'string')
+  ) {
+    throw new Error(`${filePath}: 'checks' must be a non-empty string array`)
+  }
+  for (const name of checks) {
+    if (!(name in CHECKS)) {
+      throw new Error(
+        `${filePath}: unknown check '${name}'. Known: ${Object.keys(CHECKS).join(', ')}`,
+      )
+    }
+  }
+  if (typeof intent !== 'object' || intent === null || Array.isArray(intent)) {
+    throw new Error(`${filePath}: 'intent' must be a JSON object`)
+  }
+  validateIntent(intent, `${filePath}.intent`)
+  const scenarioIntent = intent as Intent
+  return { description, checks, intent: scenarioIntent }
+}
+
+const runScenario = async (
+  filePath: string,
+  environment: string,
+): Promise<CheckOutcome[]> => {
+  const scenario = parseScenario(filePath)
+  const name = path.basename(filePath, '.json')
+  console.log(`${ts()} [${name}] ${scenario.description}`)
+
+  const account = await createRhinestoneAccount(environment)
+  const { transactionDetails, requestedOutputAmount, targetChainId } =
+    await buildTransactionDetails(scenario.intent, account)
+
+  let context: CheckContext
+  try {
+    const prepared = await account.prepareTransaction(transactionDetails)
+    const { best, all } = prepared.quotes
+    console.log(
+      `${ts()} [${name}] ${all.length} route(s); best ${best.settlementLayer}`,
+    )
+    const compareLayers =
+      scenario.intent.settlementLayers &&
+      'include' in scenario.intent.settlementLayers
+        ? scenario.intent.settlementLayers.include
+        : undefined
+    const routesToSimulate = compareLayers
+      ? all.filter((route) =>
+          compareLayers.some((layer) => layer === route.settlementLayer),
+        )
+      : [best]
+    const simulations: NonNullable<CheckContext['simulations']> = {}
+    for (const route of routesToSimulate) {
+      try {
+        const signed = await account.signTransaction(prepared, {
+          intentId: route.intentId,
+        })
+        const submitted = await account.submitTransaction(signed, {
+          internal_dryRun: true,
+        })
+        simulations[route.intentId] = {
+          status: 'passed',
+          intentId: submitted.id,
+        }
+        console.log(
+          `${ts()} [${name}] ${route.settlementLayer} dry-run passed; intent ${submitted.id}`,
+        )
+      } catch (error) {
+        const simulationError = toErrorContext(error)
+        simulations[route.intentId] = {
+          status: 'failed',
+          error: simulationError,
+        }
+        console.log(
+          `${ts()} [${name}] ${route.settlementLayer} dry-run failed: ${simulationError.message}`,
+        )
+      }
+    }
+    context = {
+      routes: all,
+      best,
+      requestedOutputAmount,
+      targetChainId,
+      simulations,
+      ...(compareLayers ? { compareLayers } : {}),
+    }
+  } catch (error) {
+    const errorContext = toErrorContext(error)
+    console.log(
+      `${ts()} [${name}] route request failed: ${errorContext.message}`,
+    )
+    // A rejected quote request is data. Simulation applies only after a route
+    // exists, so refusal scenarios remain quote-only.
+    context = {
+      routes: [],
+      best: { intentId: '', settlementLayer: '' },
+      requestedOutputAmount,
+      targetChainId,
+      error: errorContext,
+    }
+  }
+
+  return scenario.checks.map((checkName) => {
+    const outcome = CHECKS[checkName](context)
+    const marker =
+      outcome.status === 'pass'
+        ? 'PASS'
+        : outcome.status === 'fail'
+          ? 'FAIL'
+          : 'SKIP'
+    console.log(
+      `${ts()} [${name}] ${marker} ${outcome.name}: ${outcome.detail}`,
+    )
+    return outcome
+  })
+}
+
+const main = async () => {
+  const environment = process.env.SCENARIO_ENV ?? 'dev'
+  // Checked up front rather than left to viem: without it the first scenario
+  // dies inside `privateKeyToAccount` with a bare "cannot read 'slice'", which
+  // reads like a harness bug rather than a missing credential.
+  if (!process.env.OWNER_PRIVATE_KEY) {
+    throw new Error(
+      'OWNER_PRIVATE_KEY is required to sign scenario intents. Set it in .env ' +
+        `(see .env.example). SCENARIO_ENV=${environment} also needs the matching ` +
+        'API key: DEV_API_KEY, PROD_API_KEY, or LOCAL_API_KEY.',
+    )
+  }
+  const only = process.argv[2]
+  const files = fs
+    .readdirSync(SCENARIO_DIR)
+    .filter((file) => file.endsWith('.json'))
+    .filter((file) => (only ? file.includes(only) : true))
+    .map((file) => path.join(SCENARIO_DIR, file))
+    .sort()
+
+  if (files.length === 0) {
+    throw new Error(
+      `no scenarios matched${only ? ` filter '${only}'` : ''} in ${SCENARIO_DIR}`,
+    )
+  }
+
+  const outcomes: CheckOutcome[] = []
+  for (const file of files) {
+    outcomes.push(...(await runScenario(file, environment)))
+  }
+
+  const failed = outcomes.filter((outcome) => outcome.status === 'fail')
+  const passed = outcomes.filter((outcome) => outcome.status === 'pass')
+  const skipped = outcomes.filter(
+    (outcome) => outcome.status === 'inapplicable',
+  )
+  console.log(
+    `${ts()} ${passed.length} passed, ${failed.length} failed, ${skipped.length} inapplicable`,
+  )
+  process.exitCode = exitCodeForOutcomes(outcomes)
+}
+
+main().catch((error) => {
+  console.error(error)
+  process.exit(1)
+})
